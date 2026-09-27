@@ -42,3 +42,32 @@ MODEL_VERSION=cnn-v1.2
 ## CI/CD (lightweight)
 
 A single GitHub Actions workflow running the `pytest` suite (`17_TESTING_STRATEGY.md`) on every push, plus Vercel/Render's own git-push auto-deploy — no custom CI/CD pipeline engineering needed beyond that for a hackathon timeline.
+
+---
+
+## Build-time addendum — the runbook for what was actually built
+
+*(Added during implementation; supersedes the generic notes above where they differ.)*
+
+**Artifacts**
+- API image: `docker build -f docker/backend.Dockerfile -t gahan-api .` (repo root context). It contains no
+  model code beyond numpy helpers — the API only serves precomputed Zarr stores.
+- Data bundle for the API: `python scripts/make_deploy_bundle.py --start 2022-01-01 --end 2023-12-31`
+  (held-out years; the full 2019–2023 bundle also works if the host has ~2 GB disk). Mount or `COPY` it to `/data`.
+- Web image: `docker build -f docker/frontend.Dockerfile --build-arg NEXT_PUBLIC_API_URL=https://<api-host> -t gahan-web frontend`.
+
+**Render (API)** — Web Service from `docker/backend.Dockerfile`; env `DATABASE_URL` (Supabase/Render Postgres with
+PostGIS enabled, `postgresql+psycopg://…`), `OCEANEMBED_DATA_DIR=/data`, `CORS_ORIGINS=https://<web-host>`.
+The container runs `alembic upgrade head` on start; seed once with `python -m app.db.seed` (Render shell) after the
+bundle is present. Health check path: `/health`.
+
+**Vercel (web)** — project root `frontend/`, env `NEXT_PUBLIC_API_URL`. Run `python scripts/snapshot_fallback.py
+--api <api-url>` before deploying so the demo click-path also works if the API sleeps (free tiers cold-start).
+
+**Supabase** — enable the `postgis` extension (the migration also runs `CREATE EXTENSION IF NOT EXISTS postgis`).
+
+**Local all-in-one** — `docker compose -f docker/docker-compose.yml --profile full up --build` (db on 5433,
+api on 8100 reading `ml/data` read-only, web on 3100).
+
+**Not done autonomously** — creating the Vercel/Render/Supabase accounts and projects requires the team's
+credentials; see `AUTONOMOUS_BUILD_STATUS.md` → BLOCKERS.
