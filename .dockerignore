@@ -1,0 +1,12 @@
+.git
+.venv
+**/__pycache__
+**/.pytest_cache
+ml/data
+deploy_data
+frontend/node_modules
+frontend/.next
+docs
+tests
+*.md
+!README.md

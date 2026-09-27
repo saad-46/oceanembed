@@ -119,8 +119,20 @@ See [`docs/18_DEPLOYMENT.md`](docs/18_DEPLOYMENT.md). Container images: `docker/
 `docker compose -f docker/docker-compose.yml --profile full up --build` runs db + api + web locally.
 For the offline demo, `python scripts/snapshot_fallback.py` bundles the demo click-path into the frontend.
 
-## Results
+## Results (held-out 2023; full tables in [`docs/RESULTS.md`](docs/RESULTS.md))
 
-Computed numbers live in `ml/data/outputs/metrics_argo.json` / `metrics_grid.json` and on the
-Validation screen; see [`docs/RESULTS.md`](docs/RESULTS.md) for the current table. No number anywhere
-in this repository is hand-typed.
+| vs. 2,639 independent Argo profiles (2023) | mean RMSE over 15 depths | RMSE at 100 m |
+|---|---|---|
+| U-Net (production) | 0.89 °C | 1.31 °C |
+| LightGBM baseline | 0.91 °C | 1.29 °C |
+| Seasonal climatology | 1.10 °C | 1.80 °C |
+| HYCOM training target itself (ceiling) | 0.79 °C | 1.26 °C |
+
+- Uncertainty, calibrated on 2022 floats: 70 % of 2023 Argo values within ±1σ (ideal 68 %), 94 % within ±2σ.
+- Cross-check vs the Met Office EN4 analysis (target-independent): every model beats climatology.
+- Salinity ablation: removing SSS did **not** measurably change skill in this build (reported, not hidden).
+- On the 2022 validation year LightGBM is marginally ahead of the U-Net; the two are close (`docs/DECISIONS.md` D-012).
+
+Numbers come from `ml/data/outputs/metrics_*.json` via `scripts/write_results.py`; none are hand-typed.
+Judge-facing answers for the as-built system: [`docs/24_JUDGE_QA_AS_BUILT.md`](docs/24_JUDGE_QA_AS_BUILT.md);
+demo script: [`docs/25_DEMO_SCRIPT_AS_BUILT.md`](docs/25_DEMO_SCRIPT_AS_BUILT.md).

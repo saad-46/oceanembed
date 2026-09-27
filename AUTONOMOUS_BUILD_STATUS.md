@@ -3,28 +3,31 @@
 > Persistent memory for the autonomous build. On resume: read this, `git log`, then
 > continue from **NEXT TASK**. Spec: `docs/23_MASTER_BUILD_SPEC.md`. Deviations: `docs/DECISIONS.md`.
 
-CURRENT PHASE: 5 → 8 — ML chain finishing; frontend + tests + CI done
-CURRENT TASK: ML chain resume (`scripts/run_ml_resume.sh`, log `ml/data/logs/ml.log`): no-SSS ablation →
-evaluate → precompute → Argo validation. Then seed DB, run API + web, demo walkthrough.
+CURRENT PHASE: 11 — demo preparation / final audit (all build phases complete locally)
+CURRENT TASK: polish + audit; deployment blocked on accounts
 
 COMPLETED:
-- Phase 0: artifact ingested; repo was empty (D-001); open data sources verified
-- Phase 2: all ingestion adapters; inputs.zarr 1826 days; 637 HYCOM target days; 15,018 Argo profiles;
-  26 IBTrACS tracks; SSS = SMAP + bias-corrected SMOS merge (D-010)
-- Phase 3: PostGIS schema (Alembic) + seed loader
-- Phase 4: FastAPI 22 endpoints, typed errors, PDF/CSV, LLM(opt)+template assistant
-- Phase 5: LightGBM trained; U-Net trained (best val RMSE 0.468 °C mean over depths)
-- Phase 7: Next.js frontend, all 8 screens, offline basemap, fallback client; lint/tsc/build clean
-- Phase 9: 44 tests (pipeline/physics/ML/API/PostGIS) passing; GitHub Actions CI
-- Perf: derived products 8x faster, precompute memory-safe
-- Docs: README, DECISIONS D-001..D-010, deployment runbook, results generator (scripts/write_results.py)
+- Data: 1826 days of 5 open satellite inputs; 637 HYCOM target days; 15,018 Argo profiles; 26 IBTrACS tracks; EN4 2022-23
+- Models: climatology, LightGBM, U-Net (+ no-SSS ablation); evaluate, precompute (all 1826 days), Argo validation,
+  EN4 cross-check, uncertainty calibration (D-013); docs/RESULTS.md generated
+- DB seeded (15k Argo, 60k predictions, skill metrics, tracks, daily_product); API 22+1 endpoints live
+- Frontend: all 8 screens verified in a browser against real data; offline fallback verified with API stopped
+- Tests 44/44 + CI green; backend Docker image builds and serves against PostGIS
+- Docs: README (results), DECISIONS D-001..D-013, RESULTS, 24 judge Q&A as built, 25 demo script as built
 
-NEXT TASK (in order):
-1. After ML chain: `python scripts/write_results.py` → docs/RESULTS.md; sanity-check numbers
-2. `cd backend && ../.venv/Scripts/python -m alembic upgrade head && ../.venv/Scripts/python -m app.db.seed`
-3. API on 8100 + `cd frontend && npm run dev` (3100); browser walkthrough of docs/15 demo; fix issues
-4. `python scripts/snapshot_fallback.py`; commit fallback snapshots
-5. Judge-QA addendum with real numbers; docs sync; final audit
+DEFINITION OF DONE (docs/23 §18):
+- [x] PS requirement (0.25°/daily, 15 depths, NIO)      - [x] real data, nothing synthetic presented as real
+- [x] pipeline end-to-end                                - [x] DB schema + PostGIS indexes + real Argo seed
+- [x] API (valid + typed invalid responses tested)       - [x] GIS map with depth/date controls on real data
+- [x] ML: baseline + CNN + independent Argo + caveat     - [x] frontend 8 screens against the real API
+- [x] desktop layout; tablet stacks                      - [x] calm error states (typed errors → messages)
+- [x] offline fallback (verified with API down)          - [ ] live deployment (needs Vercel/Render/Supabase accounts)
+- [x] docs synced (as-built addenda)                     - [ ] human rehearsal of Q&A / demo (team task)
+
+NEXT TASK (optional improvements, in priority order):
+1. Deploy when accounts exist (docs/18 addendum): `scripts/make_deploy_bundle.py`, docker images
+2. With Copernicus/CDS credentials: re-run pipeline on GLORYS/OSTIA/DUACS/ERA5 and ARMOR3D baseline
+3. Model: denser target sampling (stride 1-2), longer training; revisit ensemble on a fresh split
 
 BLOCKERS (need a human):
 - Optional: Copernicus Marine + CDS free accounts to switch to the spec's exact sources (D-002)
@@ -32,7 +35,7 @@ BLOCKERS (need a human):
 - Deployment (Vercel/Render/Supabase) needs account access — not done autonomously
 
 KNOWN BUGS: none open
-TEST STATUS: 44/44 pytest (`pytest -q` at repo root; PostGIS tests need the compose DB). Frontend lint/typecheck/build clean.
+TEST STATUS: 44/44 pytest; frontend lint/typecheck/build clean; CI (GitHub Actions) green.
 GIT: branch main, pushed to origin (github.com/saad-46/oceanembed)
 
 ENVIRONMENT REQUIREMENTS:
