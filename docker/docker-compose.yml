@@ -4,6 +4,7 @@ name: oceanembed
 services:
   db:
     image: postgis/postgis:16-3.4
+    restart: unless-stopped
     environment:
       POSTGRES_USER: oceanembed
       POSTGRES_PASSWORD: oceanembed
