@@ -1,0 +1,50 @@
+# Local stack: PostGIS + API (+ web). `docker compose -f docker/docker-compose.yml up -d db`
+# is enough for development; the full stack runs the API against the processed data dir.
+name: oceanembed
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_USER: oceanembed
+      POSTGRES_PASSWORD: oceanembed
+      POSTGRES_DB: oceanembed
+    ports:
+      - "5433:5432"   # 5432 is commonly taken on dev machines
+    volumes:
+      - oceanembed_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U oceanembed -d oceanembed"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build:
+      context: ..
+      dockerfile: docker/backend.Dockerfile
+    environment:
+      DATABASE_URL: postgresql+psycopg://oceanembed:oceanembed@db:5432/oceanembed
+      OCEANEMBED_DATA_DIR: /data
+      CORS_ORIGINS: http://localhost:3100
+    volumes:
+      - ../ml/data:/data:ro
+    ports:
+      - "8100:8100"
+    depends_on:
+      db:
+        condition: service_healthy
+    profiles: ["full"]
+
+  web:
+    build:
+      context: ../frontend
+      dockerfile: ../docker/frontend.Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8100
+    ports:
+      - "3100:3100"
+    depends_on: [api]
+    profiles: ["full"]
+
+volumes:
+  oceanembed_pg:
