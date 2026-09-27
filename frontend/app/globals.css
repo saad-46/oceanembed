@@ -1,0 +1,81 @@
+@import "tailwindcss";
+
+/* Design tokens — docs/12 §1 "deep-ocean scientific instrument". Dark-first. */
+:root {
+  color-scheme: dark;
+  --bg: #0a0e14;
+  --surface: #111826;
+  --surface-2: #162033;
+  --border: #1e2836;
+  --text: #e8edf4;
+  --text-2: #8a96a8;
+  --text-3: #5d6878;
+  --accent: #2ac3de;
+  --good: #1baf7a;
+  --warn: #eda100;
+  --bad: #e5484d;
+  /* categorical series (validated with the dataviz validator on --surface, dark mode) */
+  --s-model: #3987e5;
+  --s-clim: #d95926;
+  --s-argo: #199e70;
+  --s-lgbm: #c98500;
+  --s-nosss: #d55181;
+  --s-target: #9085e9;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--border);
+  --color-ink: var(--text);
+  --color-ink-2: var(--text-2);
+  --color-ink-3: var(--text-3);
+  --color-accent: var(--accent);
+  --color-good: var(--good);
+  --color-warn: var(--warn);
+  --color-bad: var(--bad);
+  --font-sans: var(--font-inter);
+  --font-display: var(--font-space);
+  --font-mono: var(--font-plex-mono);
+}
+
+html,
+body {
+  background: var(--bg);
+  color: var(--text);
+}
+body {
+  font-family: var(--font-inter), system-ui, sans-serif;
+}
+.num {
+  font-family: var(--font-plex-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
+::selection {
+  background: #2ac3de55;
+}
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* skeleton shimmer (docs/12: data-shaped placeholders, not spinners) */
+.skeleton {
+  background: linear-gradient(90deg, #131c2b 0%, #1a2638 50%, #131c2b 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+  border-radius: 4px;
+}
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton { animation: none; }
+}
+
+.maplibregl-canvas { outline: none; }
+.maplibregl-ctrl-attrib, .maplibregl-ctrl-logo { display: none !important; }
+
+input[type="range"] { accent-color: var(--accent); }
