@@ -96,7 +96,9 @@ export default function OceanMap({
       m.addControl(new NavigationControl({ showCompass: true, visualizePitch: false }), "top-right");
       m.addControl(new ScaleControl({ unit: "metric" }), "bottom-right");
     }
-    const ov = new MapboxOverlay({ interleaved: true, layers: [] });
+    // Overlaid (not interleaved): deck.gl draws on its own canvas synced to the map. The interleaved
+    // custom-layer path crashes with this deck.gl/MapLibre pairing (getViewport on an undefined viewport).
+    const ov = new MapboxOverlay({ interleaved: false, layers: [], deviceProps: { webgl: { preserveDrawingBuffer: true } } } as ConstructorParameters<typeof MapboxOverlay>[0]);
     m.addControl(ov);
     m.on("mousemove", (e: MapMouseEvent) => handlers.current.onHover?.({ lat: e.lngLat.lat, lon: e.lngLat.lng }));
     m.on("mouseout", () => handlers.current.onHover?.(null));
@@ -141,8 +143,7 @@ export default function OceanMap({
           bounds: DOMAIN_BOUNDS,
           _imageCoordinateSystem: COORDINATE_SYSTEM.LNGLAT,
           textureParameters: { minFilter: "nearest", magFilter: "nearest" },
-          beforeId: "land",
-        } as ConstructorParameters<typeof BitmapLayer>[0] & { beforeId: string }),
+        }),
       );
     }
     if (bbox) {
@@ -222,5 +223,11 @@ export default function OceanMap({
     ov.setProps({ layers });
   }, [raster, argo, track, bbox, point]);
 
-  return <div ref={el} className="absolute inset-0" role="application" aria-label="Interactive ocean map" />;
+  // maplibre-gl.css sets `.maplibregl-map { position: relative }`, so the map element itself must be a
+  // plain full-size child of the absolutely positioned wrapper.
+  return (
+    <div className="absolute inset-0 isolate z-0">
+      <div ref={el} className="w-full h-full" role="application" aria-label="Interactive ocean map" />
+    </div>
+  );
 }

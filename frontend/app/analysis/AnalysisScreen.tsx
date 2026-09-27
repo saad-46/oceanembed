@@ -90,7 +90,7 @@ export default function AnalysisScreen() {
         <OceanMap
           raster={tchpMap?.stats ? { values: tchpMap.grid.values, vmin: 0, vmax: Math.max(100, Math.ceil(tchpMap.stats.max / 10) * 10), ramp: "thermal", key: `tchp|${tchpMap.date}` } : null}
           bbox={mode === "region" ? bbox : null}
-          point={corner}
+          point={mode === "region" ? corner : null}
           track={track}
           onClick={onMapClick}
         />

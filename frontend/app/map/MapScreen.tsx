@@ -43,8 +43,19 @@ export default function MapScreen() {
   const exportPng = () => {
     const c = mapRef.current?.getCanvas();
     if (!c) return;
+    // composite the basemap canvas with deck.gl's overlaid canvas
+    const out = document.createElement("canvas");
+    out.width = c.width;
+    out.height = c.height;
+    const ctx = out.getContext("2d")!;
+    ctx.fillStyle = "#07101c";
+    ctx.fillRect(0, 0, out.width, out.height);
+    ctx.drawImage(c, 0, 0);
+    c.parentElement?.parentElement?.querySelectorAll("canvas").forEach((k) => {
+      if (k !== c) ctx.drawImage(k, 0, 0, out.width, out.height);
+    });
     const a = document.createElement("a");
-    a.href = c.toDataURL("image/png");
+    a.href = out.toDataURL("image/png");
     a.download = `gahan_${v}_${PRODUCT_VARS.includes(v) ? "" : depth + "m_"}${grid?.date ?? date}.png`;
     a.click();
   };

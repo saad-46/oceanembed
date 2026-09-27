@@ -5,6 +5,7 @@ import { CartesianGrid, Cell, ComposedChart, Legend, Line, ReferenceLine, Respon
 import { Card, DataBadge, ErrorState, Segmented, Skeleton, fmt } from "@/components/ui";
 import { type ValidationSummary } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
+import { fromY, toY, Y_TICKS } from "@/components/ProfileChart";
 
 const SERIES = [
   { key: "rmse_c", label: "GAHAN U-Net", color: "#3987e5" },
@@ -13,7 +14,6 @@ const SERIES = [
   { key: "nosss_rmse_c", label: "U-Net without SSS", color: "#d55181" },
   { key: "target_product_rmse_c", label: "HYCOM target product", color: "#9085e9" },
 ] as const;
-const DEPTH_TICKS = [0, 20, 50, 100, 200, 300, 500, 700, 1000];
 const blue = ["#cde2fb", "#86b6ef", "#3987e5", "#1c5cab", "#0d366b"];
 const depthColor = (z: number) => blue[Math.min(4, Math.floor(Math.sqrt(z / 1000) * 5))];
 
@@ -38,6 +38,24 @@ const meanRmse = (rows: { rmse_c?: number }[]) => {
   return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
 };
 
+function AblationNote({ g }: { g: GridMetrics }) {
+  const full = g.splits.test?.models["cnn-unet-v1"];
+  const nosss = g.splits.test?.models["cnn-unet-nosss-v1"];
+  if (!full || !nosss) return null;
+  const d = (meanRmse(nosss.bay_of_bengal_per_depth) ?? 0) - (meanRmse(full.bay_of_bengal_per_depth) ?? 0);
+  return (
+    <p className="text-[11px] text-ink-3 mt-2">
+      Salinity ablation (same U-Net without the SSS channel): Bay of Bengal test RMSE changes by{" "}
+      <span className="num text-ink">{d >= 0 ? "+" : ""}{d.toFixed(3)} °C</span>.{" "}
+      {Math.abs(d) < 0.01
+        ? "In this build, removing satellite SSS does not measurably change skill — the other channels (SST, SLA, winds) carry equivalent information, or the open daily SSS is too noisy to add signal. We report this rather than assume the barrier-layer effect."
+        : d > 0
+          ? "Removing SSS degrades the Bay of Bengal reconstruction — evidence the model uses salinity (barrier-layer) information."
+          : "Removing SSS slightly improves this metric — satellite SSS is not adding skill here."}
+    </p>
+  );
+}
+
 export default function ValidationScreen() {
   const [split, setSplit] = useState<"test" | "val">("test");
   const [sort, setSort] = useState<"date" | "rmse_desc" | "rmse_asc">("rmse_desc");
@@ -54,7 +72,7 @@ export default function ValidationScreen() {
   const err = sumQ.error;
   const profErr = profQ.error;
 
-  const chartData = sum?.per_depth.map((r) => ({ ...r })) ?? [];
+  const chartData = sum?.per_depth.map((r) => ({ ...r, y: toY(r.depth_m) })) ?? [];
   const lims = scatter?.length ? [Math.floor(Math.min(...scatter.map((p) => Math.min(p.pred, p.obs)))), Math.ceil(Math.max(...scatter.map((p) => Math.max(p.pred, p.obs))))] : [0, 32];
 
   return (
@@ -87,8 +105,8 @@ export default function ValidationScreen() {
                 <ComposedChart layout="vertical" data={chartData} margin={{ top: 4, right: 16, bottom: 20, left: 4 }}>
                   <CartesianGrid stroke="#8a96a8" strokeOpacity={0.12} />
                   <XAxis type="number" tick={{ fill: "#8a96a8", fontSize: 11 }} stroke="#1e2836" label={{ value: "RMSE (°C)", position: "insideBottom", offset: -12, fill: "#8a96a8", fontSize: 11 }} />
-                  <YAxis type="number" dataKey="depth_m" reversed scale="sqrt" domain={[0, 1000]} ticks={DEPTH_TICKS} tick={{ fill: "#8a96a8", fontSize: 11 }} stroke="#1e2836" width={44} />
-                  <Tooltip contentStyle={{ background: "#111826", border: "1px solid #2ac3de", fontSize: 12 }} labelFormatter={(z) => `${z} m`} formatter={(v, n) => [typeof v === "number" ? `${v.toFixed(2)} °C` : "—", n]} />
+                  <YAxis type="number" dataKey="y" domain={[0, toY(1000)]} ticks={Y_TICKS} tickFormatter={(y: number) => String(fromY(y))} tick={{ fill: "#8a96a8", fontSize: 11 }} stroke="#1e2836" width={44} />
+                  <Tooltip contentStyle={{ background: "#111826", border: "1px solid #2ac3de", fontSize: 12 }} labelFormatter={(y) => `${fromY(Number(y))} m`} formatter={(v, n) => [typeof v === "number" ? `${v.toFixed(2)} °C` : "—", n]} />
                   <Legend verticalAlign="top" height={40} wrapperStyle={{ fontSize: 11 }} />
                   {SERIES.map((s) => (
                     <Line key={s.key} dataKey={s.key} name={s.label} stroke={s.color} strokeWidth={s.key === "rmse_c" ? 2.5 : 2} strokeDasharray={s.key === "target_product_rmse_c" ? "5 4" : undefined} dot={{ r: 3, fill: s.color, strokeWidth: 0 }} connectNulls isAnimationActive={false} />
@@ -265,10 +283,7 @@ export default function ValidationScreen() {
                   ))}
                 </tbody>
               </table>
-              <p className="text-[11px] text-ink-3 mt-2">
-                The no-SSS row is the salinity ablation: the same U-Net trained without the SSS channel. Its Bay of Bengal error shows how much the barrier-layer
-                signal in satellite salinity contributes.
-              </p>
+              <AblationNote g={gridM} />
             </>
           )}
         </Card>

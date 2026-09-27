@@ -61,7 +61,7 @@ def _chart(p: dict) -> Drawing:
         lp.lines[k].strokeColor = c
         lp.lines[k].strokeWidth = 1.6
         if c is ORANGE:
-            lp.lines[k].strokeWidth = 0
+            lp.lines[k].strokeColor = None  # markers only: measured points, not a line
             lp.lines[k].symbol = makeMarker("FilledCircle", size=4, fillColor=ORANGE)
     lp.yValueAxis.valueMin, lp.yValueAxis.valueMax = -1000, 0
     lp.yValueAxis.valueSteps = [-1000, -700, -500, -300, -200, -100, 0]

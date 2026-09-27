@@ -11,6 +11,11 @@ export interface SeriesSpec {
 }
 
 const DEPTH_TICKS = [0, 20, 50, 100, 200, 300, 500, 700, 1000];
+// Depth is plotted as y = sqrt(depth) on a linear axis (vertical layout puts the minimum at the top):
+// surface at the top, upper ocean stretched.
+export const toY = (z: number) => Math.sqrt(z);
+export const fromY = (y: number) => Math.round(y * y);
+export const Y_TICKS = DEPTH_TICKS.map(toY);
 
 export default function ProfileChart({
   depths,
@@ -27,7 +32,7 @@ export default function ProfileChart({
 }) {
   const all = [main, ...others];
   const data = depths.map((z, k) => {
-    const row: Record<string, number | null | [number, number]> = { depth: z };
+    const row: Record<string, number | null | [number, number]> = { depth: z, y: toY(z) };
     for (const s of all) row[s.key] = s.values[k] ?? null;
     if (band && band.lo[k] !== null && band.hi[k] !== null) row.band = [band.lo[k] as number, band.hi[k] as number];
     return row;
@@ -49,11 +54,10 @@ export default function ProfileChart({
           />
           <YAxis
             type="number"
-            dataKey="depth"
-            reversed
-            scale="sqrt"
-            domain={[0, 1000]}
-            ticks={DEPTH_TICKS}
+            dataKey="y"
+            domain={[0, toY(1000)]}
+            ticks={Y_TICKS}
+            tickFormatter={(y: number) => String(fromY(y))}
             tick={{ fill: "#8a96a8", fontSize: 11 }}
             stroke="#1e2836"
             width={44}
@@ -63,7 +67,7 @@ export default function ProfileChart({
             contentStyle={{ background: "#111826", border: "1px solid #2ac3de", borderRadius: 4, fontSize: 12 }}
             labelStyle={{ color: "#e8edf4" }}
             itemStyle={{ color: "#e8edf4" }}
-            labelFormatter={(z) => `${z} m`}
+            labelFormatter={(y) => `${fromY(Number(y))} m`}
             formatter={(v, name) => {
               if (Array.isArray(v)) return [`${(v[0] as number).toFixed(2)} – ${(v[1] as number).toFixed(2)} °C`, "±1σ band"];
               return [typeof v === "number" ? `${v.toFixed(2)} °C` : "—", name];

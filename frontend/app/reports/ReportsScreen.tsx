@@ -54,7 +54,7 @@ export default function ReportsScreen() {
           </div>
         </Card>
       </div>
-      <Card className="lg:col-span-2" title="PDF preview">
+      <Card className="lg:col-span-2" title="PDF preview" right={<a href={pdf} target="_blank" rel="noreferrer" className="text-xs text-accent hover:underline">Open PDF in new tab ↗</a>}>
         {pdfFailed ? (
           <Notice>Export failed or the point is on land / outside the domain — try CSV, or pick an ocean point.</Notice>
         ) : (

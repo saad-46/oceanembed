@@ -30,8 +30,8 @@ export default function Landing() {
         ) : (
           <div className="absolute inset-0 bg-gradient-to-br from-[#0b1a33] via-[#101b2e] to-[#1a1030]" aria-hidden />
         )}
-        <div className="absolute inset-0 bg-gradient-to-r from-bg via-bg/70 to-transparent pointer-events-none" />
-        <div className="relative h-full flex flex-col justify-center px-6 md:px-12 max-w-3xl gap-5 pointer-events-none">
+        <div className="absolute inset-0 z-[1] bg-gradient-to-r from-bg via-bg/70 to-transparent pointer-events-none" />
+        <div className="relative z-[2] h-full flex flex-col justify-center px-6 md:px-12 max-w-3xl gap-5 pointer-events-none">
           <span className="self-start text-[11px] uppercase tracking-[0.18em] border border-accent/40 text-accent rounded px-2.5 py-1 pointer-events-auto">
             Official PS · SIH26066 — OceanEmbed · MoES / INCOIS
           </span>
