@@ -53,9 +53,20 @@ def validation_summary(model: str | None = None, split: Literal["test", "val"] =
         "held_out_period": f"{start}..{end}", "n_profiles": sp["n_profiles"],
         "per_depth": per_depth,
         "overall": {n: _overall(v["per_depth"]) for n, v in sp["models"].items()},
-        "uncertainty_calibration": {k: sp["models"][model].get(k) for k in ("frac_within_1sigma", "frac_within_2sigma")},
+        "uncertainty_calibration": {**{k: sp["models"][model].get(k) for k in ("frac_within_1sigma", "frac_within_2sigma")},
+                                    "calibrated": _calibrated(store, split)},
         "caveat": CAVEAT, "source": "Argo GDAC via argopy (QC 1/2); INCOIS LAS substitution per docs/05",
     }
+
+
+def _calibrated(store: GridStore, split: str):
+    c = store.json_output("uncertainty_calibration.json")
+    if c is None:
+        return None
+    if split == "test":
+        o = c["test_overall"]
+        return {"frac_within_1sigma": o["cov1_cal"], "frac_within_2sigma": o["cov2_cal"], "fit_on": "val (2022)"}
+    return {"note": "calibration was fitted on this split", "fit_on": "val (2022)"}
 
 
 def _r(v, nd=3):
@@ -75,6 +86,15 @@ def validation_grid(store: GridStore = Depends(get_store)):
     m = store.json_output("metrics_grid.json")
     if m is None:
         raise ApiError(503, "validation_unavailable", "Grid evaluation has not been computed yet.")
+    return m
+
+
+@router.get("/validation/en4")
+def validation_en4(store: GridStore = Depends(get_store)):
+    """Large-scale cross-check vs the Met Office EN4 monthly 1° analysis (independent of the training target)."""
+    m = store.json_output("metrics_en4.json")
+    if m is None:
+        raise ApiError(503, "validation_unavailable", "EN4 cross-check has not been computed yet.")
     return m
 
 

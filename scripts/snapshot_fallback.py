@@ -44,7 +44,7 @@ def main():
     p.add_argument("--api", default="http://localhost:8100")
     api = p.parse_args().api.rstrip("/")
     OUT.mkdir(parents=True, exist_ok=True)
-    gets = ["/v1/meta", "/v1/summary/headline", "/v1/regions", "/v1/cyclones", "/v1/validation/grid",
+    gets = ["/v1/meta", "/v1/summary/headline", "/v1/regions", "/v1/cyclones", "/v1/validation/grid", "/v1/validation/en4",
             "/v1/embedding/projection", "/v1/explain/importance",
             f"/v1/argo/markers?date={DEMO_DATE}&window_days=3",
             f"/v1/profile/{DEMO_DATE}?lat=15.000&lon=88.000", "/v1/profile/2023-06-06?lat=15.000&lon=66.000"]

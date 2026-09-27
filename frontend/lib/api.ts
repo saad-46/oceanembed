@@ -238,7 +238,11 @@ export interface ValidationSummary {
   n_profiles: number;
   per_depth: DepthMetric[];
   overall: Record<string, { mean_rmse_c: number | null; mean_bias_c: number | null; n_obs: number }>;
-  uncertainty_calibration: { frac_within_1sigma: number | null; frac_within_2sigma: number | null };
+  uncertainty_calibration: {
+    frac_within_1sigma: number | null;
+    frac_within_2sigma: number | null;
+    calibrated: { frac_within_1sigma?: number; frac_within_2sigma?: number; fit_on: string; note?: string } | null;
+  };
   caveat: string;
   source: string;
 }

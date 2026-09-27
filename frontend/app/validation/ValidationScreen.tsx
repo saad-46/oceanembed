@@ -27,6 +27,12 @@ interface GridMetrics {
   uncertainty_calibration?: Record<string, { frac_within_1sigma: number; frac_within_2sigma: number }>;
 }
 
+interface En4Metrics {
+  source: string;
+  note: string;
+  splits: Record<string, { models: Record<string, { per_depth: { depth_m: number; rmse_c?: number; bias_c?: number; n_obs: number }[] }> }>;
+}
+
 const meanRmse = (rows: { rmse_c?: number }[]) => {
   const v = rows.map((r) => r.rmse_c).filter((x): x is number => typeof x === "number");
   return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
@@ -40,6 +46,7 @@ export default function ValidationScreen() {
   const scatQ = useApi<{ points: { pred: number; obs: number; depth_m: number }[] }>(`/v1/validation/scatter?split=${split}&max_points=3000`);
   const profQ = useApi<ProfilesResp>(`/v1/validation/profiles?split=${split}&sort=${sort}&limit=15&offset=${page * 15}`);
   const gridQ = useApi<GridMetrics>("/v1/validation/grid");
+  const en4 = useApi<En4Metrics>("/v1/validation/en4").data;
   const sum = sumQ.loading ? null : sumQ.data;
   const scatter = scatQ.loading ? null : scatQ.error ? [] : scatQ.data?.points ?? null;
   const profiles = profQ.data;
@@ -162,8 +169,19 @@ export default function ValidationScreen() {
             </table>
             <p className="text-[11px] text-ink-3 mt-2">
               Skill vs climatology = 1 − MSE<sub>model</sub>/MSE<sub>climatology</sub> (positive = better than the training-period seasonal climatology).
-              {sum.uncertainty_calibration.frac_within_1sigma !== null && (
-                <> Uncertainty calibration: {(100 * (sum.uncertainty_calibration.frac_within_1sigma ?? 0)).toFixed(0)}% of Argo values fall within ±1σ (ideal 68%), {(100 * (sum.uncertainty_calibration.frac_within_2sigma ?? 0)).toFixed(0)}% within ±2σ (ideal 95%).</>
+              {sum.uncertainty_calibration.calibrated?.frac_within_1sigma !== undefined ? (
+                <>
+                  {" "}Uncertainty (served, calibrated on 2022 Argo): {(100 * (sum.uncertainty_calibration.calibrated.frac_within_1sigma ?? 0)).toFixed(0)}% of 2023 Argo values within ±1σ (ideal 68%),{" "}
+                  {(100 * (sum.uncertainty_calibration.calibrated.frac_within_2sigma ?? 0)).toFixed(0)}% within ±2σ (ideal 95%); the raw model σ covered only{" "}
+                  {(100 * (sum.uncertainty_calibration.frac_within_1sigma ?? 0)).toFixed(0)}% / {(100 * (sum.uncertainty_calibration.frac_within_2sigma ?? 0)).toFixed(0)}%.
+                </>
+              ) : (
+                sum.uncertainty_calibration.frac_within_1sigma !== null && (
+                  <>
+                    {" "}Raw model σ: {(100 * (sum.uncertainty_calibration.frac_within_1sigma ?? 0)).toFixed(0)}% within ±1σ (ideal 68%), {(100 * (sum.uncertainty_calibration.frac_within_2sigma ?? 0)).toFixed(0)}% within ±2σ.
+                    {sum.uncertainty_calibration.calibrated?.note && ` (${sum.uncertainty_calibration.calibrated.note})`}
+                  </>
+                )
               )}
             </p>
           </div>
@@ -255,6 +273,29 @@ export default function ValidationScreen() {
           )}
         </Card>
       </div>
+      {en4 && (
+        <Card title="Cross-check vs. Met Office EN4 (monthly, 1°)">
+          <p className="text-[11px] text-ink-3 mb-2">{en4.note} Mean RMSE over depths (5–1000 m); EN4 has no 0 m level.</p>
+          <table className="w-full text-sm num max-w-2xl">
+            <thead>
+              <tr className="text-ink-3 text-[11px] uppercase tracking-wider border-b border-line">
+                <th className="text-left font-normal py-2">Model</th>
+                <th className="text-right font-normal">Val 2022</th>
+                <th className="text-right font-normal">Test 2023</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Object.keys(en4.splits.test?.models ?? {}).map((m) => (
+                <tr key={m} className="border-b border-line/60">
+                  <td className="py-1.5 text-ink-2 text-xs">{m}</td>
+                  <td className="text-right">{fmt(meanRmse(en4.splits.val?.models[m]?.per_depth ?? []), 3)}</td>
+                  <td className="text-right text-ink">{fmt(meanRmse(en4.splits.test.models[m].per_depth), 3)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Card>
+      )}
     </div>
   );
 }

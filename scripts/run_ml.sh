@@ -11,4 +11,6 @@ $PY -m ml.models.train unet --epochs "$E2" --no-sss
 $PY -m ml.models.train evaluate
 $PY -m ml.inference.precompute
 $PY -m ml.evaluation.argo_validation
+$PY -m ml.evaluation.calibrate_uncertainty
+$PY -m ml.evaluation.en4_crosscheck || echo "EN4 cross-check skipped (download EN4 zips into ml/data/raw/en4)"
 echo "ML CHAIN DONE"

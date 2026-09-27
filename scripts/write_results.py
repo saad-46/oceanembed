@@ -69,12 +69,31 @@ def main():
     cal = grid.get("uncertainty_calibration", {}).get("test")
     if cal:
         L.append(f"\nGrid uncertainty calibration (test): {100 * cal['frac_within_1sigma']:.0f}% within ±1σ, {100 * cal['frac_within_2sigma']:.0f}% within ±2σ.")
-    L += ["", "## 3. Reading these numbers honestly", "",
+    en4p = OUTPUT_DIR / "metrics_en4.json"
+    if en4p.exists():
+        en4 = json.loads(en4p.read_text())
+        L += ["", "## 3. Cross-check vs. Met Office EN4 (monthly 1°, 5–1000 m)", "", f"> {en4['note']}", "",
+              "| Model | Val 2022 mean RMSE | Test 2023 mean RMSE | Test 2023 mean bias |", "|---|---|---|---|"]
+        for m, res in en4["splits"].get("test", {}).get("models", {}).items():
+            L.append(f"| {NAMES.get(m, m)} | {f(mean(en4['splits'].get('val', {}).get('models', {}).get(m, {}).get('per_depth', [])), 3)} | "
+                     f"{f(mean(res['per_depth']), 3)} | {f(mean(res['per_depth'], 'bias_c'), 3)} |")
+    calp = OUTPUT_DIR / "uncertainty_calibration.json"
+    if calp.exists():
+        c = json.loads(calp.read_text())
+        o = c["test_overall"]
+        L += ["", "## 4. Uncertainty calibration against the real ocean", "", f"Method: {c['method']}; checked on the 2023 test floats.", "",
+              "| | within ±1σ | within ±2σ |", "|---|---|---|",
+              f"| Raw model σ (2023 Argo) | {100 * o['cov1_raw']:.0f}% | {100 * o['cov2_raw']:.0f}% |",
+              f"| Calibrated σ (2023 Argo) | {100 * o['cov1_cal']:.0f}% | {100 * o['cov2_cal']:.0f}% |",
+              "| Gaussian ideal | 68% | 95% |", "",
+              "Per-depth a_k (°C): " + ", ".join(f"{r['depth_m']:.0f} m {r['a_c']:.2f}" for r in c["per_depth"]) + ".",
+              "The API serves the calibrated σ."]
+    L += ["", "## 5. Reading these numbers honestly", "",
           "- Grid metrics measure agreement with the training-target product (HYCOM), not with the real ocean; Argo metrics measure the real ocean.",
           "- The target product's own Argo RMSE (where shown) is the practical ceiling for any model trained on it.",
           "- The study period is 5 years with 360 training target days; results are a proof of concept, not a literature benchmark.", ""]
     (ROOT / "docs" / "RESULTS.md").write_text("\n".join(L), encoding="utf-8")
-    print("\n".join(L))
+    print(f"wrote docs/RESULTS.md ({len(L)} lines)")
 
 
 if __name__ == "__main__":

@@ -79,6 +79,12 @@ class GridStore:
         raise data_unavailable("No precomputed reconstruction found. Run `python -m ml.inference.precompute`.")
 
     @cached_property
+    def sigma_calibration(self) -> np.ndarray | None:
+        """Per-depth additive term a_k (degC) fitted on validation-year Argo (ml/evaluation/calibrate_uncertainty.py)."""
+        c = self.json_output("uncertainty_calibration.json")
+        return None if c is None else np.array([r["a_c"] for r in c["per_depth"]], dtype=np.float32)
+
+    @cached_property
     def mask3d(self) -> np.ndarray:
         return xr.open_zarr(self.s.processed_dir / "static.zarr")["ocean_mask3d"].values
 
@@ -151,7 +157,10 @@ class GridStore:
             ds = self._ds(model).sel(time=pd.Timestamp(d))
             out = {"temp": ds["temp"].values.astype(np.float32)}
             if "sigma" in ds:
-                out["sigma"] = ds["sigma"].values.astype(np.float32)
+                sig = ds["sigma"].values.astype(np.float32)
+                a = self.sigma_calibration
+                # serve uncertainty vs the real ocean: sqrt(sigma_model^2 + a_k^2)
+                out["sigma"] = sig if a is None else np.sqrt(sig**2 + a[:, None, None] ** 2).astype(np.float32)
             return out
         return self.cache.get_or((model, d), load)
 
