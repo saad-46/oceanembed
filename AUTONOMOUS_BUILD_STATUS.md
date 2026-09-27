@@ -3,28 +3,28 @@
 > Persistent memory for the autonomous build. On resume: read this, `git log`, then
 > continue from **NEXT TASK**. Spec: `docs/23_MASTER_BUILD_SPEC.md`. Deviations: `docs/DECISIONS.md`.
 
-CURRENT PHASE: 5–7 — ML training finishing; frontend being built
-CURRENT TASK: (a) ML chain resume running (`scripts/run_ml_resume.sh`, log `ml/data/logs/ml.log`);
-(b) Next.js frontend in `frontend/` (scaffolded; lib/api.ts, lib/colormap.ts, globals.css written; screens pending)
+CURRENT PHASE: 5 → 8 — ML chain finishing; frontend + tests + CI done
+CURRENT TASK: ML chain resume (`scripts/run_ml_resume.sh`, log `ml/data/logs/ml.log`): no-SSS ablation →
+evaluate → precompute → Argo validation. Then seed DB, run API + web, demo walkthrough.
 
 COMPLETED:
 - Phase 0: artifact ingested; repo was empty (D-001); open data sources verified
-- Phase 2: all ingestion adapters (open NOAA/HYCOM/Argo/IBTrACS + credentialed CMEMS/ERA5/GLORYS)
-  - inputs.zarr: 1826 days 2019-2023, 7 channels, QC report `ml/data/processed/inputs_qc.json`
-  - target: 637/649 HYCOM days (360 train / 117 val / 160 test); 15,018 Argo profiles; 26 cyclone tracks
-  - SSS = SMAP + bias-corrected SMOS merge (D-010)
-- Phase 3: PostGIS schema via Alembic (`backend/alembic`), seed loader `backend/app/db/seed.py`
-- Phase 4: FastAPI, 22 endpoints (`backend/app/api/*`), typed errors, PDF/CSV report, LLM+template assistant
-- Phase 5 (partial): LightGBM baseline trained; U-Net trained (35 ep, best val RMSE 0.468 degC mean over depths @ep23)
-- Tests: 17 pipeline/physics tests pass (`pytest tests`)
+- Phase 2: all ingestion adapters; inputs.zarr 1826 days; 637 HYCOM target days; 15,018 Argo profiles;
+  26 IBTrACS tracks; SSS = SMAP + bias-corrected SMOS merge (D-010)
+- Phase 3: PostGIS schema (Alembic) + seed loader
+- Phase 4: FastAPI 22 endpoints, typed errors, PDF/CSV, LLM(opt)+template assistant
+- Phase 5: LightGBM trained; U-Net trained (best val RMSE 0.468 °C mean over depths)
+- Phase 7: Next.js frontend, all 8 screens, offline basemap, fallback client; lint/tsc/build clean
+- Phase 9: 44 tests (pipeline/physics/ML/API/PostGIS) passing; GitHub Actions CI
+- Perf: derived products 8x faster, precompute memory-safe
+- Docs: README, DECISIONS D-001..D-010, deployment runbook, results generator (scripts/write_results.py)
 
-IN PROGRESS / NEXT TASK (in order):
-1. Wait for ML chain: no-SSS ablation -> `train evaluate` -> `inference.precompute` -> `evaluation.argo_validation`
+NEXT TASK (in order):
+1. After ML chain: `python scripts/write_results.py` → docs/RESULTS.md; sanity-check numbers
 2. `cd backend && ../.venv/Scripts/python -m alembic upgrade head && ../.venv/Scripts/python -m app.db.seed`
-3. Start API: `cd backend && ../.venv/Scripts/python -m uvicorn app.main:app --port 8100`; smoke-test endpoints
-4. Frontend screens (docs/12): landing, map+profile drawer, analysis (+cyclone fuel gauge), insights, validation, reports, methodology
-5. Backend API tests (fixture store) + CI workflow; README; Dockerfiles; fallback snapshot script
-6. Demo run-through (docs/15), docs sync, deploy notes
+3. API on 8100 + `cd frontend && npm run dev` (3100); browser walkthrough of docs/15 demo; fix issues
+4. `python scripts/snapshot_fallback.py`; commit fallback snapshots
+5. Judge-QA addendum with real numbers; docs sync; final audit
 
 BLOCKERS (need a human):
 - Optional: Copernicus Marine + CDS free accounts to switch to the spec's exact sources (D-002)
@@ -32,7 +32,7 @@ BLOCKERS (need a human):
 - Deployment (Vercel/Render/Supabase) needs account access — not done autonomously
 
 KNOWN BUGS: none open
-TEST STATUS: 17/17 pytest (tests/test_pipeline.py). Backend tests not yet written.
+TEST STATUS: 44/44 pytest (`pytest -q` at repo root; PostGIS tests need the compose DB). Frontend lint/typecheck/build clean.
 GIT: branch main, pushed to origin (github.com/saad-46/oceanembed)
 
 ENVIRONMENT REQUIREMENTS:
