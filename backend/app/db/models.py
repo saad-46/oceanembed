@@ -120,6 +120,7 @@ class TrackPoint(Base):
     wind_kt: Mapped[float | None] = mapped_column(Float)
 
 
+Index("idx_prediction_model_rmse", PredictionAtArgo.model_version_id, PredictionAtArgo.rmse_c)
 Index("idx_skill_metric_lookup", SkillMetric.model_version_id, SkillMetric.evaluation, SkillMetric.split)
 # GiST spatial indexes (docs/14 section 3), declared explicitly so the Alembic migration
 # and metadata.create_all produce the same schema.
