@@ -30,14 +30,14 @@ FINE_Z = np.arange(0.0, 501.0, 1.0)
 
 def _fine(temp: np.ndarray, depths: np.ndarray = STANDARD_DEPTHS) -> np.ndarray:
     """(n_depth, ...) -> (len(FINE_Z), ...) by linear interpolation; NaN below last valid level."""
-    temp = np.asarray(temp, dtype=np.float64)
+    temp = np.asarray(temp, dtype=np.float32)
     shape = temp.shape[1:]
     flat = temp.reshape(temp.shape[0], -1)
-    out = np.full((FINE_Z.size, flat.shape[1]), np.nan)
+    out = np.full((FINE_Z.size, flat.shape[1]), np.nan, dtype=np.float32)
     hi = np.searchsorted(depths, FINE_Z, side="right")
     hi = np.clip(hi, 1, depths.size - 1)
     lo = hi - 1
-    w = ((FINE_Z - depths[lo]) / (depths[hi] - depths[lo]))[:, None]
+    w = ((FINE_Z - depths[lo]) / (depths[hi] - depths[lo])).astype(np.float32)[:, None]
     exact_last = np.isclose(FINE_Z, depths[-1])
     out[:] = (1 - w) * flat[lo] + w * flat[hi]
     out[exact_last] = flat[-1]
@@ -45,7 +45,10 @@ def _fine(temp: np.ndarray, depths: np.ndarray = STANDARD_DEPTHS) -> np.ndarray:
 
 
 def isotherm_depth(temp: np.ndarray, iso: float, depths: np.ndarray = STANDARD_DEPTHS) -> np.ndarray:
-    f = _fine(temp, depths)
+    return _isotherm_fine(_fine(temp, depths), iso)
+
+
+def _isotherm_fine(f: np.ndarray, iso: float) -> np.ndarray:
     below = f < iso
     below_valid = below & np.isfinite(f)
     first = np.argmax(below_valid, axis=0)
@@ -59,7 +62,10 @@ def isotherm_depth(temp: np.ndarray, iso: float, depths: np.ndarray = STANDARD_D
 
 
 def mixed_layer_depth(temp: np.ndarray, depths: np.ndarray = STANDARD_DEPTHS) -> np.ndarray:
-    f = _fine(temp, depths)
+    return _mld_fine(_fine(temp, depths))
+
+
+def _mld_fine(f: np.ndarray) -> np.ndarray:
     ref = f[int(MLD_REF_DEPTH)]
     cross = (f < ref - MLD_DT) & (FINE_Z[:, None] >= MLD_REF_DEPTH).reshape((-1,) + (1,) * (f.ndim - 1))
     has = cross.any(axis=0)
@@ -71,23 +77,34 @@ def mixed_layer_depth(temp: np.ndarray, depths: np.ndarray = STANDARD_DEPTHS) ->
 
 def tchp(temp: np.ndarray, depths: np.ndarray = STANDARD_DEPTHS) -> np.ndarray:
     """kJ/cm^2. J/m^2 -> kJ/cm^2 is a factor of 1e-7."""
-    f = _fine(temp, depths)
-    excess = np.clip(f - 26.0, 0.0, None)
+    return _tchp_fine(_fine(temp, depths))
+
+
+def _tchp_fine(f: np.ndarray) -> np.ndarray:
     # Only integrate the warm layer connected to the surface (down to D26).
-    warm = np.cumprod(np.nan_to_num(f, nan=-99) >= 26.0, axis=0).astype(bool)
-    integrand = np.where(warm, excess, 0.0)
-    joules = RHO * CP * np.trapezoid(integrand, FINE_Z, axis=0)
-    out = joules * 1e-7
+    warm = np.logical_and.accumulate(f >= 26.0, axis=0)  # NaN compares False -> stops the layer
+    integrand = np.where(warm, f - 26.0, 0.0)
+    # trapezoid on the uniform 1 m grid (== np.trapezoid(integrand, FINE_Z)), accumulated in float64
+    dz = float(FINE_Z[1] - FINE_Z[0])
+    integral = (integrand.sum(axis=0, dtype=np.float64) - 0.5 * (integrand[0] + integrand[-1])) * dz
+    out = RHO * CP * integral * 1e-7
     return np.where(np.isfinite(f[0]), out, np.nan)
 
 
 def all_products(temp: np.ndarray, depths: np.ndarray = STANDARD_DEPTHS) -> dict[str, np.ndarray]:
-    return {
-        "mld_m": mixed_layer_depth(temp, depths),
-        "d20_m": isotherm_depth(temp, 20.0, depths),
-        "d26_m": isotherm_depth(temp, 26.0, depths),
-        "tchp_kj_cm2": tchp(temp, depths),
-    }
+    """All four products; the 1 m profile is interpolated once, for valid (ocean) columns only."""
+    temp = np.asarray(temp, dtype=np.float32)
+    shape = temp.shape[1:]
+    flat = temp.reshape(temp.shape[0], -1)
+    ok = np.isfinite(flat[0])
+    out = {k: np.full(flat.shape[1], np.nan) for k in ("mld_m", "d20_m", "d26_m", "tchp_kj_cm2")}
+    if ok.any():
+        f = _fine(flat[:, ok], depths)
+        out["mld_m"][ok] = _mld_fine(f)
+        out["d20_m"][ok] = _isotherm_fine(f, 20.0)
+        out["d26_m"][ok] = _isotherm_fine(f, 26.0)
+        out["tchp_kj_cm2"][ok] = _tchp_fine(f)
+    return {k: v.reshape(shape) for k, v in out.items()}
 
 
 # Surface freshening proxy for barrier-layer-prone water (Bay of Bengal). A true barrier

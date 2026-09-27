@@ -80,7 +80,9 @@ def precompute(start: date = STUDY_START, end: date = STUDY_END):
             _write(out, pred_dir / f"{name}.zarr", first,
                    {"temp": {**T_ENC, "chunks": (1, 15, 100, 240)}, "sigma": {**T_ENC, "chunks": (1, 15, 100, 240)}})
             if name == "cnn-unet-v1":
-                prods = all_products(np.moveaxis(mu, 1, 0))  # (15, t, lat, lon) -> (t, lat, lon)
+                # one day at a time: the 1 m fine grid for a whole chunk would need several GB
+                per_day = [all_products(mu[ti]) for ti in range(mu.shape[0])]
+                prods = {k: np.stack([p[k] for p in per_day]) for k in per_day[0]}  # (t, lat, lon)
                 pds = xr.Dataset({k.split("_")[0]: (("time", "lat", "lon"), v.astype(np.float32)) for k, v in prods.items()},
                                  coords={"time": times, "lat": LATS, "lon": LONS})
                 pds["sss"] = (("time", "lat", "lon"), np.where(ds.ocean[None], sel["sss"].values, np.nan).astype(np.float32))
