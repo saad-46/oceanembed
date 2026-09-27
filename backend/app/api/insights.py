@@ -90,26 +90,35 @@ def cyclone_fuel(track_id: int, lead_days: int = Query(0, ge=0, le=10),
     t = db.get(CycloneTrack, track_id)
     if t is None:
         raise ApiError(404, "not_found", f"cyclone track {track_id} not found")
-    rows = []
+    from ml.config import in_domain
+    import pandas as pd
+    rows, idx = [], []  # idx: (row index, date used, i, j) for points over reconstructed ocean
     for p in t.points:
         g = to_shape(p.location)
-        from ml.config import in_domain
         rec = {"time": p.observed_at.isoformat(), "lat": round(g.y, 2), "lon": round(g.x, 2),
                "category": p.category, "wind_kt": p.wind_kt, "tchp_kj_cm2": None, "d26_m": None, "sst_c": None,
                "ocean_date": None}
         if in_domain(g.y, g.x):
             i, j = nearest_cell(g.y, g.x)
-            d = (p.observed_at - timedelta(days=lead_days)).date()
             try:
-                used, _ = store.resolve_date(d)
+                used, _ = store.resolve_date((p.observed_at - timedelta(days=lead_days)).date())
                 if store.mask3d[0, i, j]:
-                    rec.update(ocean_date=str(used),
-                               tchp_kj_cm2=_f(store.product_grid(used, "tchp")[i, j]),
-                               d26_m=_f(store.product_grid(used, "d26")[i, j]),
-                               sst_c=_f(store.cube(store.production_model, used)["temp"][0, i, j]))
+                    idx.append((len(rows), used, i, j))
             except ApiError:
                 pass
         rows.append(rec)
+    if idx:
+        # one vectorised read per variable instead of ~3 reads per track point
+        import xarray as xr
+        times = xr.DataArray(pd.DatetimeIndex([u for _, u, _, _ in idx]), dims="pt")
+        ii = xr.DataArray([i for *_, i, _ in idx], dims="pt")
+        jj = xr.DataArray([j for *_, j in idx], dims="pt")
+        prod = store.products[store.production_model]
+        tchp_v = prod["tchp"].sel(time=times).isel(lat=ii, lon=jj).values
+        d26_v = prod["d26"].sel(time=times).isel(lat=ii, lon=jj).values
+        sst_v = store.predictions[store.production_model]["temp"].isel(depth=0).sel(time=times).isel(lat=ii, lon=jj).values
+        for n, (r, used, _, _) in enumerate(idx):
+            rows[r].update(ocean_date=str(used), tchp_kj_cm2=_f(tchp_v[n]), d26_m=_f(d26_v[n]), sst_c=_f(sst_v[n]))
     vals = [r["tchp_kj_cm2"] for r in rows if r["tchp_kj_cm2"] is not None]
     return {"id": t.id, "name": t.name, "season": t.season, "peak_category": t.peak_category,
             "lead_days": lead_days, "points": rows,
