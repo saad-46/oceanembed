@@ -80,3 +80,21 @@ The open SSS input is now SMAP daily with gaps filled from the SMOS 3-day compos
 subtracting the per-cell median SMOS-minus-SMAP difference (domain median -0.25 PSU); remaining
 gaps use the standard temporal/spatial fill. Absent days dropped from 209 to 1. Merge fraction
 and bias are recorded in `processed/inputs_qc.json`.
+
+## D-011 · MapLibre 5 + deck.gl overlaid mode
+MapLibre GL v6 (ESM with an external worker module) failed to load its worker under Next 16/Turbopack,
+and deck.gl 9.4's *interleaved* MapLibre integration crashed (`getViewport` on an undefined viewport).
+Pinned `maplibre-gl@5` and run `MapboxOverlay` in overlaid mode (own canvas, synced camera). The raster is
+transparent over land, so the visual result is the same; PNG export composites both canvases.
+
+## D-012 · Production model = U-Net (spec), not selected on test results
+On the 2022 validation year LightGBM is marginally better against Argo (0.86 vs 0.89 °C); on the 2023 test year
+the U-Net is (0.89 vs 0.91). A post-hoc U-Net+LightGBM average scored 0.875 on 2023 but only tied LightGBM on
+2022, so it was **not** adopted — choosing on test results would be test-set selection. The U-Net remains
+production as the spec's primary model; all three are reported side by side.
+
+## D-013 · Uncertainty calibrated against Argo on the validation year
+The U-Net's variance head learns error relative to the training target, so against real floats it was
+over-confident (41 % within ±1σ on 2023). `ml/evaluation/calibrate_uncertainty.py` adds a per-depth variance
+term fitted on 2022 Argo; checked on 2023 it gives 70 % / 94 % within ±1σ / ±2σ (ideal 68 / 95 %). The API
+serves the calibrated σ; the raw figures are shown alongside.
