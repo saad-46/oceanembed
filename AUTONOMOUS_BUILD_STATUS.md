@@ -4,7 +4,7 @@
 > continue from **NEXT TASK**. Spec: `docs/23_MASTER_BUILD_SPEC.md`. Deviations: `docs/DECISIONS.md`.
 
 CURRENT PHASE: 11 — demo preparation / final audit (all build phases complete locally)
-CURRENT TASK: polish + audit; deployment blocked on accounts
+CURRENT TASK: build complete locally; audit done (security, latency, tablet layout, container); deployment blocked on accounts
 
 COMPLETED:
 - Data: 1826 days of 5 open satellite inputs; 637 HYCOM target days; 15,018 Argo profiles; 26 IBTrACS tracks; EN4 2022-23
@@ -14,6 +14,8 @@ COMPLETED:
 - Frontend: all 8 screens verified in a browser against real data; offline fallback verified with API stopped
 - Tests 44/44 + CI green; backend Docker image builds and serves against PostGIS
 - Docs: README (results), DECISIONS D-001..D-013, RESULTS, 24 judge Q&A as built, 25 demo script as built
+- Audit: no secrets tracked; typed errors (no stack traces); CORS restricted; warm API latencies <= 350 ms
+  (cyclone fuel vectorised 4.5 s -> 0.4 s); DB index migration 0002; tablet breakpoint OK, no h-scroll
 
 DEFINITION OF DONE (docs/23 §18):
 - [x] PS requirement (0.25°/daily, 15 depths, NIO)      - [x] real data, nothing synthetic presented as real
@@ -34,7 +36,10 @@ BLOCKERS (need a human):
 - Optional: install "Microsoft Visual C++ Redistributable (x64)" on the build PC (D-009); venv workaround in place
 - Deployment (Vercel/Render/Supabase) needs account access — not done autonomously
 
-KNOWN BUGS: none open
+KNOWN BUGS / LIMITATIONS:
+- Embedded browser panes without a PDF plugin show a blank inline PDF preview (download/new-tab links work)
+- First request after API start is slow (~4 s: store + DB pool warm-up); subsequent requests fast
+- Salinity ablation shows no measurable effect (reported honestly; docs/24 #8)
 TEST STATUS: 44/44 pytest; frontend lint/typecheck/build clean; CI (GitHub Actions) green.
 GIT: branch main, pushed to origin (github.com/saad-46/oceanembed)
 
