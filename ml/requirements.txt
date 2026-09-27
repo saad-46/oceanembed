@@ -1,0 +1,22 @@
+# ML / data pipeline (Python 3.12). CPU-only is sufficient.
+numpy>=1.26
+pandas>=2.2
+pyarrow>=16
+scipy>=1.11
+xarray>=2024.6
+zarr>=2.18,<3
+numcodecs>=0.12
+netCDF4>=1.7
+h5netcdf>=1.3
+requests>=2.31
+scikit-learn>=1.4
+lightgbm>=4.3
+# torch 2.5.1 CPU: newer Windows wheels need the VS2022 17.x runtime (see docs/DECISIONS.md D-009)
+# pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cpu
+torch==2.5.1
+argopy==1.4.0
+erddapy==2.2.4   # argopy 1.4 imports a private helper removed in erddapy 2.3
+# Optional, only with credentials (docs/DECISIONS.md D-002)
+# copernicusmarine>=2.0
+# cdsapi>=0.7
+pytest>=8

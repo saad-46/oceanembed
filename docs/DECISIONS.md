@@ -58,3 +58,25 @@ direct ERDDAP tabledap fallback exists. The product always names the actual sour
 ## D-007 · Ports
 Local API runs on **8100** and the web app on **3100** (port 8000 was already in use on the
 build machine by an unrelated service).
+
+## D-008 · Data-label vocabulary: `cached` / `live` / `simulated`
+docs/16 section 6 names the labels `LIVE DATA` / `DEMO DATA` / `SIMULATED DATA`, where "DEMO DATA"
+means *precomputed-but-real*. To avoid judges reading "demo" as "fake", every API response carries
+`data_label: "cached"` (precomputed reconstruction from real historical observations); `live` is
+reserved for an on-request inference mode (not built, docs/13) and `simulated` for synthetic
+test fixtures only (never served by the API). `/v1/meta` returns the legend.
+
+## D-009 · torch pinned to 2.5.1 (CPU) + venv-local MSVC runtime fix on Windows
+The build machine's system Visual C++ runtime is the 2015 RTM build, lacking `vcruntime140_1.dll`
+/ `vcomp140.dll`; torch >= 2.6 additionally needs `vcruntime140_threads.dll`. Installing the
+redistributable system-wide needs admin/user action, so `scripts/fix_windows_msvc_runtime.py`
+copies newer runtime DLLs already present locally into the venv only, and torch is pinned to
+2.5.1. **Recommended on any fresh Windows machine:** install the current "Microsoft Visual C++
+Redistributable (x64)". Linux/macOS/Docker are unaffected.
+
+## D-010 · Open SSS = SMAP daily merged with bias-corrected SMOS 3-day
+Daily NOAA SMAP SSS left ~55% of ocean cell-days empty (swath gaps) plus 209 absent days.
+The open SSS input is now SMAP daily with gaps filled from the SMOS 3-day composite after
+subtracting the per-cell median SMOS-minus-SMAP difference (domain median -0.25 PSU); remaining
+gaps use the standard temporal/spatial fill. Absent days dropped from 209 to 1. Merge fraction
+and bias are recorded in `processed/inputs_qc.json`.
