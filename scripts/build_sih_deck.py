@@ -1,6 +1,7 @@
 """Build the OceanBed SIH 2026 idea-submission deck by editing the official template.
 
-    python scripts/build_sih_deck.py --template <SIH2026-IDEA-Presentation-Format.pptx> \n        --shots deliverables/assets --out deliverables/OceanBed_SIH2026_Idea_Submission.pptx
+    python scripts/build_sih_deck.py --template <SIH2026-IDEA-Presentation-Format.pptx>
+        --shots deliverables/assets --out deliverables/OceanBed_SIH2026_Idea_Submission.pptx
 
 Screenshots come from the running prototype (headless Chrome, 1600x900 @2x):
 /map?date=2023-05-11&depth=100 and /analysis?mode=cyclone. Export the PDF from PowerPoint.
