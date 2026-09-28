@@ -68,6 +68,7 @@ def main():
         fuel = requests.get(api + fuel_path, timeout=120).json()
         dates = {pt["ocean_date"] for pt in fuel["points"] if pt["ocean_date"]}
         gets += [f"/v1/grid/{d}/product?product=tchp" for d in sorted(dates)]
+        gets += [f"/v1/grid/{d}?depth=100&variable=uncertainty" for d in sorted(dates)]  # guided tour σ
     n = 0
     for path in dict.fromkeys(gets):
         r = requests.get(api + path, timeout=120)
