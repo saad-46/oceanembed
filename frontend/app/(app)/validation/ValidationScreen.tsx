@@ -2,7 +2,8 @@
 import Link from "next/link";
 import { useState } from "react";
 import { CartesianGrid, Cell, ComposedChart, Legend, Line, ReferenceLine, ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis, ZAxis } from "recharts";
-import { Card, DataBadge, ErrorState, Segmented, Skeleton, fmt } from "@/components/ui";
+import { AlertTriangle, BarChart3, CalendarX2, Crosshair, Database, GitCompare, ListOrdered, ScatterChart as ScatterIcon, ShieldCheck, Target } from "lucide-react";
+import { Card, DataBadge, ErrorState, LoadingState, Segmented, StatTile, fmt } from "@/components/ui";
 import { type ValidationSummary } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
 import { fromY, toY, Y_TICKS } from "@/components/ProfileChart";
@@ -72,16 +73,20 @@ export default function ValidationScreen() {
   const err = sumQ.error;
   const profErr = profQ.error;
 
+  const at100 = sum?.per_depth.find((r) => r.depth_m === 100);
+  const nBetter = sum ? sum.per_depth.filter((r) => (r.skill_vs_climatology ?? 0) > 0).length : 0;
+  const cal1 = sum ? (sum.uncertainty_calibration.calibrated?.frac_within_1sigma ?? sum.uncertainty_calibration.frac_within_1sigma ?? null) : null;
   const chartData = sum?.per_depth.map((r) => ({ ...r, y: toY(r.depth_m) })) ?? [];
   const lims = scatter?.length ? [Math.floor(Math.min(...scatter.map((p) => Math.min(p.pred, p.obs)))), Math.ceil(Math.max(...scatter.map((p) => Math.max(p.pred, p.obs))))] : [0, 32];
 
   return (
-    <div className="px-4 md:px-8 py-6 space-y-5 max-w-[1600px] w-full mx-auto">
+    <div className="px-4 md:px-7 py-6 space-y-5 max-w-[1500px] w-full mx-auto">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="font-display text-2xl">Independent validation</h1>
-          <p className="text-sm text-ink-2 mt-1 max-w-3xl">
-            Every number here is scored against real Argo float profiles from years the model never trained on (train 2019–2021 · validate 2022 · test 2023).
+          <div className="eyebrow">Validation</div>
+          <h2 className="font-display text-2xl md:text-[28px] mt-1">How do we know the model works?</h2>
+          <p className="text-sm text-ink-2 mt-1.5 max-w-3xl leading-relaxed">
+            We score every reconstruction against real Argo float profiles from a year the model never saw — not in training, not in normalisation, not in tuning.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -89,24 +94,63 @@ export default function ValidationScreen() {
           <Segmented label="Held-out year" value={split} onChange={(s) => (setSplit(s), setPage(0))} options={[{ value: "test", label: "Test 2023" }, { value: "val", label: "Validation 2022" }]} />
         </div>
       </div>
-      <div className="border border-warn/40 bg-warn/5 rounded px-4 py-3 text-sm" role="note">
-        <span className="font-medium text-warn">Leakage caveat · </span>
-        {sum?.caveat ?? "Held-out floats are independent of the model's training, but the ocean reanalysis used as the training target assimilates Argo, so they are not fully independent of the target product."}
+
+      <ol className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3" aria-label="Validation method">
+        {(
+          [
+            [CalendarX2, "Hold out whole years", "Train 2019–2021, tune on 2022, test on 2023. No random splits, so neighbouring days cannot leak."],
+            [Crosshair, "Compare with real floats", sum ? `${sum.n_profiles.toLocaleString("en-IN")} Argo profiles in ${sum.held_out_period}, matched to the reconstruction at each float's position and day.` : "Argo profiles matched to the reconstruction at each float's position and day."],
+            [GitCompare, "Beat honest baselines", "Seasonal climatology, per-depth LightGBM and a no-salinity U-Net are scored on the same floats."],
+            [Target, "Check the error bars", "The served ±σ is calibrated on 2022 and checked on 2023: do about 68% of real values fall inside ±1σ?"],
+          ] as const
+        ).map(([Icon, t, d], i) => (
+          <li key={t} className="panel p-4">
+            <div className="flex items-center gap-2.5">
+              <span className="w-7 h-7 rounded-md bg-accent/10 text-accent flex items-center justify-center shrink-0">
+                <Icon size={15} aria-hidden />
+              </span>
+              <span className="num text-[11px] text-ink-3">0{i + 1}</span>
+            </div>
+            <div className="text-sm text-ink mt-2.5 font-medium">{t}</div>
+            <p className="text-[12px] text-ink-3 mt-1 leading-relaxed">{d}</p>
+          </li>
+        ))}
+      </ol>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <StatTile icon={<Database size={13} />} label="Profiles scored" value={sum?.n_profiles.toLocaleString("en-IN")} hint={sum ? `held-out ${sum.held_out_period}` : undefined} loading={!sum && !err} />
+        <StatTile icon={<BarChart3 size={13} />} label="RMSE at 100 m" value={fmt(at100?.rmse_c, 2)} unit="°C" hint={at100 ? `climatology ${fmt(at100.baseline_rmse_c, 2)} °C` : undefined} loading={!sum && !err} />
+        <StatTile icon={<ShieldCheck size={13} />} label="Depths better than climatology" value={sum ? `${nBetter} / ${sum.per_depth.length}` : null} hint="positive skill score" loading={!sum && !err} />
+        <StatTile
+          icon={<Target size={13} />}
+          label="Within ±1σ (ideal 68%)"
+          value={cal1 === null ? "—" : `${(cal1 * 100).toFixed(0)}%`}
+          hint={cal1 === null ? undefined : sum?.uncertainty_calibration.calibrated?.frac_within_1sigma !== undefined ? "calibrated σ, held-out floats" : "raw model σ"}
+          loading={!sum && !err}
+        />
       </div>
-      {err && <ErrorState message={err} />}
+
+      <div className="flex gap-3 rounded-xl border border-warn/40 bg-warn/[0.06] px-4 py-3 text-sm" role="note">
+        <AlertTriangle size={17} className="text-warn shrink-0 mt-0.5" aria-hidden />
+        <div>
+          <span className="font-medium text-warn">Leakage caveat · </span>
+          <span className="text-ink-2">{sum?.caveat ?? "Held-out floats are independent of the model's training, but the ocean reanalysis used as the training target assimilates Argo, so they are not fully independent of the target product."}</span>
+        </div>
+      </div>
+      {err && <ErrorState message={err} why="Validation metrics could not be loaded from the API." action="Check the backend on port 8100, then retry." onRetry={sumQ.retry} />}
 
       <div className="grid lg:grid-cols-2 gap-4">
-        <Card title="RMSE by depth vs. independent Argo" right={sum && <span className="text-[11px] text-ink-3 num">{sum.n_profiles.toLocaleString()} profiles · {sum.held_out_period}</span>}>
+        <Card icon={<BarChart3 size={14} />} title="RMSE by depth vs. independent Argo" right={sum && <span className="text-[11px] text-ink-3 num">{sum.n_profiles.toLocaleString()} profiles · {sum.held_out_period}</span>}>
           {!sum ? (
-            <Skeleton className="h-[380px]" />
+            <LoadingState label="Scoring the reconstruction against held-out floats…" className="h-[380px]" />
           ) : (
             <div className="h-[380px]">
               <ResponsiveContainer>
                 <ComposedChart layout="vertical" data={chartData} margin={{ top: 4, right: 16, bottom: 20, left: 4 }}>
                   <CartesianGrid stroke="#8a96a8" strokeOpacity={0.12} />
-                  <XAxis type="number" tick={{ fill: "#8a96a8", fontSize: 11 }} stroke="#1e2836" label={{ value: "RMSE (°C)", position: "insideBottom", offset: -12, fill: "#8a96a8", fontSize: 11 }} />
-                  <YAxis type="number" dataKey="y" domain={[0, toY(1000)]} ticks={Y_TICKS} tickFormatter={(y: number) => String(fromY(y))} tick={{ fill: "#8a96a8", fontSize: 11 }} stroke="#1e2836" width={44} />
-                  <Tooltip contentStyle={{ background: "#111826", border: "1px solid #2ac3de", fontSize: 12 }} labelFormatter={(y) => `${fromY(Number(y))} m`} formatter={(v, n) => [typeof v === "number" ? `${v.toFixed(2)} °C` : "—", n]} />
+                  <XAxis type="number" tick={{ fill: "#8a96a8", fontSize: 11 }} stroke="#1c2c42" label={{ value: "RMSE (°C)", position: "insideBottom", offset: -12, fill: "#8a96a8", fontSize: 11 }} />
+                  <YAxis type="number" dataKey="y" domain={[0, toY(1000)]} ticks={Y_TICKS} tickFormatter={(y: number) => String(fromY(y))} tick={{ fill: "#8a96a8", fontSize: 11 }} stroke="#1c2c42" width={44} />
+                  <Tooltip contentStyle={{ background: "#0d1929", border: "1px solid #2ec5d8", borderRadius: 8, fontSize: 12 }} labelFormatter={(y) => `${fromY(Number(y))} m`} formatter={(v, n) => [typeof v === "number" ? `${v.toFixed(2)} °C` : "—", n]} />
                   <Legend verticalAlign="top" height={40} wrapperStyle={{ fontSize: 11 }} />
                   {SERIES.map((s) => (
                     <Line key={s.key} dataKey={s.key} name={s.label} stroke={s.color} strokeWidth={s.key === "rmse_c" ? 2.5 : 2} strokeDasharray={s.key === "target_product_rmse_c" ? "5 4" : undefined} dot={{ r: 3, fill: s.color, strokeWidth: 0 }} connectNulls isAnimationActive={false} />
@@ -119,9 +163,9 @@ export default function ValidationScreen() {
             HYCOM target product is scored only on the days it was fetched (every 3rd day) — it shows the ceiling of what learning from that target can achieve.
           </p>
         </Card>
-        <Card title="Predicted vs. observed (colour = depth)">
+        <Card icon={<ScatterIcon size={14} />} title="Predicted vs. observed (colour = depth)">
           {!scatter ? (
-            <Skeleton className="h-[380px]" />
+            <LoadingState label="Pairing reconstructed and observed temperatures…" className="h-[380px]" />
           ) : scatter.length === 0 ? (
             <p className="text-sm text-ink-3 h-[380px] flex items-center justify-center">No paired points available.</p>
           ) : (
@@ -129,11 +173,11 @@ export default function ValidationScreen() {
               <ResponsiveContainer>
                 <ScatterChart margin={{ top: 8, right: 16, bottom: 20, left: 4 }}>
                   <CartesianGrid stroke="#8a96a8" strokeOpacity={0.12} />
-                  <XAxis type="number" dataKey="obs" domain={lims} tick={{ fill: "#8a96a8", fontSize: 11 }} stroke="#1e2836" label={{ value: "Argo observed (°C)", position: "insideBottom", offset: -12, fill: "#8a96a8", fontSize: 11 }} />
-                  <YAxis type="number" dataKey="pred" domain={lims} tick={{ fill: "#8a96a8", fontSize: 11 }} stroke="#1e2836" width={44} label={{ value: "Reconstructed (°C)", angle: -90, position: "insideLeft", fill: "#8a96a8", fontSize: 11, dy: 50 }} />
+                  <XAxis type="number" dataKey="obs" domain={lims} tick={{ fill: "#8a96a8", fontSize: 11 }} stroke="#1c2c42" label={{ value: "Argo observed (°C)", position: "insideBottom", offset: -12, fill: "#8a96a8", fontSize: 11 }} />
+                  <YAxis type="number" dataKey="pred" domain={lims} tick={{ fill: "#8a96a8", fontSize: 11 }} stroke="#1c2c42" width={44} label={{ value: "Reconstructed (°C)", angle: -90, position: "insideLeft", fill: "#8a96a8", fontSize: 11, dy: 50 }} />
                   <ZAxis range={[10, 10]} />
                   <ReferenceLine segment={[{ x: lims[0], y: lims[0] }, { x: lims[1], y: lims[1] }]} stroke="#e8edf4" strokeOpacity={0.5} strokeDasharray="4 4" />
-                  <Tooltip contentStyle={{ background: "#111826", border: "1px solid #2ac3de", fontSize: 12 }} formatter={(v, n) => [typeof v === "number" ? v.toFixed(2) : v, n]} />
+                  <Tooltip contentStyle={{ background: "#0d1929", border: "1px solid #2ec5d8", borderRadius: 8, fontSize: 12 }} formatter={(v, n) => [typeof v === "number" ? v.toFixed(2) : v, n]} />
                   <Scatter data={scatter} isAnimationActive={false}>
                     {scatter.map((p, i) => (
                       <Cell key={i} fill={depthColor(p.depth_m)} fillOpacity={0.55} />
@@ -154,9 +198,9 @@ export default function ValidationScreen() {
         </Card>
       </div>
 
-      <Card title="Per-depth skill (OceanSight U-Net vs. independent Argo)">
+      <Card icon={<ListOrdered size={14} />} title="Per-depth skill (OceanSight U-Net vs. independent Argo)">
         {!sum ? (
-          <Skeleton className="h-64" />
+          <LoadingState label="Computing per-depth skill…" className="h-64" />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm num">
@@ -207,10 +251,10 @@ export default function ValidationScreen() {
       </Card>
 
       <div className="grid lg:grid-cols-5 gap-4">
-        <Card className="lg:col-span-3" title="Held-out Argo profiles" right={<Segmented label="Sort" value={sort} onChange={(s) => (setSort(s), setPage(0))} options={[{ value: "rmse_desc", label: "Worst first" }, { value: "rmse_asc", label: "Best first" }, { value: "date", label: "Date" }]} />}>
-          {profErr && <ErrorState message={profErr} />}
+        <Card className="lg:col-span-3" icon={<Crosshair size={14} />} title="Held-out Argo profiles" right={<Segmented label="Sort" value={sort} onChange={(s) => (setSort(s), setPage(0))} options={[{ value: "rmse_desc", label: "Worst first" }, { value: "rmse_asc", label: "Best first" }, { value: "date", label: "Date" }]} />}>
+          {profErr && <ErrorState message={profErr} why="The float list could not be loaded." action="Retry, or switch the sort order." onRetry={profQ.retry} />}
           {!profiles && !profErr ? (
-            <Skeleton className="h-72" />
+            <LoadingState label="Loading held-out float profiles…" className="h-72" />
           ) : profiles ? (
             <>
               <table className="w-full text-sm num">
@@ -246,10 +290,10 @@ export default function ValidationScreen() {
                   {page * 15 + 1}–{Math.min((page + 1) * 15, profiles.total)} of {profiles.total.toLocaleString()}
                 </span>
                 <div className="flex gap-2">
-                  <button disabled={page === 0} onClick={() => setPage(page - 1)} className="border border-line rounded px-2 py-0.5 disabled:opacity-40">
+                  <button disabled={page === 0} onClick={() => setPage(page - 1)} className="border border-line rounded-md px-2.5 py-0.5 hover:border-line-2 hover:text-ink disabled:opacity-40">
                     Prev
                   </button>
-                  <button disabled={(page + 1) * 15 >= profiles.total} onClick={() => setPage(page + 1)} className="border border-line rounded px-2 py-0.5 disabled:opacity-40">
+                  <button disabled={(page + 1) * 15 >= profiles.total} onClick={() => setPage(page + 1)} className="border border-line rounded-md px-2.5 py-0.5 hover:border-line-2 hover:text-ink disabled:opacity-40">
                     Next
                   </button>
                 </div>
@@ -257,9 +301,9 @@ export default function ValidationScreen() {
             </>
           ) : null}
         </Card>
-        <Card className="lg:col-span-2" title="Architecture comparison vs. gridded target">
+        <Card className="lg:col-span-2" icon={<GitCompare size={14} />} title="Architecture comparison vs. gridded target">
           {!gridM ? (
-            <Skeleton className="h-72" />
+            <LoadingState label="Loading gridded model comparison…" className="h-72" />
           ) : (
             <>
               <p className="text-[11px] text-ink-3 mb-2">Mean RMSE over 15 depths against the {gridM.target_source} grid, every ocean cell of every held-out target day.</p>
@@ -289,7 +333,7 @@ export default function ValidationScreen() {
         </Card>
       </div>
       {en4 && (
-        <Card title="Cross-check vs. Met Office EN4 (monthly, 1°)">
+        <Card icon={<Database size={14} />} title="Cross-check vs. Met Office EN4 (monthly, 1°)">
           <p className="text-[11px] text-ink-3 mb-2">{en4.note} Mean RMSE over depths (5–1000 m); EN4 has no 0 m level.</p>
           <table className="w-full text-sm num max-w-2xl">
             <thead>

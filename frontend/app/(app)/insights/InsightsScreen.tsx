@@ -2,7 +2,9 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis, ZAxis } from "recharts";
-import { Card, DataBadge, ErrorState, Segmented, Skeleton } from "@/components/ui";
+import { BrainCircuit, CalendarDays, MessageSquareText, Orbit, Sparkles } from "lucide-react";
+import InsightCards from "@/components/InsightCards";
+import { Card, DataBadge, ErrorState, LoadingState, Segmented } from "@/components/ui";
 import { friendlyError, get, post } from "@/lib/api";
 import { DEFAULT_DATE, DEFAULT_POINT, STANDARD_DEPTHS } from "@/lib/dates";
 
@@ -22,6 +24,7 @@ export default function InsightsScreen() {
   const [ans, setAns] = useState<{ summary: string; source: string } | null>(null);
   const [ansErr, setAnsErr] = useState<string | null>(null);
   const [asking, setAsking] = useState(false);
+  const [insDate, setInsDate] = useState(DEFAULT_DATE);
 
   useEffect(() => {
     get<Emb>("/v1/embedding/projection").then(setEmb).catch((e) => setEmbErr(friendlyError(e)));
@@ -43,15 +46,32 @@ export default function InsightsScreen() {
   };
 
   return (
-    <div className="px-4 md:px-8 py-6 space-y-5 max-w-[1600px] w-full mx-auto">
-      <div>
-        <h1 className="font-display text-2xl">AI insights · the satellite embedding</h1>
+    <div className="px-4 md:px-7 py-6 space-y-6 max-w-[1500px] w-full mx-auto">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <div className="eyebrow">Ocean insights</div>
+          <h2 className="font-display text-2xl md:text-[28px] mt-1">What the reconstruction says today</h2>
+          <p className="text-sm text-ink-2 mt-1.5 max-w-3xl leading-relaxed">
+            Each card is computed live from the reconstructed fields for the chosen date — no hand-written numbers. Badges show whether a value is reconstructed, derived or an estimate.
+          </p>
+        </div>
+        <label className="flex items-center gap-2 text-xs text-ink-3">
+          <CalendarDays size={14} className="text-accent" /> Date
+          <input type="date" value={insDate} min="2019-01-01" max="2023-12-31" onChange={(e) => e.target.value && setInsDate(e.target.value)} className="num bg-bg border border-line rounded-md px-2 py-1 text-sm text-ink [color-scheme:dark]" aria-label="Insight date" />
+        </label>
+      </div>
+      <InsightCards date={insDate} />
+
+      <div className="pt-2">
+        <div className="eyebrow flex items-center gap-1.5"><BrainCircuit size={12} /> Inside the model</div>
+        <h3 className="font-display text-xl mt-1">The satellite embedding</h3>
         <p className="text-sm text-ink-2 mt-1 max-w-3xl">
           The U-Net encoder compresses each day&apos;s basin-wide surface state (SST, SSS, SLA, currents, winds) into a compact latent representation — the
           &ldquo;satellite embedding&rdquo; the problem statement asks for. Below, each dot is one day&apos;s embedding pooled over a region, projected to 2-D.
         </p>
       </div>
       <Card
+        icon={<Orbit size={14} />}
         title="Embedding space by season"
         right={
           <div className="flex items-center gap-3">
@@ -60,8 +80,8 @@ export default function InsightsScreen() {
           </div>
         }
       >
-        {embErr && <ErrorState message={embErr} />}
-        {!emb && !embErr && <Skeleton className="h-[420px]" />}
+        {embErr && <ErrorState message={embErr} why="The embedding projection could not be loaded." action="Check the API connection and reload the page." />}
+        {!emb && !embErr && <LoadingState label="Projecting daily satellite embeddings…" className="h-[420px]" />}
         {emb && (
           <>
             <p className="text-[11px] text-ink-3 mb-2 num">
@@ -72,7 +92,7 @@ export default function InsightsScreen() {
                 const on = pts.filter((p) => p.season === s);
                 const off = pts.filter((p) => p.season !== s);
                 return (
-                  <div key={s} className="border border-line rounded p-2">
+                  <div key={s} className="border border-line rounded-lg bg-white/[0.015] p-2.5">
                     <div className="text-xs text-ink mb-1">
                       {s} <span className="text-ink-3 num">· {on.length} days</span>
                     </div>
@@ -85,7 +105,7 @@ export default function InsightsScreen() {
                           <ZAxis range={[14, 14]} />
                           <Tooltip
                             cursor={false}
-                            contentStyle={{ background: "#111826", border: "1px solid #2ac3de", fontSize: 12 }}
+                            contentStyle={{ background: "#0d1929", border: "1px solid #2ec5d8", borderRadius: 8, fontSize: 12 }}
                             content={({ payload }) => {
                               const p = payload?.[0]?.payload as EmbPoint | undefined;
                               return p ? (
@@ -114,6 +134,7 @@ export default function InsightsScreen() {
       </Card>
       <div className="grid lg:grid-cols-2 gap-4">
         <Card
+          icon={<Sparkles size={14} />}
           title="What drives the baseline? (LightGBM importance)"
           right={
             <select value={depth} onChange={(e) => setDepth(Number(e.target.value))} className="bg-bg border border-line rounded px-2 py-1 text-xs num" aria-label="Depth">
@@ -126,15 +147,15 @@ export default function InsightsScreen() {
           }
         >
           {!imp ? (
-            <Skeleton className="h-72" />
+            <LoadingState label="Loading feature importances…" className="h-72" />
           ) : (
             <div className="h-72">
               <ResponsiveContainer>
                 <BarChart layout="vertical" data={impData} margin={{ top: 4, right: 24, bottom: 4, left: 8 }}>
                   <CartesianGrid stroke="#8a96a8" strokeOpacity={0.12} horizontal={false} />
-                  <XAxis type="number" tick={{ fill: "#8a96a8", fontSize: 11 }} stroke="#1e2836" unit="%" />
-                  <YAxis type="category" dataKey="name" tick={{ fill: "#8a96a8", fontSize: 11 }} stroke="#1e2836" width={110} />
-                  <Tooltip contentStyle={{ background: "#111826", border: "1px solid #2ac3de", fontSize: 12 }} formatter={(v) => [`${v}% of split gain`, "importance"]} cursor={{ fill: "#ffffff08" }} />
+                  <XAxis type="number" tick={{ fill: "#8a96a8", fontSize: 11 }} stroke="#1c2c42" unit="%" />
+                  <YAxis type="category" dataKey="name" tick={{ fill: "#8a96a8", fontSize: 11 }} stroke="#1c2c42" width={110} />
+                  <Tooltip contentStyle={{ background: "#0d1929", border: "1px solid #2ec5d8", borderRadius: 8, fontSize: 12 }} formatter={(v) => [`${v}% of split gain`, "importance"]} cursor={{ fill: "#ffffff08" }} />
                   <Bar dataKey="v" fill="#3987e5" radius={[0, 4, 4, 0]} barSize={14} isAnimationActive={false} />
                 </BarChart>
               </ResponsiveContainer>
@@ -142,7 +163,7 @@ export default function InsightsScreen() {
           )}
           <p className="text-[11px] text-ink-3">Share of LightGBM split gain per input at the selected depth — which surface signal the per-pixel baseline relies on.</p>
         </Card>
-        <Card title="Ask about a location">
+        <Card icon={<MessageSquareText size={14} />} title="Ask about a location">
           <div className="grid grid-cols-3 gap-2">
             <label className="text-[11px] text-ink-3">
               Latitude
@@ -158,22 +179,22 @@ export default function InsightsScreen() {
             </label>
           </div>
           <div className="flex flex-wrap gap-2 mt-3">
-            <button onClick={ask} disabled={asking} className="text-sm bg-accent text-bg rounded px-4 py-1.5 disabled:opacity-50">
-              {asking ? "Thinking…" : "What's the heat potential here?"}
+            <button onClick={ask} disabled={asking} className="text-sm font-semibold bg-accent text-[#04121c] rounded-lg px-4 py-1.5 hover:brightness-110 disabled:opacity-50">
+              {asking ? "Computing from the reconstruction…" : "What's the heat potential here?"}
             </button>
             {[
               { lat: 15, lon: 88, date: "2023-05-11", l: "Pre-Mocha BoB" },
               { lat: 15, lon: 66, date: "2023-06-06", l: "Biparjoy, Arabian Sea" },
               { lat: 10, lon: 60, date: "2022-01-15", l: "Winter, W. Arabian Sea" },
             ].map((ex) => (
-              <button key={ex.l} onClick={() => setQ({ lat: ex.lat, lon: ex.lon, date: ex.date })} className="text-xs border border-line rounded px-2 py-1 text-ink-2 hover:text-ink">
+              <button key={ex.l} onClick={() => setQ({ lat: ex.lat, lon: ex.lon, date: ex.date })} className="text-xs border border-line rounded-full px-3 py-1 text-ink-2 hover:text-ink hover:border-line-2">
                 {ex.l}
               </button>
             ))}
           </div>
-          {ansErr && <div className="mt-3"><ErrorState message={ansErr} /></div>}
+          {ansErr && <div className="mt-3"><ErrorState message={ansErr} why="The assistant could not compute an answer for this point." action="Check the coordinates are over ocean inside 5–30°N, 45–105°E." onRetry={ask} /></div>}
           {ans && (
-            <div className="mt-3 bg-surface-2 rounded px-3 py-2 text-sm">
+            <div className="mt-3 bg-accent/[0.06] border border-accent/25 rounded-lg px-3.5 py-2.5 text-sm fade-in" aria-live="polite">
               {ans.summary}
               <div className="text-[10px] text-ink-3 mt-1 uppercase tracking-wider">{ans.source === "llm" ? "LLM phrasing of computed values" : "Templated from computed values (no LLM configured)"}</div>
             </div>
