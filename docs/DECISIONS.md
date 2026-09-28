@@ -98,3 +98,8 @@ The U-Net's variance head learns error relative to the training target, so again
 over-confident (41 % within ±1σ on 2023). `ml/evaluation/calibrate_uncertainty.py` adds a per-depth variance
 term fitted on 2022 Argo; checked on 2023 it gives 70 % / 94 % within ±1σ / ±2σ (ideal 68 / 95 %). The API
 serves the calibrated σ; the raw figures are shown alongside.
+
+## D-014 · Product name: OceanSight
+The team named the project **OceanSight** (team CodeCrafters, team ID 135494). It replaces the artifact's
+working names "GAHAN" and "OceanBed" in the app, API, reports, README and submission deck. The research
+artifact files (`docs/00–23`) keep their original wording as a historical record.

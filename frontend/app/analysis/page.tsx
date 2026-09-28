@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import AnalysisScreen from "./AnalysisScreen";
 
-export const metadata = { title: "Analysis — GAHAN" };
+export const metadata = { title: "Analysis — OceanSight" };
 
 export default function Page() {
   return (

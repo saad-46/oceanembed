@@ -22,7 +22,7 @@ GREY = colors.HexColor("#8a96a8")
 def profile_csv(p: dict) -> bytes:
     buf = io.StringIO()
     w = csv.writer(buf)
-    w.writerow(["# GAHAN / OceanEmbed (SIH26066) reconstructed temperature profile"])
+    w.writerow(["# OceanSight / OceanEmbed (SIH26066) reconstructed temperature profile"])
     w.writerow([f"# date={p['date']} lat={p['lat']} lon={p['lon']} grid_cell=({p['cell']['lat']},{p['cell']['lon']}) "
                 f"model={p['model_version']} data_label={p['data_label']}"])
     argo = p.get("nearest_argo_float") or {}
@@ -79,11 +79,11 @@ def _chart(p: dict) -> Drawing:
 def profile_pdf(p: dict, summary: str, validation_line: str) -> bytes:
     buf = io.BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=18 * mm, rightMargin=18 * mm, topMargin=16 * mm,
-                            bottomMargin=16 * mm, title=f"GAHAN profile {p['date']}")
+                            bottomMargin=16 * mm, title=f"OceanSight profile {p['date']}")
     ss = getSampleStyleSheet()
     small = ParagraphStyle("small", parent=ss["Normal"], fontSize=8, textColor=GREY, leading=10)
     story = [
-        Paragraph("<b>GAHAN</b> · Subsurface temperature reconstruction", ss["Title"]),
+        Paragraph("<b>OceanSight</b> · Subsurface temperature reconstruction", ss["Title"]),
         Paragraph(f"SIH26066 OceanEmbed · {p['date']} · {p['lat']:.2f}°N, {p['lon']:.2f}°E "
                   f"(grid cell {p['cell']['lat']:.3f}°N, {p['cell']['lon']:.3f}°E) · model {p['model_version']}", small),
         Spacer(1, 4 * mm), Paragraph(summary, ss["Normal"]), Spacer(1, 3 * mm), _chart(p), Spacer(1, 3 * mm),

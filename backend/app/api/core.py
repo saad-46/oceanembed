@@ -44,7 +44,7 @@ def meta(store: GridStore = Depends(get_store)):
             sources[var] = {k.removeprefix("prov_"): v for k, v in q.items() if k.startswith("prov_")}
     tgt = store.target.attrs if store.target is not None else {}
     return {
-        "product": "GAHAN", "problem_statement": "SIH26066 — OceanEmbed (MoES / INCOIS)",
+        "product": "OceanSight", "problem_statement": "SIH26066 — OceanEmbed (MoES / INCOIS)",
         "domain": {"min_lat": LAT_MIN, "max_lat": LAT_MAX, "min_lon": LON_MIN, "max_lon": LON_MAX, "resolution_deg": RES},
         "depths_m": STANDARD_DEPTHS.tolist(),
         "period": {"start": str(ts[0].date()), "end": str(ts[-1].date()), "n_days": len(ts)},

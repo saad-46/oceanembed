@@ -1,4 +1,4 @@
-"""GAHAN / OceanEmbed API. Run: ``uvicorn app.main:app --port 8100`` from ``backend/``."""
+"""OceanSight / OceanEmbed API. Run: ``uvicorn app.main:app --port 8100`` from ``backend/``."""
 from __future__ import annotations
 
 import json
@@ -40,7 +40,7 @@ def _logging():
 def create_app() -> FastAPI:
     _logging()
     s = get_settings()
-    app = FastAPI(title="GAHAN — OceanEmbed API", version="1.0.0",
+    app = FastAPI(title="OceanSight — OceanEmbed API", version="1.0.0",
                   description="Satellite-embedding reconstruction of North Indian Ocean subsurface temperature "
                               "(SIH26066). All endpoints serve precomputed, cached reconstructions.")
     app.add_middleware(GZipMiddleware, minimum_size=1024)

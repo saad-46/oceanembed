@@ -1,12 +1,12 @@
-# OCEANBED — SIH 2026 PPT CONTENT BLUEPRINT
+# OCEANSIGHT — SIH 2026 PPT CONTENT BLUEPRINT
 
-**Sources.** Structure: `SIH2026-IDEA-Presentation-Format.pptx`. Facts: the OceanBed artifact (`docs/00–23`) plus the verified results of the built prototype (`docs/RESULTS.md`, generated from the metrics files). Style reference: ThermalTrace SIH26162 deck. Scoring lens: SIH Virtual Judge rubric.
+**Sources.** Structure: `SIH2026-IDEA-Presentation-Format.pptx`. Facts: the OceanSight artifact (`docs/00–23`) plus the verified results of the built prototype (`docs/RESULTS.md`, generated from the metrics files). Style reference: ThermalTrace SIH26162 deck. Scoring lens: SIH Virtual Judge rubric.
 
 **Three things to settle before filling the deck**
 
-1. **Name.** The artifact itself warns (`docs/00`, `docs/01`) that "OceanBed" suggests seabed/bathymetry mapping, which this PS is *not*; its product name is **GAHAN**. This blueprint uses "OceanBed" with a subtitle that makes the subsurface-temperature focus unmistakable. Switching to GAHAN is a find-and-replace.
+1. **Name.** Project name: **OceanSight** (team CodeCrafters, team ID 135494). Earlier drafts used "OceanSight" (which suggested seabed mapping) and the artifact's working name "GAHAN".
 2. **Deadline.** The scraped official record lists the idea-submission deadline as **20 Sep 2026** — confirm the live date with your SPOC.
-3. **Team ID and Team Name** are not in the artifact — fill them in.
+3. **Team:** CodeCrafters · Team ID 135494.
 
 ---
 
@@ -14,7 +14,7 @@
 
 | | |
 |---|---|
-| **Core story** | Satellites only see the ocean's surface; Argo floats are too sparse. OceanBed turns five satellite surface fields into a daily 0–1000 m temperature map — and proves it on real floats it never saw. |
+| **Core story** | Satellites only see the ocean's surface; Argo floats are too sparse. OceanSight turns five satellite surface fields into a daily 0–1000 m temperature map — and proves it on real floats it never saw. |
 | **One-line project** | A satellite-embedding deep-learning system that reconstructs North Indian Ocean temperature at 15 depths (0–1000 m), 0.25°, daily. |
 | **One-line problem** | Cyclone, fisheries and climate decisions depend on subsurface ocean heat, but direct measurements are too sparse in space and time. |
 | **One-line solution** | Learn the surface→subsurface mapping from satellite SST, SSS, SLA, currents and winds, and deliver daily INCOIS-style products (TCHP, MLD, D20/D26). |
@@ -25,9 +25,9 @@
 
 The template allows a maximum of six slides including the title. Delete template slide 7 (Important Instructions) and submit as PDF.
 
-| Slide | Exact Template Section | Purpose | OceanBed Content |
+| Slide | Exact Template Section | Purpose | OceanSight Content |
 |---|---|---|---|
-| 1 | TITLE PAGE | Identify PS and team | SIH26066 details, OceanBed + subtitle |
+| 1 | TITLE PAGE | Identify PS and team | SIH26066 details, OceanSight + subtitle |
 | 2 | IDEA TITLE — Proposed Solution / How it addresses the problem / Innovation and uniqueness | Problem → solution → USP | 3-part solution, problem→solution→outcome strip, 3 USPs, workflow strip |
 | 3 | TECHNICAL APPROACH — Technologies / Methodology & process (flow charts / working prototype) | Prove it is real and credible | Tech table, architecture diagram, ML pipeline with train/validate/test split |
 | 4 | FEASIBILITY AND VIABILITY — Feasibility / Challenges & risks / Strategies | Prove it is achievable, with evidence | Feasibility ratings, validated-results cards, risk → mitigation table |
@@ -44,7 +44,7 @@ The template has no Results slide. Results go on slide 4 (as proof of feasibilit
 
 **PURPOSE.** Identify the problem statement and team instantly.
 
-**FINAL HEADLINE:** OceanBed
+**FINAL HEADLINE:** OceanSight
 **SUBTITLE:** Seeing 1000 m beneath the ocean surface — from satellites alone
 
 **FINAL CONTENT**
@@ -53,8 +53,8 @@ The template has no Results slide. Results go on slide 4 (as proof of feasibilit
 - Problem Statement Title – **OceanEmbed – Satellite Embedding-Based Deep Learning Framework for Reconstruction of Subsurface Ocean Temperature from Surface Satellite Observations**
 - Theme – **Space Technology**
 - PS Category – **Software**
-- Team ID – **[fill in]**
-- Team Name (Registered on portal) – **[fill in]**
+- Team ID – **135494**
+- Team Name (Registered on portal) – **CodeCrafters**
 
 **VISUAL.** Optional: a thin strip of the reconstructed 100 m temperature map (2023-05-11) behind the subtitle, from the app's landing hero — signals "real output" from the first slide.
 
@@ -64,7 +64,7 @@ The template has no Results slide. Results go on slide 4 (as proof of feasibilit
 
 **CONTENT PRIORITY.** MUST INCLUDE: all template fields. OPTIONAL: map strip.
 
-**SPEAKER NOTE.** "We're OceanBed, for SIH26066 OceanEmbed from INCOIS — reconstructing the ocean's temperature down to 1000 metres, every day, using only satellite data."
+**SPEAKER NOTE.** "We're OceanSight, for SIH26066 OceanEmbed from INCOIS — reconstructing the ocean's temperature down to 1000 metres, every day, using only satellite data."
 
 ---
 
@@ -72,7 +72,7 @@ The template has no Results slide. Results go on slide 4 (as proof of feasibilit
 
 **PURPOSE.** Problem → solution → why it is different, understood in about 20 seconds.
 
-**FINAL HEADLINE:** OceanBed — daily 0–1000 m ocean temperature for the North Indian Ocean, from 5 satellite fields
+**FINAL HEADLINE:** OceanSight — daily 0–1000 m ocean temperature for the North Indian Ocean, from 5 satellite fields
 
 **FINAL CONTENT — Proposed Solution**
 
@@ -85,7 +85,7 @@ The template has no Results slide. Results go on slide 4 (as proof of feasibilit
 
 | Problem | Solution | Outcome |
 |---|---|---|
-| Argo floats, buoys and ships measure subsurface temperature only at scattered points and times. | Satellites see the whole basin daily; OceanBed learns the physical surface→subsurface link (e.g. sea-level anomaly → thermocline depth). | A continuous daily 3-D temperature field plus derived products, each with an honest error bar. |
+| Argo floats, buoys and ships measure subsurface temperature only at scattered points and times. | Satellites see the whole basin daily; OceanSight learns the physical surface→subsurface link (e.g. sea-level anomaly → thermocline depth). | A continuous daily 3-D temperature field plus derived products, each with an honest error bar. |
 
 **Innovation & Uniqueness** (three tiles — see section 4)
 
@@ -233,7 +233,7 @@ Satellite fields → Harmonise (0.25°, daily) → Normalise (train years only) 
 **VISUAL — prototype screenshot (required): Cyclone Fuel Gauge**
 
 - URL: `/analysis` → "Cyclone Fuel Gauge" → Cyclone Mocha 2023, ocean state 2 days before passage
-- Caption: "OceanBed prototype — reconstructed TCHP under Cyclone Mocha's real IBTrACS track (May 2023, held-out year). Working prototype, not an operational forecast."
+- Caption: "OceanSight prototype — reconstructed TCHP under Cyclone Mocha's real IBTrACS track (May 2023, held-out year). Working prototype, not an operational forecast."
 - Optional second screenshot: profile panel at 15°N 88°E, 2023-05-11 (`/map?date=2023-05-11&depth=100&lat=15&lon=88`) — reconstruction with uncertainty band against a real Argo float 82 km away.
 
 **DIAGRAM / CHART.** None beyond the screenshot.
@@ -276,7 +276,7 @@ Satellite fields → Harmonise (0.25°, daily) → Normalise (train years only) 
 
 ---
 
-## 4. OCEANBED USP / UNIQUENESS
+## 4. OCEANSIGHT USP / UNIQUENESS
 
 **USP 1 — Validated beyond its own training data.** Scored on 2,639 Argo floats from a fully held-out year, shown next to the training product's own error ceiling and cross-checked against the independent EN4 analysis.
 
@@ -286,7 +286,7 @@ Satellite fields → Harmonise (0.25°, daily) → Normalise (train years only) 
 
 **ONE-LINE DIFFERENTIATION**
 
-> "OceanBed rebuilds the North Indian Ocean's top 1000 m every day from satellites alone — and proves it on real Argo floats from a year it never saw, with error bars calibrated to the real ocean."
+> "OceanSight rebuilds the North Indian Ocean's top 1000 m every day from satellites alone — and proves it on real Argo floats from a year it never saw, with error bars calibrated to the real ocean."
 
 **Rejected as USPs:** "uses AI / U-Net" (many teams do); "0.25° daily" (it is the PS requirement, not a differentiator); "satellite embedding" (named in the PS itself). Present these as features, not as uniqueness.
 
@@ -337,4 +337,4 @@ Satellite fields → Harmonise (0.25°, daily) → Normalise (train years only) 
 - ☑ ML approach credible (year split, baseline, per-depth metrics)
 - ☑ Impact clear (slide 5 users + screenshot)
 - ☑ Content concise; no repetition across slides
-- ☐ **Still to do:** fill Team ID / Team Name · decide the name (OceanBed vs GAHAN) · confirm the deadline · capture the two screenshots from the running app
+- ☐ **Still to do:** confirm the submission deadline with your SPOC

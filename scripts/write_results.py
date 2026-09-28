@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from ml.config import OUTPUT_DIR, PROCESSED_DIR  # noqa: E402
 
-NAMES = {"cnn-unet-v1": "U-Net (GAHAN)", "cnn-unet-nosss-v1": "U-Net without SSS", "baseline-lightgbm-v1": "LightGBM",
+NAMES = {"cnn-unet-v1": "U-Net (OceanSight)", "cnn-unet-nosss-v1": "U-Net without SSS", "baseline-lightgbm-v1": "LightGBM",
          "climatology": "Climatology", "target-product": "HYCOM target product"}
 
 

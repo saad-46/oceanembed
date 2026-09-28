@@ -15,8 +15,8 @@ export default function TopNav() {
   const path = usePathname();
   return (
     <header className="h-12 shrink-0 border-b border-line bg-bg/95 flex items-center px-4 gap-6 z-20">
-      <Link href="/" className="flex items-baseline gap-2" aria-label="GAHAN home">
-        <span className="font-display text-lg font-semibold tracking-[0.2em] text-accent">GAHAN</span>
+      <Link href="/" className="flex items-baseline gap-2" aria-label="OceanSight home">
+        <span className="font-display text-lg font-semibold tracking-[0.06em] text-accent">OceanSight</span>
         <span className="hidden md:inline text-[11px] text-ink-3 num">SIH26066 · OceanEmbed</span>
       </Link>
       <nav className="flex gap-1 overflow-x-auto" aria-label="Main">

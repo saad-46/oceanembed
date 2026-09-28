@@ -1,5 +1,5 @@
 /**
- * Typed client for the GAHAN FastAPI backend (backend/app/api/*).
+ * Typed client for the OceanSight FastAPI backend (backend/app/api/*).
  *
  * Offline fallback (docs/16 §6, docs/21 §2): if the backend is unreachable (network error or
  * timeout — NOT a typed 4xx/5xx), the client tries a bundled snapshot at
@@ -58,7 +58,7 @@ async function request<T>(path: string, init?: RequestInit & { json?: unknown },
     clearTimeout(timer);
     const fb = await tryFallback<T>(path, init?.json);
     if (fb) return fb;
-    throw new ApiError(0, "backend_unreachable", "The GAHAN backend is unreachable and no bundled snapshot exists for this view.");
+    throw new ApiError(0, "backend_unreachable", "The OceanSight backend is unreachable and no bundled snapshot exists for this view.");
   }
   clearTimeout(timer);
   if (!res.ok) {

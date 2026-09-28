@@ -1,7 +1,7 @@
-"""Build the OceanBed SIH 2026 idea-submission deck by editing the official template.
+"""Build the OceanSight SIH 2026 idea-submission deck by editing the official template.
 
     python scripts/build_sih_deck.py --template <SIH2026-IDEA-Presentation-Format.pptx>
-        --shots deliverables/assets --out deliverables/OceanBed_SIH2026_Idea_Submission.pptx
+        --shots deliverables/assets --out deliverables/OceanSight_SIH2026_Idea_Submission.pptx
 
 Screenshots come from the running prototype (headless Chrome, 1600x900 @2x):
 /map?date=2023-05-11&depth=100 and /analysis?mode=cyclone. Export the PDF from PowerPoint.
@@ -36,6 +36,8 @@ WHITE = RGBColor(0xFF, 0xFF, 0xFF)
 GREEN = RGBColor(0x1B, 0x8A, 0x4B)
 AMBER = RGBColor(0xB3, 0x6B, 0x00)
 FONT = "Arial"
+TEAM_NAME = "CodeCrafters"
+TEAM_ID = "135494"
 
 
 # ---------------------------------------------------------------- helpers
@@ -189,6 +191,26 @@ def set_title(slide, lines):
         set_font(r, font_name if i == 0 else FONT)
 
 
+def set_team_oval(slide):
+    """Put the team name into the template's "Your Team Name" oval (keeps its outline styling)."""
+    for sh in slide.shapes:
+        if sh.has_text_frame and "Team" in sh.text_frame.text and sh.name.startswith("Oval"):
+            tf = sh.text_frame
+            tf.clear()
+            tf.word_wrap = False
+            tf.vertical_anchor = MSO_ANCHOR.MIDDLE
+            for side in ("left", "right", "top", "bottom"):
+                setattr(tf, f"margin_{side}", Inches(0.02))
+            para = tf.paragraphs[0]
+            para.alignment = PP_ALIGN.CENTER
+            r = para.add_run()
+            r.text = TEAM_NAME
+            r.font.size = Pt(13)
+            r.font.bold = True
+            r.font.color.rgb = NAVY
+            set_font(r)
+
+
 def clear_content_boxes(slide):
     for sh in list(slide.shapes):
         if sh.shape_type == 17 and sh.has_text_frame:  # TEXT_BOX with template pointer text
@@ -204,7 +226,7 @@ def slide1(s):
     tf.clear()
     tf.vertical_anchor = MSO_ANCHOR.TOP
     fill_paras(tf, [
-        P(R("OceanBed", 48, True, NAVY, font="Arial")),
+        P(R("OceanSight", 48, True, NAVY, font="Arial")),
         P(R("Seeing 1000 m beneath the ocean surface — from satellites alone", 14.5, False, TEAL)),
     ])
     for p in tf.paragraphs:
@@ -221,8 +243,8 @@ def slide1(s):
                                        "Reconstruction of Subsurface Ocean Temperature from Surface Satellite Observations"),
         ("Theme – ", "Space Technology"),
         ("PS Category – ", "Software"),
-        ("Team ID – ", "[fill in]"),
-        ("Team Name (Registered on portal) – ", "[fill in]"),
+        ("Team ID – ", TEAM_ID),
+        ("Team Name (Registered on portal) – ", TEAM_NAME),
     ]
     for para, (label, value) in zip(paras, values):
         for r in list(para.runs):
@@ -245,13 +267,13 @@ def slide1(s):
 
 def slide2(s, shots):
     clear_content_boxes(s)
-    set_title(s, [("OceanBed", 32, NAVY, True),
+    set_title(s, [("OceanSight", 32, NAVY, True),
                   ("Daily 0–1000 m ocean temperature for the North Indian Ocean — from satellites alone", 13, TEAL, False)])
     L, W = 0.35, 8.55
     # A. Proposed solution
     section_label(s, L, 1.30, W, "Proposed Solution", "Detailed explanation of the proposed solution")
     text(s, L, 1.62, W, 0.78, [P(
-        R("OceanBed ", 12.5, True, NAVY),
+        R("OceanSight ", 12.5, True, NAVY),
         R("reconstructs ocean temperature at ", 12.5),
         R("15 depths (0–1000 m), every day, on a 0.25° grid", 12.5, True),
         R(" over the Bay of Bengal & Arabian Sea — using only ", 12.5),
@@ -267,7 +289,7 @@ def slide2(s, shots):
         anchor=MSO_ANCHOR.MIDDLE)
     arrow(s, L + 3.12, 3.02, 0.22, 0.22)
     text(s, L + 3.42, 2.8, W - 3.42, 0.68, [
-        P(R("OCEANBED", 9, True, TEAL)),
+        P(R("OCEANSIGHT", 9, True, TEAL)),
         P(R("Satellites see the whole basin daily; a deep network learns the physical surface → subsurface link "
             "(e.g. sea-level anomaly → thermocline depth)", 9.5))], anchor=MSO_ANCHOR.MIDDLE)
     stages = [
@@ -301,7 +323,7 @@ def slide2(s, shots):
     box(s, 0.3, top, 12.73, 2.26, fill=TEAL_LIGHT, shape=MSO_SHAPE.ROUNDED_RECTANGLE, radius=0.05)
     text(s, 0.5, top + 0.06, 12.3, 0.34, [P(
         R("INNOVATION AND UNIQUENESS OF THE SOLUTION", 12.5, True, NAVY),
-        R("   —   why OceanBed is different", 11, False, TEAL))], anchor=MSO_ANCHOR.MIDDLE)
+        R("   —   why OceanSight is different", 11, False, TEAL))], anchor=MSO_ANCHOR.MIDDLE)
     cards = [
         ("01", "Validated beyond training data",
          "Scored against real Argo floats from a year it never saw — next to the training product's own error ceiling "
@@ -608,6 +630,8 @@ def main():
     slide4(s[3])
     slide5(s[4], shots)
     slide6(s[5])
+    for sl in s[1:6]:
+        set_team_oval(sl)
     delete_slide(prs, 6)  # "IMPORTANT INSTRUCTIONS" — must not be uploaded
     prs.save(a.out)
     print("saved", a.out, "slides:", len(prs.slides))

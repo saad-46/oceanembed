@@ -39,7 +39,7 @@ export default function Landing() {
             The ocean&apos;s temperature <span className="text-accent">beneath the surface</span>, every day, from satellites alone.
           </h1>
           <p className="text-ink-2 text-base md:text-lg max-w-2xl">
-            GAHAN reconstructs temperature at 15 depths down to 1000 m across the North Indian Ocean (0.25°, daily) from five surface satellite
+            OceanSight reconstructs temperature at 15 depths down to 1000 m across the North Indian Ocean (0.25°, daily) from five surface satellite
             fields — and checks itself against Argo floats it never trained on.
           </p>
           <div className="flex gap-3 pointer-events-auto">

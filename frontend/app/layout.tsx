@@ -8,7 +8,7 @@ const space = Space_Grotesk({ variable: "--font-space", subsets: ["latin"] });
 const mono = IBM_Plex_Mono({ variable: "--font-plex-mono", subsets: ["latin"], weight: ["400", "500"] });
 
 export const metadata: Metadata = {
-  title: "GAHAN — Subsurface Ocean Reconstruction",
+  title: "OceanSight — Subsurface Ocean Reconstruction",
   description:
     "SIH26066 OceanEmbed: satellite-embedding deep learning reconstruction of North Indian Ocean subsurface temperature (0–1000 m, 0.25°, daily), validated against independent Argo floats.",
 };

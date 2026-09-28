@@ -56,7 +56,7 @@ export default function MapScreen() {
     });
     const a = document.createElement("a");
     a.href = out.toDataURL("image/png");
-    a.download = `gahan_${v}_${PRODUCT_VARS.includes(v) ? "" : depth + "m_"}${grid?.date ?? date}.png`;
+    a.download = `oceansight_${v}_${PRODUCT_VARS.includes(v) ? "" : depth + "m_"}${grid?.date ?? date}.png`;
     a.click();
   };
 

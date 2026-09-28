@@ -1,6 +1,6 @@
 import InsightsScreen from "./InsightsScreen";
 
-export const metadata = { title: "AI Insights — GAHAN" };
+export const metadata = { title: "AI Insights — OceanSight" };
 
 export default function Page() {
   return <InsightsScreen />;

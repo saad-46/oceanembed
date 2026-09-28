@@ -140,7 +140,7 @@ def report_file(day: date, lat: float, lon: float, format: Literal["pdf", "csv"]
     except (OperationalError, InterfaceError):
         p = build_profile(store, None, day, lat, lon)
     summary = assistant.summarise(p)
-    fname = f"gahan_profile_{p['date']}_{lat:.2f}N_{lon:.2f}E"
+    fname = f"oceansight_profile_{p['date']}_{lat:.2f}N_{lon:.2f}E"
     if format == "csv":
         return Response(report.profile_csv(p), media_type="text/csv",
                         headers={"Content-Disposition": f'attachment; filename="{fname}.csv"'})

@@ -114,7 +114,7 @@ export default function ProfilePanel({ date, lat, lon, onClose }: { date: string
             </div>
             {data.notice && <Notice>{data.notice}</Notice>}
             <div className={loading ? "opacity-60 transition-opacity" : ""}>
-              <ProfileChart depths={data.depths_m} main={{ key: "model", label: "GAHAN reconstruction", color: C.model, values: data.temperature_c }} band={band} others={others} />
+              <ProfileChart depths={data.depths_m} main={{ key: "model", label: "OceanSight reconstruction", color: C.model, values: data.temperature_c }} band={band} others={others} />
             </div>
             <div className="grid grid-cols-4 gap-2">
               <Chip label="TCHP" value={data.derived.tchp_kj_cm2} unit="kJ/cm²" hint="Tropical cyclone heat potential: heat content above the 26°C isotherm" />

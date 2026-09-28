@@ -8,7 +8,7 @@ import { useApi } from "@/lib/useApi";
 import { fromY, toY, Y_TICKS } from "@/components/ProfileChart";
 
 const SERIES = [
-  { key: "rmse_c", label: "GAHAN U-Net", color: "#3987e5" },
+  { key: "rmse_c", label: "OceanSight U-Net", color: "#3987e5" },
   { key: "baseline_rmse_c", label: "Climatology", color: "#d95926" },
   { key: "lightgbm_rmse_c", label: "LightGBM", color: "#c98500" },
   { key: "nosss_rmse_c", label: "U-Net without SSS", color: "#d55181" },
@@ -154,7 +154,7 @@ export default function ValidationScreen() {
         </Card>
       </div>
 
-      <Card title="Per-depth skill (GAHAN U-Net vs. independent Argo)">
+      <Card title="Per-depth skill (OceanSight U-Net vs. independent Argo)">
         {!sum ? (
           <Skeleton className="h-64" />
         ) : (

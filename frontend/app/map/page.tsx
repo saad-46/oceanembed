@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import MapScreen from "./MapScreen";
 
-export const metadata = { title: "Ocean Map — GAHAN" };
+export const metadata = { title: "Ocean Map — OceanSight" };
 
 export default function MapPage() {
   return (

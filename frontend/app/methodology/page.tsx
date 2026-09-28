@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-export const metadata = { title: "Methodology — GAHAN" };
+export const metadata = { title: "Methodology — OceanSight" };
 
 const STEPS = [
   ["Ingest", "One adapter per source; cached, resumable downloads"],
@@ -41,9 +41,9 @@ export default function Methodology() {
   return (
     <article className="px-4 md:px-8 py-8 max-w-5xl w-full mx-auto space-y-10 text-[15px] leading-relaxed">
       <header className="space-y-2">
-        <h1 className="font-display text-3xl">How GAHAN works — and where its limits are</h1>
+        <h1 className="font-display text-3xl">How OceanSight works — and where its limits are</h1>
         <p className="text-ink-2">
-          GAHAN is our implementation of <strong>SIH26066 “OceanEmbed”</strong> (Ministry of Earth Sciences / INCOIS): reconstruct subsurface ocean temperature at 15
+          OceanSight is our implementation of <strong>SIH26066 “OceanEmbed”</strong> (Ministry of Earth Sciences / INCOIS): reconstruct subsurface ocean temperature at 15
           standard depths (0–1000 m) over the North Indian Ocean (5–30°N, 45–105°E) at 0.25° and daily resolution, from surface satellite observations alone.
         </p>
         <nav className="flex flex-wrap gap-3 text-sm text-accent" aria-label="On this page">

@@ -1,4 +1,4 @@
-# AUTONOMOUS BUILD STATUS — OceanEmbed / GAHAN (SIH26066)
+# AUTONOMOUS BUILD STATUS — OceanSight (SIH26066 OceanEmbed) · team CodeCrafters (135494)
 
 > Persistent memory for the autonomous build. On resume: read this, `git log`, then
 > continue from **NEXT TASK**. Spec: `docs/23_MASTER_BUILD_SPEC.md`. Deviations: `docs/DECISIONS.md`.

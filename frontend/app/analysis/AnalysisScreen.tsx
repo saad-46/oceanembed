@@ -209,7 +209,7 @@ export default function AnalysisScreen() {
                   </ResponsiveContainer>
                 </div>
                 <p className="text-[11px] text-ink-3">
-                  {fuel.note} Peak reconstructed TCHP along the track: <span className="num text-ink">{fmt(fuel.max_tchp_kj_cm2, 0)} kJ/cm²</span>. Track: NOAA IBTrACS; ocean: GAHAN satellite-only reconstruction.
+                  {fuel.note} Peak reconstructed TCHP along the track: <span className="num text-ink">{fmt(fuel.max_tchp_kj_cm2, 0)} kJ/cm²</span>. Track: NOAA IBTrACS; ocean: OceanSight satellite-only reconstruction.
                 </p>
               </>
             )}
