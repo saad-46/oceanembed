@@ -118,3 +118,17 @@ def test_cached_lookup_is_fast(client):
         assert client.get("/v1/grid/2023-05-11", params={"depth": 50}).status_code == 200
         assert client.get("/v1/profile/2023-05-11", params={"lat": 15, "lon": 88}).status_code == 200
     assert (time.perf_counter() - t) / 10 < 0.5  # docs/17: < 500 ms per cached lookup
+
+
+def test_section_endpoint(client):
+    r = client.get("/v1/section/2023-05-11", params={"lat": 15, "lon_min": 80, "lon_max": 97}).json()
+    assert len(r["depths_m"]) == 15 and len(r["temperature_c"]) == 15
+    assert len(r["temperature_c"][0]) == len(r["lon"]) > 50
+    assert r["temperature_c"][0][-1] == pytest.approx(29.5, abs=0.02)
+    bad = client.get("/v1/section/2023-05-11", params={"lon_min": 97, "lon_max": 80})
+    assert bad.status_code == 422
+
+
+def test_headline_counts(client):
+    h = client.get("/v1/summary/headline").json()
+    assert h["n_argo_profiles_total"] == 10 and h["n_models_compared"] == 3

@@ -74,8 +74,14 @@ def headline(store: GridStore = Depends(get_store)):
     ts = store.times(store.production_model)
     out = {"study_period": f"{ts[0].date()}..{ts[-1].date()}", "n_days_reconstructed": len(ts),
            "grid": "0.25° × 0.25°, 15 depths (0–1000 m)", "production_model": store.production_model,
-           "validation": None}
+           "validation": None, "n_argo_profiles_total": None, "target_days": None,
+           "n_models_compared": len([r for r in store.registry if not r["name"].endswith("nosss-v1")]) + 1}
+    summ = store.json_output("../processed/assemble_summary.json")
+    if summ:
+        out["target_days"] = summ.get("target_days")
     m = store.json_output("metrics_argo.json")
+    if m:
+        out["n_argo_profiles_total"] = m.get("n_profiles_total")
     if m and "test" in m["splits"]:
         sp = m["splits"]["test"]
         rows = {r["depth_m"]: r for r in sp["models"].get(store.production_model, {}).get("per_depth", [])}

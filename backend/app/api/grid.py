@@ -203,6 +203,22 @@ def region_timeseries(req: TimeseriesRequest, store: GridStore = Depends(get_sto
             **_meta(store, store.production_model, None)}
 
 
+@router.get("/section/{day}")
+def section(day: date, lat: float = Query(15.0, ge=5, le=30), lon_min: float = Query(80.0, ge=45, le=105),
+            lon_max: float = Query(97.0, ge=45, le=105), store: GridStore = Depends(get_store)):
+    """Zonal depth section (15 depths x longitude) of the reconstruction along one latitude row."""
+    if lon_min >= lon_max:
+        raise ApiError(422, "invalid_request", "lon_min must be < lon_max")
+    used, notice = store.resolve_date(day)
+    i = int(np.clip(np.floor((lat - LATS[0] + 0.125) / 0.25), 0, LATS.size - 1))
+    jj = np.where((LONS >= lon_min) & (LONS <= lon_max))[0]
+    cube = store.cube(store.production_model, used)
+    temp = cube["temp"][:, i, jj]
+    return {"date": str(used), "requested_date": str(day), "lat": float(LATS[i]), "lon": LONS[jj].tolist(),
+            "depths_m": STANDARD_DEPTHS.tolist(), "temperature_c": grid_to_lists(temp),
+            **_meta(store, store.production_model, notice)}
+
+
 @router.get("/dates")
 def available_dates(store: GridStore = Depends(get_store)):
     ts = store.times(store.production_model)

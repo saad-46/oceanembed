@@ -178,6 +178,9 @@ export interface ProfileResponse {
 export interface Headline {
   study_period: string;
   n_days_reconstructed: number;
+  n_argo_profiles_total: number | null;
+  target_days: number | null;
+  n_models_compared: number;
   grid: string;
   production_model: string;
   validation: {
@@ -289,4 +292,14 @@ export interface ArgoMarker {
   split: string;
   independent: boolean;
   rmse_c: number | null;
+}
+
+export interface SectionResponse {
+  date: string;
+  lat: number;
+  lon: number[];
+  depths_m: number[];
+  temperature_c: (number | null)[][];
+  model_version: string;
+  data_label: string;
 }
