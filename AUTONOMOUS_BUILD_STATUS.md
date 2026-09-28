@@ -4,15 +4,21 @@
 > continue from **NEXT TASK**. Spec: `docs/23_MASTER_BUILD_SPEC.md`. Deviations: `docs/DECISIONS.md`.
 
 CURRENT PHASE: 11 — demo preparation / final audit (all build phases complete locally)
-CURRENT TASK: build complete locally; audit done (security, latency, tablet layout, container); deployment blocked on accounts
+CURRENT TASK: premium UI/UX transformation complete (design system, landing, app shell, all screens); deployment blocked on accounts
 
 COMPLETED:
 - Data: 1826 days of 5 open satellite inputs; 637 HYCOM target days; 15,018 Argo profiles; 26 IBTrACS tracks; EN4 2022-23
 - Models: climatology, LightGBM, U-Net (+ no-SSS ablation); evaluate, precompute (all 1826 days), Argo validation,
   EN4 cross-check, uncertainty calibration (D-013); docs/RESULTS.md generated
-- DB seeded (15k Argo, 60k predictions, skill metrics, tracks, daily_product); API 22+1 endpoints live
+- DB seeded (15k Argo, 60k predictions, skill metrics, tracks, daily_product); API 23+1 endpoints live (+ /v1/section)
 - Frontend: all 8 screens verified in a browser against real data; offline fallback verified with API stopped
-- Tests 44/44 + CI green; backend Docker image builds and serves against PostGIS
+- UI/UX transformation (2026-09-28): design tokens + glass/card/badge/button system; cinematic landing with a real
+  reconstructed depth section and API-driven metrics; sidebar app shell (Overview, Ocean Map, Profiles, Analysis,
+  Validation, Insights, Reports, Methodology) with live status; floating-panel map; profiles workspace; analysis
+  workspace with measured/reconstructed/derived/estimated badges on the Cyclone Fuel Gauge; validation story;
+  computed insight cards; export cards with states; interactive methodology pipeline; reduced-motion support;
+  no horizontal scroll at 375 px on any page
+- Tests 46/46 + CI green; backend Docker image builds and serves against PostGIS
 - Docs: README (results), DECISIONS D-001..D-013, RESULTS, 24 judge Q&A as built, 25 demo script as built
 - Audit: no secrets tracked; typed errors (no stack traces); CORS restricted; warm API latencies <= 350 ms
   (cyclone fuel vectorised 4.5 s -> 0.4 s); DB index migration 0002; tablet breakpoint OK, no h-scroll
@@ -40,7 +46,7 @@ KNOWN BUGS / LIMITATIONS:
 - Embedded browser panes without a PDF plugin show a blank inline PDF preview (download/new-tab links work)
 - First request after API start is slow (~4 s: store + DB pool warm-up); subsequent requests fast
 - Salinity ablation shows no measurable effect (reported honestly; docs/24 #8)
-TEST STATUS: 44/44 pytest; frontend lint/typecheck/build clean; CI (GitHub Actions) green.
+TEST STATUS: 46/46 pytest; frontend lint/typecheck/build clean; CI (GitHub Actions) green.
 GIT: branch main, pushed to origin (github.com/saad-46/oceanembed)
 
 ENVIRONMENT REQUIREMENTS:
