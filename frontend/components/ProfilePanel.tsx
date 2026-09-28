@@ -1,4 +1,7 @@
 "use client";
+import Link from "next/link";
+import { History, ScanLine } from "lucide-react";
+import { sectionFromMap, timelineHref } from "@/lib/ocean";
 import Explain from "@/components/Explain";
 import type { TermKey } from "@/lib/glossary";
 import { useState } from "react";
@@ -56,7 +59,7 @@ function ThermalColumn({ depths, temps }: { depths: number[]; temps: (number | n
   );
 }
 
-export default function ProfilePanel({ date, lat, lon, onClose, wide = false }: { date: string; lat: number | null; lon: number | null; onClose?: () => void; wide?: boolean }) {
+export default function ProfilePanel({ date, lat, lon, onClose, wide = false, hideTimelineLink = false }: { date: string; lat: number | null; lon: number | null; onClose?: () => void; wide?: boolean; hideTimelineLink?: boolean }) {
   const { data, error, loading } = useProfile(date, lat, lon);
   const [show, setShow] = useState({ clim: true, argo: true, lgbm: false, nosss: false, target: false });
   const pointKey = `${date}|${lat}|${lon}`;
@@ -199,6 +202,16 @@ export default function ProfilePanel({ date, lat, lon, onClose, wide = false }: 
                 <button onClick={summarise} disabled={summLoading} className="text-xs border border-accent/50 text-accent rounded px-3 py-1.5 hover:bg-accent/10 disabled:opacity-50">
                   {summLoading ? "Summarising…" : "Summarise in plain language"}
                 </button>
+                {!hideTimelineLink && lat !== null && lon !== null && (
+                  <Link className="text-xs border border-accent/50 text-accent rounded px-3 py-1.5 hover:bg-accent/10 inline-flex items-center gap-1" href={timelineHref({ lat, lon, date: data.date })}>
+                    <History size={12} aria-hidden /> View through time
+                  </Link>
+                )}
+                {lat !== null && lon !== null && (
+                  <Link className="text-xs border border-line text-ink-2 rounded px-3 py-1.5 hover:text-ink inline-flex items-center gap-1" href={sectionFromMap(data.date, lat, lon)}>
+                    <ScanLine size={12} aria-hidden /> Section here
+                  </Link>
+                )}
                 <a className="text-xs border border-line text-ink-2 rounded px-3 py-1.5 hover:text-ink" href={`${API_URL}/v1/report/${data.date}?lat=${lat}&lon=${lon}&format=pdf`}>
                   PDF report
                 </a>

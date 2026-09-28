@@ -303,3 +303,44 @@ export interface SectionResponse {
   model_version: string;
   data_label: string;
 }
+
+/** GET /v1/section/{day} with orientation/variable (interactive vertical section). */
+export interface SectionAnyResponse {
+  date: string;
+  requested_date: string;
+  orientation: "zonal" | "meridional";
+  variable: "temp" | "anomaly" | "uncertainty";
+  units: string;
+  x: number[];
+  x_name: "lon" | "lat";
+  depths_m: number[];
+  values: (number | null)[][];
+  lat: number | number[];
+  lon: number | number[];
+  model_version: string;
+  data_label: string;
+  notice: string | null;
+}
+
+/** GET /v1/timeline — reconstructed column at one cell through time (+ derived MLD/D20/D26). */
+export interface TimelineResponse {
+  lat: number;
+  lon: number;
+  cell: { lat: number; lon: number };
+  start: string;
+  end: string;
+  requested_start: string;
+  requested_end: string;
+  stride_days: number;
+  dates: string[];
+  depths_m: number[];
+  temperature_c: (number | null)[][]; // [depth][time]
+  climatology_c: (number | null)[][] | null;
+  mld_m: (number | null)[];
+  d20_m: (number | null)[];
+  d26_m: (number | null)[];
+  max_samples: number;
+  model_version: string;
+  data_label: string;
+  notice: string | null;
+}

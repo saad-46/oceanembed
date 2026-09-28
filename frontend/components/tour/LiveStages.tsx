@@ -10,6 +10,7 @@ import ProfilePanel from "@/components/ProfilePanel";
 import { Button, DataBadge, KindBadge, Skeleton, fmt, type DataKind } from "@/components/ui";
 import type { CycloneTrack, FuelResponse, GridResponse, ProfileResponse, ValidationSummary } from "@/lib/api";
 import { DEMO_DATE, DEMO_POINT } from "@/lib/demo";
+import { timelineHref } from "@/lib/ocean";
 import { useApi } from "@/lib/useApi";
 import { sampleGrid, useGrid } from "@/lib/useGrid";
 import { StageTitle, type StageProps } from "./StoryStages";
@@ -120,9 +121,17 @@ export function ProfileStage() {
             )}
           </div>
         )}
-        <Button variant="secondary" size="sm" href={`/profiles?date=${DEMO_DATE}&${PT}`}>
-          View technical profile
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="secondary" size="sm" href={`/profiles?date=${DEMO_DATE}&${PT}`}>
+            View technical profile
+          </Button>
+        </div>
+        <div className="panel p-3.5 border-accent/30">
+          <p className="text-[13.5px] text-ink-2 leading-relaxed">The ocean does not just vary across space. It changes vertically and through time.</p>
+          <Button size="sm" className="mt-2.5" href={timelineHref({ lat: DEMO_POINT.lat, lon: DEMO_POINT.lon, date: DEMO_DATE, start: "2023-01-01", end: "2023-12-31" })}>
+            Explore Ocean State Timeline
+          </Button>
+        </div>
       </div>
       <section className="panel overflow-hidden min-h-[520px]" aria-label="Reconstructed profile">
         <ProfilePanel date={DEMO_DATE} lat={DEMO_POINT.lat} lon={DEMO_POINT.lon} />

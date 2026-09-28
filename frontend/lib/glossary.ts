@@ -56,6 +56,26 @@ export const GLOSSARY = {
     simple: "OceanSight's best estimate of the ocean below the surface, built from what satellites see at the surface. It is not a measurement and not a forecast.",
     technical: "U-Net output: residual on climatology at 15 standard depths, 0.25° daily, 2019–2023, from 7 satellite surface channels (SST, SSS, SLA, geostrophic U/V, wind U/V).",
   },
+  cross_section: {
+    title: "Vertical cross-section",
+    simple: "A slice through the ocean, like cutting a cake: distance along a line goes across, depth goes down, and colour shows the temperature in that slice.",
+    technical: "Reconstructed field at the 15 standard depths along one row (fixed latitude) or column (fixed longitude) of the 0.25° grid, exactly the grid cells, no horizontal interpolation; land and below-seabed cells are blank.",
+  },
+  isotherm: {
+    title: "Isotherm",
+    simple: "A line joining places with the same temperature — for example, where the water is exactly 20 °C. Following it shows how warm water piles up or thins out.",
+    technical: "Depth of a fixed temperature (20 or 26 °C) found by linear interpolation between the two reconstructed standard depths that bracket it; undefined where the column never crosses it.",
+  },
+  thermocline: {
+    title: "Thermocline",
+    simple: "The layer where the water gets colder quickly as you go down, separating the warm surface water from the cold deep ocean.",
+    technical: "The zone of maximum vertical temperature gradient below the mixed layer; in the tropical Indian Ocean the 20 °C isotherm (D20) is a common proxy for its depth.",
+  },
+  temporal_evolution: {
+    title: "Temporal evolution",
+    simple: "How something changes over time. Here: how warm or cold each depth is, day after day, at one place.",
+    technical: "Daily reconstructed temperature at one grid cell for the chosen period (subsampled to at most 400 days for long ranges), shown as a depth–time section with derived MLD/D20/D26.",
+  },
 } satisfies Record<string, Term>;
 
 export type TermKey = keyof typeof GLOSSARY;

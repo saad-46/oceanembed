@@ -132,3 +132,82 @@ def test_section_endpoint(client):
 def test_headline_counts(client):
     h = client.get("/v1/summary/headline").json()
     assert h["n_argo_profiles_total"] == 10 and h["n_models_compared"] == 3
+
+
+# ---------- Ocean State Timeline
+def test_timeline_valid(client):
+    r = client.get("/v1/timeline", params={"lat": 15, "lon": 88, "start": "2023-05-10", "end": "2023-05-12"})
+    assert r.status_code == 200
+    t = r.json()
+    assert t["dates"] == ["2023-05-10", "2023-05-11", "2023-05-12"] and t["stride_days"] == 1
+    assert len(t["temperature_c"]) == 15 and len(t["temperature_c"][0]) == 3  # [depth][time]
+    assert t["temperature_c"][0][1] == pytest.approx(29.5, abs=0.02)  # fixture: analytic profile + 0.5
+    assert len(t["mld_m"]) == len(t["d20_m"]) == len(t["d26_m"]) == 3
+    assert t["d20_m"][0] is not None and t["d26_m"][0] < t["d20_m"][0]  # warmer isotherm is shallower
+    assert t["climatology_c"][0][0] == pytest.approx(29.0, abs=0.05)
+    assert t["notice"] is None and t["model_version"] == "cnn-unet-v1"
+
+
+def test_timeline_invalid_coordinates(client):
+    assert client.get("/v1/timeline", params={"lat": 40, "lon": 88}).json()["error"] == "out_of_domain"
+    assert client.get("/v1/timeline", params={"lat": 25, "lon": 80}).json()["error"] == "on_land"
+    assert client.get("/v1/timeline", params={"lon": 88}).status_code == 422  # lat required
+
+
+def test_timeline_invalid_and_unsupported_ranges(client):
+    rev = client.get("/v1/timeline", params={"lat": 15, "lon": 88, "start": "2023-05-12", "end": "2023-05-10"})
+    assert rev.status_code == 422 and rev.json()["error"] == "invalid_range"
+    out = client.get("/v1/timeline", params={"lat": 15, "lon": 88, "start": "2030-01-01", "end": "2030-02-01"})
+    assert out.status_code == 404 and out.json()["error"] == "date_out_of_range"
+    bad = client.get("/v1/timeline", params={"lat": 15, "lon": 88, "start": "2023-02-30"})
+    assert bad.status_code == 422
+    big = client.get("/v1/timeline", params={"lat": 15, "lon": 88, "stride_days": 99})
+    assert big.status_code == 422  # stride bound
+
+
+def test_timeline_range_limit_and_clipping(client, monkeypatch):
+    from app.api import grid
+    monkeypatch.setattr(grid, "TIMELINE_MAX_SAMPLES", 2)
+    too = client.get("/v1/timeline", params={"lat": 15, "lon": 88, "start": "2023-05-10", "end": "2023-05-12", "stride_days": 1})
+    assert too.status_code == 422 and too.json()["error"] == "range_too_large"
+    auto = client.get("/v1/timeline", params={"lat": 15.1, "lon": 88.1, "start": "2023-05-10", "end": "2023-05-12"}).json()
+    assert auto["stride_days"] == 2 and len(auto["dates"]) <= 2
+    monkeypatch.undo()
+    clip = client.get("/v1/timeline", params={"lat": 15, "lon": 88, "start": "2023-05-01", "end": "2023-05-11"}).json()
+    assert clip["start"] == "2023-05-10" and "clipped" in clip["notice"]
+
+
+def test_timeline_missing_data_is_null_and_cached(client):
+    # fixture: 1000 m is "shallow" (masked) west of column 60 -> nulls, never invented values
+    r = client.get("/v1/timeline", params={"lat": 15, "lon": 55, "start": "2023-05-10", "end": "2023-05-12"}).json()
+    assert r["temperature_c"][-1] == [None, None, None]
+    assert r["temperature_c"][0][0] is not None
+    again = client.get("/v1/timeline", params={"lat": 15, "lon": 55, "start": "2023-05-10", "end": "2023-05-12"}).json()
+    assert again["temperature_c"] == r["temperature_c"]
+    from app.api import grid
+    assert len(grid._timeline_cache) >= 1
+
+
+# ---------- interactive vertical section
+def test_section_meridional_and_variables(client):
+    m = client.get("/v1/section/2023-05-11", params={"orientation": "meridional", "lon": 88, "lat_min": 5, "lat_max": 20}).json()
+    # grid cells are centred on x.125 / x.375 ...: the section uses the containing cells, never interpolates
+    assert m["x_name"] == "lat" and m["lon"] == pytest.approx(88.0, abs=0.13) and m["x"][0] == pytest.approx(5.0, abs=0.13)
+    assert len(m["values"]) == 15 and len(m["values"][0]) == len(m["x"]) and len(m["x"]) >= 59
+    z = client.get("/v1/section/2023-05-11", params={"lat": 15, "lon_min": 80, "lon_max": 90}).json()
+    assert z["x_name"] == "lon" and z["temperature_c"] == z["values"]  # legacy key kept
+    a = client.get("/v1/section/2023-05-11", params={"lat": 15, "lon_min": 80, "lon_max": 90, "variable": "anomaly"}).json()
+    assert a["values"][0][0] == pytest.approx(0.5, abs=0.05)  # fixture: +0.5 degC over climatology
+    u = client.get("/v1/section/2023-05-11", params={"lat": 15, "lon_min": 80, "lon_max": 90, "variable": "uncertainty"}).json()
+    assert u["values"][0][0] is not None and u["values"][0][0] >= 0.3
+
+
+def test_section_invalid_inputs(client):
+    base = "/v1/section/2023-05-11"
+    assert client.get(base, params={"orientation": "meridional", "lat_min": 20, "lat_max": 10}).json()["error"] == "invalid_request"
+    assert client.get(base, params={"lat": 15, "lon_min": 80, "lon_max": 80.1}).json()["error"] == "invalid_request"  # < 2 cells
+    assert client.get(base, params={"orientation": "diagonal"}).status_code == 422
+    assert client.get(base, params={"variable": "salinity"}).status_code == 422
+    assert client.get(base, params={"lat": 99}).status_code == 422
+    assert client.get("/v1/section/2023-13-01").status_code == 422
+    assert client.get("/v1/section/2030-01-01").json()["error"] == "date_out_of_range"

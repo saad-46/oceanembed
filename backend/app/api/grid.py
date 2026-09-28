@@ -15,9 +15,10 @@ from ml.config import LATS, LONS, STANDARD_DEPTHS
 from ml.evaluation.derived_products import BARRIER_SSS_THRESHOLD, all_products, barrier_prone_fraction
 
 from app.db.session import get_db
-from app.errors import ApiError
+from app.errors import ApiError, data_unavailable
 from app.services import argo as argo_q
-from app.services.store import GridStore, get_store, grid_to_lists, round_or_none
+from app.services.store import LRU, GridStore, get_store, grid_to_lists, round_or_none
+from ml.pipeline.feature_engineering import climatology_for
 
 router = APIRouter(prefix="/v1", tags=["data"])
 PRODUCTS = {"tchp": ("tchp", "kJ/cm²"), "mld": ("mld", "m"), "d20": ("d20", "m"), "d26": ("d26", "m"),
@@ -204,19 +205,113 @@ def region_timeseries(req: TimeseriesRequest, store: GridStore = Depends(get_sto
 
 
 @router.get("/section/{day}")
-def section(day: date, lat: float = Query(15.0, ge=5, le=30), lon_min: float = Query(80.0, ge=45, le=105),
-            lon_max: float = Query(97.0, ge=45, le=105), store: GridStore = Depends(get_store)):
-    """Zonal depth section (15 depths x longitude) of the reconstruction along one latitude row."""
-    if lon_min >= lon_max:
+def section(day: date,
+            orientation: Literal["zonal", "meridional"] = "zonal",
+            lat: float = Query(15.0, ge=5, le=30), lon_min: float = Query(80.0, ge=45, le=105),
+            lon_max: float = Query(97.0, ge=45, le=105),
+            lon: float = Query(88.0, ge=45, le=105), lat_min: float = Query(5.0, ge=5, le=30),
+            lat_max: float = Query(22.0, ge=5, le=30),
+            variable: Literal["temp", "anomaly", "uncertainty"] = "temp",
+            store: GridStore = Depends(get_store)):
+    """Vertical section (15 depths x distance) of the reconstruction.
+
+    zonal: along one latitude row from lon_min to lon_max; meridional: along one longitude
+    column from lat_min to lat_max. Values are exactly the reconstructed grid cells (no
+    horizontal interpolation); land/shallow cells are null.
+    """
+    if orientation == "zonal" and lon_min >= lon_max:
         raise ApiError(422, "invalid_request", "lon_min must be < lon_max")
+    if orientation == "meridional" and lat_min >= lat_max:
+        raise ApiError(422, "invalid_request", "lat_min must be < lat_max")
     used, notice = store.resolve_date(day)
-    i = int(np.clip(np.floor((lat - LATS[0] + 0.125) / 0.25), 0, LATS.size - 1))
-    jj = np.where((LONS >= lon_min) & (LONS <= lon_max))[0]
     cube = store.cube(store.production_model, used)
-    temp = cube["temp"][:, i, jj]
-    return {"date": str(used), "requested_date": str(day), "lat": float(LATS[i]), "lon": LONS[jj].tolist(),
-            "depths_m": STANDARD_DEPTHS.tolist(), "temperature_c": grid_to_lists(temp),
-            **_meta(store, store.production_model, notice)}
+    if variable == "uncertainty" and "sigma" not in cube:
+        raise ApiError(422, "uncertainty_unavailable", "the production model has no uncertainty head")
+    full = {"temp": cube["temp"], "uncertainty": cube.get("sigma"),
+            "anomaly": cube["temp"] - store.climatology(used) if variable == "anomaly" else None}[variable]
+    if orientation == "zonal":
+        i = int(np.clip(np.floor((lat - LATS[0] + 0.125) / 0.25), 0, LATS.size - 1))
+        jj = np.where((LONS >= lon_min) & (LONS <= lon_max))[0]
+        vals, x, fixed = full[:, i, jj], LONS[jj], {"lat": float(LATS[i]), "lon": LONS[jj].tolist()}
+    else:
+        j = int(np.clip(np.floor((lon - LONS[0] + 0.125) / 0.25), 0, LONS.size - 1))
+        ii = np.where((LATS >= lat_min) & (LATS <= lat_max))[0]
+        vals, x, fixed = full[:, ii, j], LATS[ii], {"lon": float(LONS[j]), "lat": LATS[ii].tolist()}
+    if x.size < 2:
+        raise ApiError(422, "invalid_request", "transect must span at least two grid cells (0.25 deg apart)")
+    out = {"date": str(used), "requested_date": str(day), "orientation": orientation, "variable": variable,
+           "units": "°C", "x": x.tolist(), "x_name": "lon" if orientation == "zonal" else "lat",
+           "depths_m": STANDARD_DEPTHS.tolist(), "values": grid_to_lists(vals), **fixed,
+           **_meta(store, store.production_model, notice)}
+    if variable == "temp":
+        out["temperature_c"] = out["values"]  # backwards-compatible key used by the landing section
+    return out
+
+
+# ---------- Ocean State Timeline: the full column at one point through time
+TIMELINE_MAX_SAMPLES = 400        # ~1.1 years daily, or the whole 2019-2023 record at a 5-day stride
+_timeline_cache = LRU(64)
+
+
+@router.get("/timeline")
+def timeline(lat: float = Query(..., ge=-90, le=90), lon: float = Query(..., ge=-180, le=360),
+             start: date | None = None, end: date | None = None,
+             stride_days: int | None = Query(None, ge=1, le=31),
+             store: GridStore = Depends(get_store)):
+    """Reconstructed temperature at the 15 standard depths through time at one grid cell, with the
+    derived MLD / D20 / D26 and the seasonal climatology (for anomalies). Read-only, cached.
+
+    The range is clipped to the reconstructed period (with a notice). Without `stride_days` the
+    stride is chosen so at most TIMELINE_MAX_SAMPLES days are returned; an explicit stride that
+    would exceed that limit is rejected with `range_too_large`.
+    """
+    i, j = store.cell(lat, lon)
+    model = store.production_model
+    ts = store.times(model)
+    t0 = pd.Timestamp(start) if start else ts[-1] - pd.Timedelta(days=364)
+    t1 = pd.Timestamp(end) if end else ts[-1]
+    if t0 > t1:
+        raise ApiError(422, "invalid_range", f"start ({t0.date()}) must not be after end ({t1.date()})")
+    if t1 < ts[0] or t0 > ts[-1]:
+        raise ApiError(404, "date_out_of_range",
+                       f"{t0.date()}..{t1.date()} is outside the reconstructed period {ts[0].date()}..{ts[-1].date()}.")
+    notice = None
+    if t0 < ts[0] or t1 > ts[-1]:
+        notice = f"Range clipped to the reconstructed period {ts[0].date()}..{ts[-1].date()}."
+    sel = np.where((ts >= max(t0, ts[0])) & (ts <= min(t1, ts[-1])))[0]
+    auto = int(np.ceil(sel.size / TIMELINE_MAX_SAMPLES))
+    if stride_days is not None and sel.size / stride_days > TIMELINE_MAX_SAMPLES:
+        raise ApiError(422, "range_too_large",
+                       f"{sel.size} days at a {stride_days}-day stride exceeds {TIMELINE_MAX_SAMPLES} samples; "
+                       f"use stride_days >= {auto} or a shorter range.")
+    stride = stride_days or max(1, auto)
+    idx = sel[::stride]
+    if idx.size == 0:
+        raise data_unavailable("No reconstructed days in the requested range.")
+
+    def load():
+        times = ts[idx]
+        temp = store.predictions[model]["temp"].isel(time=idx, lat=i, lon=j).values.astype(np.float32)  # (n, 15)
+        prods = store.products.get(model)
+        derived = {}
+        for v in ("mld", "d20", "d26"):
+            derived[v] = (prods[v].sel(time=times).isel(lat=i, lon=j).values.astype(np.float32)
+                          if prods is not None and v in prods else np.full(idx.size, np.nan, np.float32))
+        clim = (np.where(store.mask3d[:, i, j][None], climatology_for(times, store.clim_coef[:, :, i:i + 1, j:j + 1])[:, :, 0, 0], np.nan)
+                if store.clim_coef is not None else None)
+        return times, temp, derived, clim
+
+    times, temp, derived, clim = _timeline_cache.get_or((model, i, j, int(idx[0]), int(idx[-1]), stride), load)
+    return {
+        "lat": lat, "lon": lon, "cell": {"lat": float(LATS[i]), "lon": float(LONS[j])},
+        "start": str(times[0].date()), "end": str(times[-1].date()),
+        "requested_start": str(t0.date()), "requested_end": str(t1.date()), "stride_days": stride,
+        "dates": [str(t.date()) for t in times], "depths_m": STANDARD_DEPTHS.tolist(),
+        "temperature_c": grid_to_lists(temp.T), "climatology_c": grid_to_lists(clim.T) if clim is not None else None,
+        "mld_m": round_or_none(derived["mld"], 1), "d20_m": round_or_none(derived["d20"], 1),
+        "d26_m": round_or_none(derived["d26"], 1), "units": "°C", "max_samples": TIMELINE_MAX_SAMPLES,
+        **_meta(store, model, notice),
+    }
 
 
 @router.get("/dates")

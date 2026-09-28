@@ -4,6 +4,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Map as MLMap } from "maplibre-gl";
 import Explain from "@/components/Explain";
+import { History, ScanLine } from "lucide-react";
+import { sectionFromMap, timelineHref } from "@/lib/ocean";
 import ColorLegend from "@/components/Legend";
 import ProfilePanel from "@/components/ProfilePanel";
 import { Badge, Button, DataBadge, ErrorState, Notice, Skeleton, Toggle } from "@/components/ui";
@@ -266,7 +268,15 @@ export default function MapScreen() {
               </Button>
             </div>
           </div>
-          <div className="flex gap-1.5 pt-1">
+          <div className="flex flex-wrap gap-1.5 pt-1">
+            <Button variant="ghost" size="sm" href={sectionFromMap(grid?.date ?? date, lat, lon)} icon={<ScanLine size={14} />}>
+              Explore this section
+            </Button>
+            {lat !== null && lon !== null && (
+              <Button variant="ghost" size="sm" href={timelineHref({ lat, lon, date: grid?.date ?? date })} icon={<History size={14} />}>
+                View through time
+              </Button>
+            )}
             <Button variant="ghost" size="sm" onClick={exportPng} icon={<ImageDown size={14} />}>
               Export PNG
             </Button>

@@ -7,6 +7,7 @@ import { ReactNode, Suspense, useState } from "react";
 import {
   Activity, BarChart3, BookOpen, CircleHelp, FileText, LayoutDashboard, Map as MapIcon, Menu, ShieldCheck, Sparkles, Waves, X,
 } from "lucide-react";
+import { History, ScanLine } from "lucide-react";
 import { Logo, StatusDot } from "./ui";
 import { useApi } from "@/lib/useApi";
 import type { Meta } from "@/lib/api";
@@ -15,6 +16,8 @@ export const NAV = [
   { href: "/overview", label: "Overview", icon: LayoutDashboard },
   { href: "/map", label: "Ocean Map", icon: MapIcon },
   { href: "/profiles", label: "Profiles", icon: Waves },
+  { href: "/timeline", label: "Timeline", icon: History },
+  { href: "/section", label: "Sections", icon: ScanLine },
   { href: "/analysis", label: "Analysis", icon: BarChart3 },
   { href: "/validation", label: "Validation", icon: ShieldCheck },
   { href: "/insights", label: "Insights", icon: Sparkles },

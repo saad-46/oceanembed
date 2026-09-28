@@ -48,7 +48,10 @@ def main():
             "/v1/embedding/projection", "/v1/explain/importance",
             f"/v1/argo/markers?date={DEMO_DATE}&window_days=3",
             f"/v1/profile/{DEMO_DATE}?lat=15.000&lon=88.000", "/v1/profile/2023-06-06?lat=15.000&lon=66.000",
-            f"/v1/section/{DEMO_DATE}?lat=15&lon_min=80&lon_max=97"]
+            f"/v1/section/{DEMO_DATE}?lat=15&lon_min=80&lon_max=97",
+            # interactive section + timeline defaults (frontend lib/ocean.ts builds these exact paths)
+            f"/v1/section/{DEMO_DATE}?variable=temp&orientation=zonal&lat=15&lon_min=80&lon_max=97",
+            "/v1/timeline?lat=15.000&lon=88.000&start=2023-01-01&end=2023-12-31"]
     for split in ("test", "val"):
         gets += [f"/v1/validation/summary?split={split}", f"/v1/validation/scatter?split={split}&max_points=3000",
                  f"/v1/validation/profiles?split={split}&sort=rmse_desc&limit=15&offset=0"]
