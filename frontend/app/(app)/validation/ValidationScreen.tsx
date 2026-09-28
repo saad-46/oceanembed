@@ -2,8 +2,9 @@
 import Link from "next/link";
 import { useState } from "react";
 import { CartesianGrid, Cell, ComposedChart, Legend, Line, ReferenceLine, ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis, ZAxis } from "recharts";
-import { AlertTriangle, BarChart3, CalendarX2, Crosshair, Database, GitCompare, ListOrdered, ScatterChart as ScatterIcon, ShieldCheck, Target } from "lucide-react";
-import { Card, DataBadge, ErrorState, LoadingState, Segmented, StatTile, fmt } from "@/components/ui";
+import { AlertTriangle, BarChart3, Crosshair, Database, GitCompare, ListOrdered, ScatterChart as ScatterIcon } from "lucide-react";
+import Explain from "@/components/Explain";
+import { Card, DataBadge, ErrorState, LoadingState, PageHeader, Segmented, fmt } from "@/components/ui";
 import { type ValidationSummary } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
 import { fromY, toY, Y_TICKS } from "@/components/ProfileChart";
@@ -80,68 +81,67 @@ export default function ValidationScreen() {
   const lims = scatter?.length ? [Math.floor(Math.min(...scatter.map((p) => Math.min(p.pred, p.obs)))), Math.ceil(Math.max(...scatter.map((p) => Math.max(p.pred, p.obs))))] : [0, 32];
 
   return (
-    <div className="px-4 md:px-7 py-6 space-y-5 max-w-[1500px] w-full mx-auto">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <div className="eyebrow">Validation</div>
-          <h2 className="font-display text-2xl md:text-[28px] mt-1">How do we know the model works?</h2>
-          <p className="text-sm text-ink-2 mt-1.5 max-w-3xl leading-relaxed">
-            We score every reconstruction against real Argo float profiles from a year the model never saw — not in training, not in normalisation, not in tuning.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <DataBadge fallback={sum?.__fallback} />
-          <Segmented label="Held-out year" value={split} onChange={(s) => (setSplit(s), setPage(0))} options={[{ value: "test", label: "Test 2023" }, { value: "val", label: "Validation 2022" }]} />
-        </div>
-      </div>
+    <div className="px-4 md:px-7 py-5 space-y-4 max-w-[1500px] w-full mx-auto">
+      <PageHeader
+        group="Validate"
+        title="Evidence"
+        description="How the reconstruction compares with observations it was not trained on, and with simpler baselines. Numbers below are computed from the stored validation results."
+        actions={
+          <>
+            <DataBadge fallback={sum?.__fallback} />
+            <Segmented label="Held-out year" value={split} onChange={(s) => (setSplit(s), setPage(0))} options={[{ value: "test", label: "Test · 2023" }, { value: "val", label: "Tuning · 2022" }]} />
+          </>
+        }
+      />
 
-      <ol className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3" aria-label="Validation method">
+      <ol className="panel grid md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-line" aria-label="How the data are split">
         {(
           [
-            [CalendarX2, "Hold out whole years", "Train 2019–2021, tune on 2022, test on 2023. No random splits, so neighbouring days cannot leak."],
-            [Crosshair, "Compare with real floats", sum ? `${sum.n_profiles.toLocaleString("en-IN")} Argo profiles in ${sum.held_out_period}, matched to the reconstruction at each float's position and day.` : "Argo profiles matched to the reconstruction at each float's position and day."],
-            [GitCompare, "Beat honest baselines", "Seasonal climatology, per-depth LightGBM and a no-salinity U-Net are scored on the same floats."],
-            [Target, "Check the error bars", "The served ±σ is calibrated on 2022 and checked on 2023: do about 68% of real values fall inside ±1σ?"],
+            ["2019–2021", "Training", "Satellite inputs → HYCOM ocean analysis (training target). Normalisation and climatology use these years only."],
+            ["2022", "Tuning", "Argo profiles used only for early stopping and to calibrate the ±σ uncertainty."],
+            ["2023", "Independent test", "Argo profiles never seen in training or tuning; every headline number on this page uses them unless you switch to 2022."],
           ] as const
-        ).map(([Icon, t, d], i) => (
-          <li key={t} className="panel p-4">
-            <div className="flex items-center gap-2.5">
-              <span className="w-7 h-7 rounded-md bg-accent/10 text-accent flex items-center justify-center shrink-0">
-                <Icon size={15} aria-hidden />
-              </span>
-              <span className="num text-[11px] text-ink-3">0{i + 1}</span>
+        ).map(([y, t, d]) => (
+          <li key={t} className="px-4 py-3">
+            <div className="flex items-baseline gap-2">
+              <span className="num text-ink">{y}</span>
+              <span className="text-[12px] uppercase tracking-[0.1em] text-ink-3">{t}</span>
             </div>
-            <div className="text-sm text-ink mt-2.5 font-medium">{t}</div>
-            <p className="text-[12px] text-ink-3 mt-1 leading-relaxed">{d}</p>
+            <p className="text-[12.5px] text-ink-2 mt-1 leading-relaxed">{d}</p>
           </li>
         ))}
       </ol>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <StatTile icon={<Database size={13} />} label="Profiles scored" value={sum?.n_profiles.toLocaleString("en-IN")} hint={sum ? `held-out ${sum.held_out_period}` : undefined} loading={!sum && !err} />
-        <StatTile icon={<BarChart3 size={13} />} label="RMSE at 100 m" info="climatology" value={fmt(at100?.rmse_c, 2)} unit="°C" hint={at100 ? `climatology ${fmt(at100.baseline_rmse_c, 2)} °C` : undefined} loading={!sum && !err} />
-        <StatTile icon={<ShieldCheck size={13} />} label="Depths better than climatology" value={sum ? `${nBetter} / ${sum.per_depth.length}` : null} hint="positive skill score" loading={!sum && !err} />
-        <StatTile
-          icon={<Target size={13} />}
-          label="Within ±1σ (ideal 68%)"
-          info="uncertainty"
-          value={cal1 === null ? "—" : `${(cal1 * 100).toFixed(0)}%`}
-          hint={cal1 === null ? undefined : sum?.uncertainty_calibration.calibrated?.frac_within_1sigma !== undefined ? "calibrated σ, held-out floats" : "raw model σ"}
-          loading={!sum && !err}
-        />
-      </div>
+      <dl className="panel grid grid-cols-2 lg:grid-cols-4 divide-x divide-line" aria-label="Key numbers">
+        {(
+          [
+            ["Profiles scored", sum ? sum.n_profiles.toLocaleString("en-IN") : null, sum ? `Argo, ${sum.held_out_period}` : "", null],
+            ["RMSE at 100 m", at100 ? `${fmt(at100.rmse_c, 2)} °C` : null, at100 ? `seasonal climatology ${fmt(at100.baseline_rmse_c, 2)} °C` : "", "climatology"],
+            ["Depths better than climatology", sum ? `${nBetter} of ${sum.per_depth.length}` : null, "positive skill score", null],
+            ["Values within ±1σ", cal1 === null ? null : `${(cal1 * 100).toFixed(0)}%`, "ideal ≈ 68% if σ is well calibrated", "uncertainty"],
+          ] as const
+        ).map(([k, v, hint, term]) => (
+          <div key={k} className="px-4 py-3">
+            <dt className="text-[11.5px] text-ink-3 flex items-center gap-1">
+              {k} {term && <Explain term={term} />}
+            </dt>
+            <dd className="num text-[20px] text-ink mt-0.5">{v ?? (err ? "—" : <span className="skeleton inline-block h-6 w-16 align-middle" />)}</dd>
+            <dd className="text-[11.5px] text-ink-3">{hint}</dd>
+          </div>
+        ))}
+      </dl>
 
-      <div className="flex gap-3 rounded-xl border border-warn/40 bg-warn/[0.06] px-4 py-3 text-sm" role="note">
-        <AlertTriangle size={17} className="text-warn shrink-0 mt-0.5" aria-hidden />
+      <div className="flex gap-3 rounded-lg border border-warn/40 bg-warn/[0.05] px-4 py-3 text-[13px]" role="note">
+        <AlertTriangle size={16} className="text-warn shrink-0 mt-0.5" aria-hidden />
         <div>
-          <span className="font-medium text-warn">Leakage caveat · </span>
-          <span className="text-ink-2">{sum?.caveat ?? "Held-out floats are independent of the model's training, but the ocean reanalysis used as the training target assimilates Argo, so they are not fully independent of the target product."}</span>
+          <span className="font-medium text-warn">Independence caveat · </span>
+          <span className="text-ink-2">{sum?.caveat ?? "Held-out floats are independent of the model's training, but the ocean analysis used as the training target assimilates Argo, so they are not fully independent of that product."}</span>
         </div>
       </div>
-      {err && <ErrorState message={err} why="Validation metrics could not be loaded from the API." action="Check the backend on port 8100, then retry." onRetry={sumQ.retry} />}
+      {err && <ErrorState message={err} why="The validation results could not be loaded." action="Check the connection and retry." onRetry={sumQ.retry} />}
 
-      <div className="grid lg:grid-cols-2 gap-4">
-        <Card icon={<BarChart3 size={14} />} title="RMSE by depth vs. independent Argo" right={sum && <span className="text-[11px] text-ink-3 num">{sum.n_profiles.toLocaleString()} profiles · {sum.held_out_period}</span>}>
+      <div className="grid lg:grid-cols-2 gap-4" data-guide="validation-evidence">
+        <Card className="scroll-mt-4" icon={<BarChart3 size={14} />} title="Error by depth against held-out Argo (RMSE, lower is better)" right={sum && <span className="text-[11px] text-ink-3 num">{sum.n_profiles.toLocaleString()} profiles · {sum.held_out_period}</span>}>
           {!sum ? (
             <LoadingState label="Scoring the reconstruction against held-out floats…" className="h-[380px]" />
           ) : (
@@ -164,7 +164,7 @@ export default function ValidationScreen() {
             HYCOM target product is scored only on the days it was fetched (every 3rd day) — it shows the ceiling of what learning from that target can achieve.
           </p>
         </Card>
-        <Card icon={<ScatterIcon size={14} />} title="Predicted vs. observed (colour = depth)">
+        <Card icon={<ScatterIcon size={14} />} title="Reconstructed vs measured temperature (colour = depth)">
           {!scatter ? (
             <LoadingState label="Pairing reconstructed and observed temperatures…" className="h-[380px]" />
           ) : scatter.length === 0 ? (
@@ -199,7 +199,7 @@ export default function ValidationScreen() {
         </Card>
       </div>
 
-      <Card icon={<ListOrdered size={14} />} title="Per-depth skill (OceanSight U-Net vs. independent Argo)">
+      <Card icon={<ListOrdered size={14} />} title="Per-depth statistics (OceanSight U-Net vs held-out Argo)">
         {!sum ? (
           <LoadingState label="Computing per-depth skill…" className="h-64" />
         ) : (
@@ -252,7 +252,7 @@ export default function ValidationScreen() {
       </Card>
 
       <div className="grid lg:grid-cols-5 gap-4">
-        <Card className="lg:col-span-3" icon={<Crosshair size={14} />} title="Held-out Argo profiles" right={<Segmented label="Sort" value={sort} onChange={(s) => (setSort(s), setPage(0))} options={[{ value: "rmse_desc", label: "Worst first" }, { value: "rmse_asc", label: "Best first" }, { value: "date", label: "Date" }]} />}>
+        <Card className="lg:col-span-3" icon={<Crosshair size={14} />} title="Individual held-out Argo profiles" right={<Segmented label="Sort" value={sort} onChange={(s) => (setSort(s), setPage(0))} options={[{ value: "rmse_desc", label: "Worst first" }, { value: "rmse_asc", label: "Best first" }, { value: "date", label: "Date" }]} />}>
           {profErr && <ErrorState message={profErr} why="The float list could not be loaded." action="Retry, or switch the sort order." onRetry={profQ.retry} />}
           {!profiles && !profErr ? (
             <LoadingState label="Loading held-out float profiles…" className="h-72" />
@@ -304,7 +304,7 @@ export default function ValidationScreen() {
             </>
           ) : null}
         </Card>
-        <Card className="lg:col-span-2" icon={<GitCompare size={14} />} title="Architecture comparison vs. gridded target">
+        <Card className="lg:col-span-2" icon={<GitCompare size={14} />} title="Model comparison against the gridded analysis">
           {!gridM ? (
             <LoadingState label="Loading gridded model comparison…" className="h-72" />
           ) : (
@@ -338,7 +338,7 @@ export default function ValidationScreen() {
         </Card>
       </div>
       {en4 && (
-        <Card icon={<Database size={14} />} title="Cross-check vs. Met Office EN4 (monthly, 1°)">
+        <Card icon={<Database size={14} />} title="Cross-check against Met Office EN4 (monthly, 1°)">
           <p className="text-[11px] text-ink-3 mb-2">{en4.note} Mean RMSE over depths (5–1000 m); EN4 has no 0 m level.</p>
           <div className="overflow-x-auto">
           <table className="w-full text-sm num max-w-2xl">
@@ -362,6 +362,15 @@ export default function ValidationScreen() {
           </div>
         </Card>
       )}
+      <section className="panel p-4" aria-labelledby="limits">
+        <h2 id="limits" className="text-[11px] uppercase tracking-[0.12em] text-ink-3">What this evidence does and does not show</h2>
+        <ul className="mt-2 grid md:grid-cols-2 gap-x-8 gap-y-1.5 text-[13px] text-ink-2 list-disc pl-5">
+          <li>Errors are measured at Argo float locations and days; regions and seasons with few floats are less well tested.</li>
+          <li>Argo profiles are point measurements; the reconstruction is a 0.25° cell average, which adds representativeness error.</li>
+          <li>The training target assimilates Argo, so the test is independent of the model&apos;s training but not of that target product.</li>
+          <li>The reconstruction covers 2019–2023 and is not a forecast; skill outside this period and region is not established.</li>
+        </ul>
+      </section>
     </div>
   );
 }
