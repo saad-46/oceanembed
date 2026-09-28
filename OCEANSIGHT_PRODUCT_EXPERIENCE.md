@@ -131,3 +131,11 @@ with arrow-key selection and a live readout, reduced-motion support, sufficient 
 Use: explore, analyze, investigate, reconstruct, compare, validate, observe, generate report.
 Never in the product: hackathon/competition terms, judges, submission, pitch, presenter, demo, prototype, team,
 “our AI/innovation/solution”, “predicts the ocean”. A source-level test enforces the banned list.
+
+## 14. Implementation status (2026-09-29)
+
+Implemented as described above. Verified on the production build: first-time journey (landing → prompt →
+8 guide steps over the real screens → report generated → completion → product), professional journey
+(map → point → profile → timeline / report, no overlays), returning visitor (no prompt), direct URLs for every
+route, 1920 / 1440 / 1280 desktop and 375 / 390 mobile (no page-level horizontal scroll), rendered-text language
+audit of all routes (no banned terms). See `OCEANSIGHT_PRODUCTION_AUDIT.md` §9 for measurements.

@@ -90,3 +90,29 @@ Not automated: pixel-level chart rendering (jsdom has no canvas; covered by brow
 
 The exploration loop **space → depth → time → compare → validate** is complete. Stop feature work; next steps are
 deployment (hosting accounts) and production hardening (process supervision, cache warm-up, metrics).
+
+## 9. Product transformation (2026-09-29)
+
+Scope: turn the application into a scientific product with an optional onboarding layer
+(`OCEANSIGHT_PRODUCT_EXPERIENCE.md`). No change to models, calculations, stores or schema.
+
+| Area | Result |
+|---|---|
+| Identity | competition, team, presenter/demo and former code-name references removed from all product surfaces (UI, metadata, API title/descriptions, `/v1/meta`, validation caveat, PDF/CSV, assistant prompt, offline copies). Enforced by tests over all frontend source, rendered text, offline copies, the OpenAPI spec and the generated PDF |
+| Information architecture | Explore (map) · Analyze (profile, timeline, section, events & regions, daily summary) · Validate · Report · Learn; `/overview`, `/tour`, `/demo` redirect |
+| Onboarding | Guided Exploration: 8 steps over the real screens, highlight without blocking, Back / Continue / Exit, keyboard, URL + session state, completion panel; one-time prompt remembered (completed / skipped / dismissed) |
+| Workspaces | map as canvas with grouped tools and a provenance/metadata status bar; profile as an inspection tool; timeline and section with toolbar + instrument; validation as evidence with the data split stated; reports as an investigation workflow |
+| Report document | branding, investigation metadata, map inset at the chosen depth, profile + ±1 sd, derived structure, nearest Argo, method, provenance, caveat; new validated `depth` parameter |
+| Truthfulness fixes | location summary now compares with the seasonal climatology instead of asserting "typical of … conditions"; σ glyph unsupported by the PDF base font replaced by "sd" |
+
+Measured on production (API :8100, web :3100):
+
+| Measurement | Result |
+|---|---|
+| Page HTML, all 10 routes | 35–132 ms, 23–59 KB |
+| Grid (100 m) / profile / section | 0.27 s (18 KB gz) / 0.23 s / 0.21 s |
+| Timeline, 1 year: cold / cached | 1.14 s / 0.24 s (15 KB gz) |
+| Report PDF / CSV | 0.38 s (32 KB) / 0.24 s |
+| Production build | 14 s, 17 static pages, 3.3 MB JS in total (map libraries dominate; loaded only on map screens) |
+
+Tests: backend **57** (was 53), frontend **68** (was 42 — the 12 tour tests were replaced by guide tests); lint and typecheck clean.

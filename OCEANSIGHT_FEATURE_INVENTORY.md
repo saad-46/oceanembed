@@ -9,9 +9,9 @@ invalid inputs, ran every test suite, rebuilt production and browser-checked the
 
 | Feature | Implemented | Location | API / Backend | Frontend | Tested | Notes |
 |---|---|---|---|---|---|---|
-| Landing page (hero section, metrics, story, preview, validation, tour band) | ✅ | `app/page.tsx`, `components/landing/*` | `/v1/summary/headline`, `/v1/meta`, `/v1/section` | real-data cross-section, count-up metrics | browser (prod) | metrics all API-driven except test count (static 46) |
+| Landing page (product entry: real-field hero, what you can do, data foundation, evidence sentence, footer) | ✅ | `app/page.tsx`, `components/landing/FieldHero.tsx` | `/v1/summary/headline`, `/v1/meta`, `/v1/grid` | reconstructed field at 0/50/100/200 m, onboarding prompt | vitest + browser (prod) | rebuilt in the product transformation (§9 of the production audit) |
 | App shell (sidebar, status, top bar, mobile drawer) | ✅ | `components/AppShell.tsx` | `/health` | live API/offline pill, data period, model | browser + vitest | duplicate `/health`/`/v1/meta` fixed by the shared request cache (`lib/requestCache.ts`) |
-| Overview | ✅ | `app/(app)/overview` | headline, meta, section, region/stats | tiles, section, quick launch, BoB/AS cards | browser | |
+| Overview | ↪ | `app/(app)/overview` | — | redirects to `/map` (the map is the primary workspace) | vitest | retired in the product transformation |
 | Ocean map — 7 layers | ✅ | `app/(app)/map/MapScreen.tsx`, `components/OceanMap.tsx` | `/v1/grid/{day}` (temp / anomaly / uncertainty), `/v1/grid/{day}/product` (tchp, mld, d26, d20) | MapLibre 5 + deck.gl raster, legend, hover readout | API tests + browser | backend also serves an `sss` product that is not exposed on the map |
 | Depth exploration (15 standard depths) | ✅ | MapScreen depth slider + chips | `depth=` validated (422 on non-standard) | slider, chips | API test + probe | |
 | Time-lapse (date animation) | ✅ | MapScreen `playing` | ±1-day prefetch in `useGrid` | play/pause, date slider, prev/next day | browser | |
@@ -34,9 +34,9 @@ invalid inputs, ran every test suite, rebuilt production and browser-checked the
 | Reports & export | ✅ | `app/(app)/reports` | `/v1/report/{day}?format=pdf|csv` | 6 export cards with states, PDF preview | API test + browser | reports are point-only; no region/cyclone PDF |
 | Map PNG export | ✅ | MapScreen `exportPng` | — | button | manual | |
 | Methodology | ✅ | `app/(app)/methodology` + `components/PipelineFlow.tsx` | — | interactive pipeline, sources, claims/limits | browser | |
-| Guided tour (9 stages, live data) | ✅ | `app/tour`, `components/tour/*`, `lib/tour.ts` | reuses existing endpoints | deep links, keyboard, reduced motion | vitest + browser | |
-| Presenter demo (8 steps) | ✅ | `app/demo`, `components/DemoBar.tsx`, `lib/demo.ts` | reuses existing endpoints | presenter bar, clicker keys | vitest + browser (all 8 steps) | |
-| Contextual help | ✅ | `components/GuideMe.tsx`, `Explain.tsx`, `lib/glossary.ts` | — | per-screen guide, 10 two-level glossary terms | vitest + browser | |
+| Guided Exploration (8 steps over the real screens) | ✅ | `lib/guide.ts`, `components/guide/*`, `app/guide` | reuses existing endpoints | highlight ring, Back / Continue / Exit, keyboard, completion panel, one-time prompt | vitest + browser (prod) | replaces the former narrative tour and presenter demo (`/tour`, `/demo` redirect) |
+| Help menu ("Guide me") | ✅ | `components/guide/HelpMenu.tsx` | — | explain this screen, start Guided Exploration, methodology | vitest + browser | |
+| Contextual help | ✅ | `components/Explain.tsx`, `lib/glossary.ts` | — | 14 two-level glossary terms (simple / technical) | vitest + browser | |
 | Data provenance labels | ✅ | `KindBadge` (measured / reconstructed / derived / estimated / baseline) | `data_label`, `model_version`, `source` in every payload | DataBadge + KindBadge | browser | |
 | Model versioning | 🟡 | `model_registry.json`, DB `model_registry` | `model_version` in every response, `/v1/meta` lists models | shown in shell/footers | API test | read-only; no UI to choose a model version on the map |
 | Offline fallback | ✅ | `lib/api.ts`, `public/fallback` (94 snapshots), `scripts/snapshot_fallback.py` | — | "cached" badge | vitest (coverage of tour/demo calls) | covers the demo scenario, not arbitrary dates |

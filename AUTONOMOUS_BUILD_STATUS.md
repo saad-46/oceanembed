@@ -4,7 +4,7 @@
 > continue from **NEXT TASK**. Spec: `docs/23_MASTER_BUILD_SPEC.md`. Deviations: `docs/DECISIONS.md`.
 
 CURRENT PHASE: 11 — demo preparation / final audit (all build phases complete locally)
-CURRENT TASK: premium UI/UX transformation complete (design system, landing, app shell, all screens); deployment blocked on accounts
+CURRENT TASK: product transformation complete (see OCEANSIGHT_PRODUCT_EXPERIENCE.md, OCEANSIGHT_PRODUCTION_AUDIT.md §9); next: deployment/hardening (needs accounts)
 
 COMPLETED:
 - Data: 1826 days of 5 open satellite inputs; 637 HYCOM target days; 15,018 Argo profiles; 26 IBTrACS tracks; EN4 2022-23
@@ -49,7 +49,7 @@ KNOWN BUGS / LIMITATIONS:
 - Embedded browser panes without a PDF plugin show a blank inline PDF preview (download/new-tab links work)
 - First request after API start is slow (~4 s: store + DB pool warm-up); subsequent requests fast
 - Salinity ablation shows no measurable effect (reported honestly; docs/24 #8)
-TEST STATUS: 46/46 pytest; 12/12 vitest; frontend lint/typecheck/build clean; CI (GitHub Actions) green.
+TEST STATUS: 57/57 pytest; 68/68 vitest; frontend lint/typecheck/build clean; CI (GitHub Actions) green.
 GIT: branch main, pushed to origin (github.com/saad-46/oceanembed)
 
 ENVIRONMENT REQUIREMENTS:
