@@ -1,12 +1,6 @@
-import { Suspense } from "react";
-import TourScreen from "./TourScreen";
+import { redirect } from "next/navigation";
 
-export const metadata = { title: "Guided tour — OceanSight", description: "A 3-minute interactive story of how OceanSight reconstructs the ocean beneath the surface." };
-
+/** Retired route: kept so older links land in Guided Exploration. */
 export default function Page() {
-  return (
-    <Suspense fallback={<div className="h-dvh bg-bg" />}>
-      <TourScreen />
-    </Suspense>
-  );
+  redirect("/guide");
 }

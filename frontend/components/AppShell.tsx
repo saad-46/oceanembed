@@ -1,120 +1,132 @@
 "use client";
-import DemoBar from "@/components/DemoBar";
-import GuideMe from "@/components/GuideMe";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { ReactNode, Suspense, useState } from "react";
-import {
-  Activity, BarChart3, BookOpen, CircleHelp, FileText, LayoutDashboard, Map as MapIcon, Menu, ShieldCheck, Sparkles, Waves, X,
-} from "lucide-react";
-import { History, ScanLine } from "lucide-react";
-import { Logo, StatusDot } from "./ui";
-import { useApi } from "@/lib/useApi";
+import { BarChart3, BookOpen, FileText, History, Map as MapIcon, Menu, ScanLine, ShieldCheck, Sparkles, Waves, X } from "lucide-react";
+import GuideLayer from "@/components/guide/GuideLayer";
+import HelpMenu from "@/components/guide/HelpMenu";
+import OnboardingPrompt from "@/components/guide/OnboardingPrompt";
 import type { Meta } from "@/lib/api";
+import { useApi } from "@/lib/useApi";
+import { Logo, StatusDot } from "./ui";
 
-export const NAV = [
-  { href: "/overview", label: "Overview", icon: LayoutDashboard },
-  { href: "/map", label: "Ocean Map", icon: MapIcon },
-  { href: "/profiles", label: "Profiles", icon: Waves },
-  { href: "/timeline", label: "Timeline", icon: History },
-  { href: "/section", label: "Sections", icon: ScanLine },
-  { href: "/analysis", label: "Analysis", icon: BarChart3 },
-  { href: "/validation", label: "Validation", icon: ShieldCheck },
-  { href: "/insights", label: "Insights", icon: Sparkles },
-  { href: "/reports", label: "Reports", icon: FileText },
-  { href: "/methodology", label: "Methodology", icon: BookOpen },
-];
+/** Navigation by task: what users come to OceanSight to do. */
+export const NAV_GROUPS = [
+  { label: "Explore", items: [{ href: "/map", label: "Ocean map", icon: MapIcon }] },
+  {
+    label: "Analyze",
+    items: [
+      { href: "/profiles", label: "Profile", icon: Waves },
+      { href: "/timeline", label: "Timeline", icon: History },
+      { href: "/section", label: "Section", icon: ScanLine },
+      { href: "/analysis", label: "Events & regions", icon: BarChart3 },
+      { href: "/insights", label: "Daily summary", icon: Sparkles },
+    ],
+  },
+  { label: "Validate", items: [{ href: "/validation", label: "Evidence", icon: ShieldCheck }] },
+  { label: "Report", items: [{ href: "/reports", label: "Reports", icon: FileText }] },
+  { label: "Learn", items: [{ href: "/methodology", label: "Methodology", icon: BookOpen }] },
+] as const;
+export const NAV = NAV_GROUPS.flatMap((g) => g.items.map((i) => ({ ...i, group: g.label })));
 
 interface Health { status: string; model_version: string | null; database: string; reconstruction_store: string }
 
-function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
-  const path = usePathname();
+function useStatus() {
   const health = useApi<Health>("/health");
   const meta = useApi<Meta>("/v1/meta").data;
-  const h = health.data;
-  const ok = h ? h.status === "ok" : health.error ? false : null;
+  const ok = health.data ? health.data.status === "ok" : health.error ? false : null;
+  return { ok, health: health.data, meta, offline: !!health.error };
+}
+
+function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
+  const path = usePathname();
+  const { ok, health, meta, offline } = useStatus();
   return (
     <div className="h-full flex flex-col">
-      <div className="px-4 h-16 flex items-center border-b border-line shrink-0">
+      <div className="px-4 h-14 flex items-center border-b border-line shrink-0">
         <Link href="/" aria-label="OceanSight home" onClick={onNavigate}>
-          <Logo />
+          <Logo size={24} />
         </Link>
       </div>
-      <nav className="flex-1 overflow-y-auto px-2.5 py-3 space-y-0.5" aria-label="Application">
-        {NAV.map(({ href, label, icon: Icon }) => {
-          const active = path?.startsWith(href);
-          return (
-            <Link
-              key={href}
-              href={href}
-              onClick={onNavigate}
-              aria-current={active ? "page" : undefined}
-              className={`group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
-                active ? "bg-accent/[0.09] text-ink" : "text-ink-2 hover:text-ink hover:bg-white/[0.035]"
-              }`}
-            >
-              {active && <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r bg-accent" aria-hidden />}
-              <Icon size={17} className={active ? "text-accent" : "text-ink-3 group-hover:text-ink-2"} aria-hidden />
-              {label}
-            </Link>
-          );
-        })}
+      <nav className="flex-1 overflow-y-auto px-2.5 py-3" aria-label="Application">
+        {NAV_GROUPS.map((g) => (
+          <div key={g.label} className="mb-3">
+            <div className="px-3 pb-1 text-[10px] uppercase tracking-[0.12em] text-ink-3">{g.label}</div>
+            {g.items.map(({ href, label, icon: Icon }) => {
+              const active = path?.startsWith(href);
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  onClick={onNavigate}
+                  aria-current={active ? "page" : undefined}
+                  className={`group relative flex items-center gap-2.5 rounded-md px-3 py-1.5 text-[13.5px] transition-colors ${active ? "bg-white/[0.05] text-ink" : "text-ink-2 hover:text-ink hover:bg-white/[0.03]"}`}
+                >
+                  {active && <span className="absolute left-0 top-1.5 bottom-1.5 w-[2px] rounded-r bg-accent" aria-hidden />}
+                  <Icon size={16} className={active ? "text-accent" : "text-ink-3 group-hover:text-ink-2"} aria-hidden />
+                  {label}
+                </Link>
+              );
+            })}
+          </div>
+        ))}
       </nav>
-      <div className="border-t border-line px-4 py-3 space-y-1.5 text-[11px] shrink-0">
-        <div className="flex items-center gap-2 text-ink-2">
+      <dl className="border-t border-line px-4 py-3 space-y-1 text-[11px] shrink-0">
+        <div className="flex items-center gap-2 text-ink-2 pb-1">
           <StatusDot ok={ok} />
-          {ok === null ? "Checking services…" : ok ? "All systems operational" : health.error ? "API unreachable — offline mode" : "Degraded — some services down"}
+          <span>{ok === null ? "Connecting…" : ok ? "Service online" : offline ? "Offline — saved copies only" : "Service degraded"}</span>
         </div>
-        <div className="flex justify-between text-ink-3">
-          <span>Data</span>
-          <span className="num text-ink-2">{meta ? `${meta.period.start.slice(0, 4)}–${meta.period.end.slice(0, 4)}` : "—"}</span>
-        </div>
-        <div className="flex justify-between text-ink-3">
-          <span>Model</span>
-          <span className="num text-ink-2">{h?.model_version ?? meta?.production_model ?? "—"}</span>
-        </div>
-        <div className="flex justify-between text-ink-3">
-          <span>Database</span>
-          <span className={`num ${h?.database === "ok" ? "text-ink-2" : "text-warn"}`}>{h?.database ?? "—"}</span>
-        </div>
-      </div>
+        {(
+          [
+            ["Data", meta ? `${meta.period.start.slice(0, 4)}–${meta.period.end.slice(0, 4)}` : "—"],
+            ["Model", health?.model_version ?? meta?.production_model ?? "—"],
+            ["Grid", "0.25° · daily · 0–1000 m"],
+          ] as const
+        ).map(([k, v]) => (
+          <div key={k} className="flex justify-between gap-2 text-ink-3">
+            <dt>{k}</dt>
+            <dd className="num text-ink-2 text-right">{v}</dd>
+          </div>
+        ))}
+      </dl>
     </div>
   );
 }
 
 function TopBar({ onMenu }: { onMenu: () => void }) {
-  const path = usePathname();
-  const sp = useSearchParams();
-  const item = NAV.find((n) => path?.startsWith(n.href));
-  const date = sp.get("date");
-  const health = useApi<Health>("/health");
-  const ok = health.data ? health.data.status === "ok" : health.error ? false : null;
+  const path = usePathname() ?? "";
+  const item = NAV.find((n) => path.startsWith(n.href));
+  const { ok, offline } = useStatus();
   return (
-    <header className="h-14 shrink-0 border-b border-line bg-bg/80 backdrop-blur-md flex items-center gap-3 px-3 md:px-5 z-20">
+    <header className="h-12 shrink-0 border-b border-line bg-bg/85 backdrop-blur flex items-center gap-3 px-3 md:px-5 z-20">
       <button onClick={onMenu} className="lg:hidden p-2 -ml-1 rounded-md text-ink-2 hover:text-ink" aria-label="Open navigation">
-        <Menu size={20} />
+        <Menu size={19} />
       </button>
       <div className="lg:hidden">
-        <Logo size={22} sub={false} />
+        <Logo size={20} sub={false} />
       </div>
-      <div className="hidden lg:flex items-center gap-2 min-w-0">
-        {item && <item.icon size={16} className="text-accent" aria-hidden />}
-        <h1 className="font-display text-[15px] text-ink truncate">{item?.label ?? "OceanSight"}</h1>
-      </div>
+      <nav aria-label="Breadcrumb" className="hidden lg:flex items-center gap-1.5 text-[13px] min-w-0">
+        <span className="text-ink-3">{item?.group ?? "OceanSight"}</span>
+        {item && (
+          <>
+            <span className="text-ink-3" aria-hidden>
+              /
+            </span>
+            <span className="text-ink truncate" aria-current="page">
+              {item.label}
+            </span>
+          </>
+        )}
+      </nav>
       <div className="flex-1" />
-      {date && (
-        <span className="hidden sm:inline-flex items-center gap-1.5 text-xs text-ink-2 border border-line rounded-full px-3 py-1 num">
-          <Activity size={12} className="text-accent" /> {date}
+      {ok === false && (
+        <span className="inline-flex items-center gap-1.5 text-[11.5px] text-warn" role="status">
+          <StatusDot ok={false} /> {offline ? "Offline — showing saved copies" : "Service degraded"}
         </span>
       )}
-      <span className="hidden sm:inline-flex items-center gap-2 text-xs text-ink-2 border border-line rounded-full px-3 py-1">
-        <StatusDot ok={ok} />
-        {ok === null ? "…" : ok ? "Live API" : "Offline"}
-      </span>
-      <GuideMe />
-      <Link href="/methodology" className="p-2 rounded-md text-ink-3 hover:text-ink" aria-label="Help and methodology">
-        <CircleHelp size={18} />
-      </Link>
+      <Suspense fallback={null}>
+        <HelpMenu />
+      </Suspense>
     </header>
   );
 }
@@ -124,13 +136,13 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const path = usePathname();
   return (
     <div className="h-dvh flex bg-bg overflow-hidden">
-      <aside className="hidden lg:block w-60 shrink-0 border-r border-line bg-bg-2">
+      <aside className="hidden lg:block w-56 shrink-0 border-r border-line bg-bg-2">
         <SidebarBody />
       </aside>
       {open && (
         <div className="lg:hidden fixed inset-0 z-50 flex" role="dialog" aria-modal="true" aria-label="Navigation">
           <div className="w-64 bg-bg-2 border-r border-line fade-in relative">
-            <button onClick={() => setOpen(false)} className="absolute right-2 top-4 p-1.5 text-ink-2" aria-label="Close navigation">
+            <button onClick={() => setOpen(false)} className="absolute right-2 top-3.5 p-1.5 text-ink-2" aria-label="Close navigation">
               <X size={18} />
             </button>
             <SidebarBody onNavigate={() => setOpen(false)} />
@@ -139,16 +151,16 @@ export default function AppShell({ children }: { children: ReactNode }) {
         </div>
       )}
       <div className="flex-1 min-w-0 flex flex-col">
-        <Suspense fallback={<div className="h-14 border-b border-line" />}>
-          <TopBar onMenu={() => setOpen(true)} />
-        </Suspense>
+        <TopBar onMenu={() => setOpen(true)} />
         <main key={path} className="flex-1 min-h-0 overflow-y-auto flex flex-col fade-in">
           {children}
         </main>
         <Suspense fallback={null}>
-          <DemoBar />
+          <GuideLayer />
+          <OnboardingPrompt />
         </Suspense>
       </div>
     </div>
   );
 }
+
