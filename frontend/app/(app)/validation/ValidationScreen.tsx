@@ -257,6 +257,7 @@ export default function ValidationScreen() {
             <LoadingState label="Loading held-out float profiles…" className="h-72" />
           ) : profiles ? (
             <>
+              <div className="overflow-x-auto">
               <table className="w-full text-sm num">
                 <thead>
                   <tr className="text-ink-3 text-[11px] uppercase tracking-wider border-b border-line">
@@ -285,6 +286,7 @@ export default function ValidationScreen() {
                   ))}
                 </tbody>
               </table>
+              </div>
               <div className="flex items-center justify-between mt-2 text-xs text-ink-2">
                 <span className="num">
                   {page * 15 + 1}–{Math.min((page + 1) * 15, profiles.total)} of {profiles.total.toLocaleString()}
@@ -307,6 +309,7 @@ export default function ValidationScreen() {
           ) : (
             <>
               <p className="text-[11px] text-ink-3 mb-2">Mean RMSE over 15 depths against the {gridM.target_source} grid, every ocean cell of every held-out target day.</p>
+              <div className="overflow-x-auto">
               <table className="w-full text-sm num">
                 <thead>
                   <tr className="text-ink-3 text-[11px] uppercase tracking-wider border-b border-line">
@@ -327,6 +330,7 @@ export default function ValidationScreen() {
                   ))}
                 </tbody>
               </table>
+              </div>
               <AblationNote g={gridM} />
             </>
           )}
@@ -335,6 +339,7 @@ export default function ValidationScreen() {
       {en4 && (
         <Card icon={<Database size={14} />} title="Cross-check vs. Met Office EN4 (monthly, 1°)">
           <p className="text-[11px] text-ink-3 mb-2">{en4.note} Mean RMSE over depths (5–1000 m); EN4 has no 0 m level.</p>
+          <div className="overflow-x-auto">
           <table className="w-full text-sm num max-w-2xl">
             <thead>
               <tr className="text-ink-3 text-[11px] uppercase tracking-wider border-b border-line">
@@ -353,6 +358,7 @@ export default function ValidationScreen() {
               ))}
             </tbody>
           </table>
+          </div>
         </Card>
       )}
     </div>

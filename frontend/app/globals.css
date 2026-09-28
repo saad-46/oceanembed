@@ -155,3 +155,11 @@ body {
 .maplibregl-ctrl-group button { filter: invert(0.85); }
 .maplibregl-ctrl-scale { background: var(--glass-strong) !important; color: var(--text-2) !important; border-color: var(--text-3) !important; }
 input[type="range"] { accent-color: var(--accent); }
+
+/* Grids without an explicit base column count get one shrinkable column, so wide children
+   (tables, charts) scroll inside their card instead of widening the page on phones. */
+@layer base {
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
