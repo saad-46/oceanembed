@@ -1,4 +1,4 @@
-"""Health, metadata, regions and landing-page summary (docs/13)."""
+"""Health, metadata, regions and landing-page summary."""
 from __future__ import annotations
 
 import json
@@ -12,6 +12,8 @@ from ml.config import LAT_MAX, LAT_MIN, LON_MAX, LON_MIN, REGIONS, RES, STANDARD
 from app.db.session import get_engine
 from app.errors import ApiError
 from app.services.store import GridStore, get_store
+
+from app.api.validation import CAVEAT as VALIDATION_CAVEAT  # noqa: E402
 
 router = APIRouter(tags=["core"])
 
@@ -44,7 +46,7 @@ def meta(store: GridStore = Depends(get_store)):
             sources[var] = {k.removeprefix("prov_"): v for k, v in q.items() if k.startswith("prov_")}
     tgt = store.target.attrs if store.target is not None else {}
     return {
-        "product": "OceanSight", "problem_statement": "SIH26066 — OceanEmbed (MoES / INCOIS)",
+        "product": "OceanSight", "tagline": "Subsurface Ocean Intelligence",
         "domain": {"min_lat": LAT_MIN, "max_lat": LAT_MAX, "min_lon": LON_MIN, "max_lon": LON_MAX, "resolution_deg": RES},
         "depths_m": STANDARD_DEPTHS.tolist(),
         "period": {"start": str(ts[0].date()), "end": str(ts[-1].date()), "n_days": len(ts)},
@@ -90,7 +92,7 @@ def headline(store: GridStore = Depends(get_store)):
                           "climatology_rmse_c": _r(clim.get(z, {}).get("rmse_c")), "n_obs": rows.get(z, {}).get("n_obs")}
         out["validation"] = {"held_out_period": sp["period"], "n_independent_profiles": sp["n_profiles"],
                              "at_depths": [pick(z) for z in (0.0, 50.0, 100.0, 200.0, 500.0)],
-                             "caveat": m["caveat"]}
+                             "caveat": VALIDATION_CAVEAT}
     return out
 
 

@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:3100,http://127.0.0.1:3100"
     model_version: str = ""  # empty -> the registry's production model
     llm_api_key: str = ""
-    llm_model: str = "claude-opus-5"
+    llm_model: str = "claude-opus-5-5"
     log_level: str = "INFO"
     max_region_cells: int = 24000  # whole domain is allowed; guard exists for future larger grids
     grid_cache_days: int = 48

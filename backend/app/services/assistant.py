@@ -15,7 +15,7 @@ from app.config import get_settings
 log = logging.getLogger("oceanembed.assistant")
 
 SYSTEM = (
-    "You are an ocean-analysis assistant for an INCOIS-style forecaster. Summarise the supplied, "
+    "You are an ocean-analysis assistant for oceanographers and marine analysts. Summarise the supplied, "
     "already-computed subsurface temperature diagnostics in at most two plain sentences. Use only the "
     "numbers given; do not invent values, forecasts or causes that are not supported by them. Mention "
     "that values are a satellite-based reconstruction."
@@ -47,7 +47,14 @@ def template_summary(p: dict) -> str:
     if tchp is not None:
         s2 += (", giving " if s2 else "Cyclone heat potential is ") + f"{level} cyclone heat potential ({tchp:.0f} kJ/cm²)"
     month = int(p["date"][5:7])
-    return f"{s} {s2}, typical of {_season(month)} conditions at this location." if s2 else s
+    out = f"{s} {s2}." if s2 else s
+    clim = (p.get("baseline_climatology_c") or [None])[0]
+    if t[0] is not None and clim is not None:
+        # compare with the seasonal climatology for the same date and cell (computed, not assumed)
+        diff = t[0] - clim
+        rel = "close to" if abs(diff) < 0.3 else f"{abs(diff):.1f}°C {'warmer' if diff > 0 else 'colder'} than"
+        out += f" The surface is {rel} the {_season(month)} seasonal climatology for this date."
+    return out
 
 
 def llm_summary(p: dict) -> str | None:

@@ -3,7 +3,12 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import DepthChart from "../components/DepthChart";
 
-vi.mock("next/navigation", () => ({ usePathname: () => "/map" }));
+const nav = vi.hoisted(() => ({ params: new URLSearchParams(), push: vi.fn(), replace: vi.fn() }));
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/map",
+  useSearchParams: () => nav.params,
+  useRouter: () => ({ push: nav.push, replace: nav.replace }),
+}));
 vi.mock("next/link", () => ({ default: ({ href, children, ...r }: { href: string; children: React.ReactNode }) => <a href={href} {...r}>{children}</a> }));
 
 // jsdom has neither PointerEvent nor a canvas backend: polyfill the event, stub the context
@@ -11,6 +16,8 @@ if (typeof window !== "undefined" && !("PointerEvent" in window)) {
   (window as unknown as { PointerEvent: typeof MouseEvent }).PointerEvent = class extends MouseEvent {} as typeof MouseEvent;
 }
 HTMLCanvasElement.prototype.getContext = (() => null) as unknown as HTMLCanvasElement["getContext"];
+// jsdom has no matchMedia: report "no reduced-motion preference"
+window.matchMedia = ((q: string) => ({ matches: false, media: q, addEventListener() {}, removeEventListener() {}, onchange: null, addListener() {}, removeListener() {}, dispatchEvent: () => false })) as unknown as typeof window.matchMedia;
 
 afterEach(() => cleanup());
 
@@ -66,15 +73,82 @@ describe("DepthChart (timeline & section renderer)", () => {
   });
 });
 
-describe("Guide me accessibility", () => {
-  it("keeps an accessible name when its text is visually hidden (narrow screens)", async () => {
-    const { default: GuideMe } = await import("../components/GuideMe");
-    render(<GuideMe />);
-    const b = screen.getByRole("button", { name: /Guide me: explain the Ocean Map screen/ });
+describe("Help menu (Guide me)", () => {
+  it("keeps an accessible name when its text is visually hidden, explains the screen and offers Guided Exploration", async () => {
+    const { default: HelpMenu } = await import("../components/guide/HelpMenu");
+    render(<HelpMenu />);
+    const b = screen.getByRole("button", { name: "Help and Guided Exploration" });
     expect(b.getAttribute("aria-haspopup")).toBe("dialog");
     fireEvent.click(b);
-    expect(screen.getByRole("dialog", { name: /About Ocean Map/ })).toBeTruthy();
+    const dlg = screen.getByRole("dialog", { name: "Help" });
+    expect(dlg.textContent).toMatch(/Ocean map/);
+    expect(screen.getByRole("link", { name: /Guided Exploration/ }).getAttribute("href")).toMatch(/^\/map\?.*guide=1$/);
     fireEvent.keyDown(document, { key: "Escape" });
     expect(screen.queryByRole("dialog")).toBeNull();
+  });
+});
+
+describe("first-time onboarding prompt", () => {
+  it("appears once for a new visitor; 'Explore on my own' is remembered and opens the product", async () => {
+    localStorage.clear();
+    sessionStorage.clear();
+    nav.push.mockClear();
+    const { default: OnboardingPrompt } = await import("../components/guide/OnboardingPrompt");
+    render(<OnboardingPrompt exploreHref="/map" />);
+    const own = await screen.findByRole("button", { name: "Explore on my own" });
+    expect(screen.getByRole("link", { name: "Start Guided Exploration" }).getAttribute("href")).toContain("guide=1");
+    fireEvent.click(own);
+    expect(localStorage.getItem("oceansight.guide.status.v1")).toBe("dismissed");
+    expect(nav.push).toHaveBeenCalledWith("/map");
+    expect(screen.queryByRole("complementary", { name: "Getting started" })).toBeNull();
+  });
+  it("never interrupts a returning visitor", async () => {
+    localStorage.setItem("oceansight.guide.status.v1", "completed");
+    const { default: OnboardingPrompt } = await import("../components/guide/OnboardingPrompt");
+    render(<OnboardingPrompt />);
+    await new Promise((r) => setTimeout(r, 30));
+    expect(screen.queryByText("New to OceanSight?")).toBeNull();
+  });
+});
+
+describe("Guided Exploration layer over the real screens", () => {
+  it("shows the current step, moves forward and back, and can be exited", async () => {
+    localStorage.clear();
+    nav.params = new URLSearchParams("date=2023-05-11&depth=100&var=temp&lat=15.000&lon=88.000&guide=2");
+    nav.push.mockClear();
+    nav.replace.mockClear();
+    const { default: GuideLayer } = await import("../components/guide/GuideLayer");
+    render(<GuideLayer />);
+    const region = await screen.findByRole("region", { name: /Guided Exploration, step 2 of 8/ });
+    expect(region.textContent).toMatch(/Look below the surface/);
+    fireEvent.click(screen.getByRole("button", { name: /Continue/ }));
+    expect(nav.push).toHaveBeenLastCalledWith(expect.stringContaining("guide=3"));
+    fireEvent.click(screen.getByRole("button", { name: /Back/ }));
+    expect(nav.push).toHaveBeenLastCalledWith(expect.stringContaining("guide=1"));
+    fireEvent.click(screen.getByRole("button", { name: "Exit exploration" }));
+    expect(localStorage.getItem("oceansight.guide.status.v1")).toBe("skipped");
+    expect(nav.replace).toHaveBeenCalled();
+  });
+  it("keyboard: Page Down advances; the last step finishes into 'You're ready to explore.'", async () => {
+    nav.params = new URLSearchParams("guide=8");
+    nav.push.mockClear();
+    const { default: GuideLayer } = await import("../components/guide/GuideLayer");
+    const { unmount } = render(<GuideLayer />);
+    await screen.findByRole("region", { name: /step 8 of 8/ });
+    fireEvent.click(screen.getByRole("button", { name: "Finish" }));
+    expect(localStorage.getItem("oceansight.guide.status.v1")).toBe("completed");
+    unmount();
+    nav.params = new URLSearchParams("guide=done");
+    render(<GuideLayer />);
+    expect((await screen.findByRole("dialog", { name: "Guided Exploration complete" })).textContent).toMatch(/You.re ready to explore\./);
+    expect(screen.getByRole("link", { name: "Explore OceanSight" }).getAttribute("href")).toBe("/map");
+  });
+  it("renders nothing when the guide is not running", async () => {
+    sessionStorage.clear();
+    nav.params = new URLSearchParams("date=2023-05-11");
+    const { default: GuideLayer } = await import("../components/guide/GuideLayer");
+    const { container } = render(<GuideLayer />);
+    await new Promise((r) => setTimeout(r, 30));
+    expect(container.innerHTML).toBe("");
   });
 });

@@ -1,4 +1,4 @@
-"""Map / profile / region endpoints (docs/13 "Data / Map")."""
+"""Map / profile / region endpoints."""
 from __future__ import annotations
 
 from datetime import date, timedelta
@@ -142,7 +142,7 @@ class RegionStatsRequest(BaseModel):
 
 @router.post("/region/stats")
 def region_stats(req: RegionStatsRequest, store: GridStore = Depends(get_store)):
-    """Region-aggregated derived products (docs/13). Barrier-layer flag is an SSS-based proxy."""
+    """Region-aggregated derived products. Barrier-layer flag is an SSS-based proxy."""
     used, notice = store.resolve_date(req.date)
     m = req.bbox.mask() & store.mask3d[0]
     n = int(m.sum())

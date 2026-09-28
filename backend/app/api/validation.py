@@ -1,4 +1,4 @@
-"""Validation + Argo endpoints (docs/13 "Validation", docs/12 screen 6)."""
+"""Validation + Argo endpoints."""
 from __future__ import annotations
 
 from datetime import date
@@ -14,9 +14,8 @@ from app.services import argo as argo_q
 from app.services.store import GridStore, get_store
 
 router = APIRouter(prefix="/v1", tags=["validation"])
-CAVEAT = ("GLORYS-class reanalyses (here: HYCOM, the open substitute — docs/DECISIONS.md D-002) assimilate some of "
-          "the same Argo floats; held-out floats are independent of our model's training but not fully independent "
-          "of the target product. See docs/21_RISKS_AND_LIMITATIONS.md.")
+CAVEAT = ("The ocean analysis used as the training target (HYCOM, a GLORYS-class product) assimilates Argo floats. "
+          "Held-out floats are therefore independent of OceanSight's training, but not fully independent of that target product.")
 
 
 def _metrics_argo(store: GridStore) -> dict:
@@ -55,7 +54,7 @@ def validation_summary(model: str | None = None, split: Literal["test", "val"] =
         "overall": {n: _overall(v["per_depth"]) for n, v in sp["models"].items()},
         "uncertainty_calibration": {**{k: sp["models"][model].get(k) for k in ("frac_within_1sigma", "frac_within_2sigma")},
                                     "calibrated": _calibrated(store, split)},
-        "caveat": CAVEAT, "source": "Argo GDAC via argopy (QC 1/2); INCOIS LAS substitution per docs/05",
+        "caveat": CAVEAT, "source": "Argo GDAC via argopy (QC flags 1/2)",
     }
 
 

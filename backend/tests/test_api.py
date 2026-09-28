@@ -109,6 +109,49 @@ def test_reports(client):
     assert pdf.status_code == 200 and pdf.content[:4] == b"%PDF"
     csv = client.get("/v1/report/2023-05-11", params={"lat": 15, "lon": 88, "format": "csv"})
     assert csv.status_code == 200 and b"depth_m,temperature_c" in csv.content
+    assert b"provenance" in csv.content
+
+
+def test_report_depth_and_validation(client):
+    ok = client.get("/v1/report/2023-05-11", params={"lat": 15, "lon": 88, "depth": 200})
+    assert ok.status_code == 200 and ok.content[:4] == b"%PDF"
+    bad = client.get("/v1/report/2023-05-11", params={"lat": 15, "lon": 88, "depth": 37})
+    assert bad.status_code == 422 and bad.json()["error"] == "invalid_depth"
+    land = client.get("/v1/report/2023-05-11", params={"lat": 25, "lon": 80})
+    assert land.status_code == 422 and land.json()["error"] == "on_land"
+
+
+def test_report_pdf_content_is_product_neutral():
+    """The generated document carries OceanSight branding, investigation metadata and provenance only."""
+    import re
+    import zlib
+
+    import numpy as np
+
+    from app.services import report
+    from ml.config import LATS, LONS
+    p = {"date": "2023-05-11", "requested_date": "2023-05-11", "lat": 15.0, "lon": 88.0, "cell": {"lat": 15.125, "lon": 88.125},
+         "depths_m": [0, 100, 1000], "temperature_c": [29.0, 22.0, 6.0], "uncertainty_c": [0.3, 1.2, 0.2],
+         "baseline_climatology_c": [28.5, 21.0, 6.1], "derived": {"tchp_kj_cm2": 80.0, "mld_m": 30.0, "d26_m": 60.0, "d20_m": 110.0},
+         "nearest_argo_float": None, "model_version": "cnn-unet-v1", "data_label": "cached"}
+    field = np.full((LATS.size, LONS.size), 25.0)
+    pdf = report.profile_pdf(p, "Summary.", "Validation line.", inset=report.map_inset(field, LATS, LONS, 15.125, 88.125, 100.0),
+                             depth=100.0, period="2019-01-01..2023-12-31")
+    streams = re.findall(rb"stream\s*(.*?)\s*endstream", pdf, re.S)
+    text = pdf + b"".join(_inflate(s) for s in streams)
+    assert b"OceanSight" in text and b"Water-column report" in text and b"Measured" in text
+    for banned in (b"SIH", b"OceanEmbed", b"INCOIS", b"hackathon", b"Proof-of-concept"):
+        assert banned not in text and banned not in pdf
+
+
+def test_meta_and_openapi_are_product_neutral(client):
+    m = client.get("/v1/meta").json()
+    assert "problem_statement" not in m and m["tagline"] == "Subsurface Ocean Intelligence"
+    spec = client.get("/openapi.json").text
+    for banned in ("SIH", "OceanEmbed", "hackathon", "docs/", "Fuel Gauge"):
+        assert banned not in spec
+    cav = client.get("/v1/validation/summary", params={"split": "test"}).json()["caveat"]
+    assert "docs/" not in cav and "our model" not in cav and "OceanSight" in cav
 
 
 def test_cached_lookup_is_fast(client):
@@ -211,3 +254,26 @@ def test_section_invalid_inputs(client):
     assert client.get(base, params={"lat": 99}).status_code == 422
     assert client.get("/v1/section/2023-13-01").status_code == 422
     assert client.get("/v1/section/2030-01-01").json()["error"] == "date_out_of_range"
+
+
+def _inflate(b: bytes) -> bytes:
+    """Decode a reportlab content stream (ASCII85 + Flate) to its raw drawing operators."""
+    import base64
+    import zlib
+    b = b.strip()
+    try:
+        if b.endswith(b"~>"):
+            b = base64.a85decode(bytes(c for c in b[:-2] if c not in (10, 13)))
+        return zlib.decompress(b)
+    except Exception:
+        return b""
+
+
+def test_summary_compares_with_climatology_instead_of_asserting_typicality():
+    from app.services.assistant import template_summary
+    p = {"date": "2023-05-11", "temperature_c": [30.5] + [None] * 14, "baseline_climatology_c": [29.0] + [None] * 14,
+         "derived": {"mld_m": 20.0, "d26_m": 60.0, "d20_m": 110.0, "tchp_kj_cm2": 70.0}}
+    s = template_summary(p)
+    assert "1.5°C warmer than the pre-monsoon seasonal climatology" in s and "typical" not in s
+    p["temperature_c"][0] = 29.1
+    assert "close to the pre-monsoon seasonal climatology" in template_summary(p)
