@@ -214,8 +214,9 @@ export function Badge({ children, tone = "neutral", className = "" }: { children
 }
 
 /** Evidence-type label so measured / reconstructed / derived values are never confused. */
-export function KindBadge({ kind }: { kind: "measured" | "reconstructed" | "derived" | "baseline" }) {
-  const map = { measured: ["good", "Measured"], reconstructed: ["accent", "Reconstructed"], derived: ["neutral", "Derived"], baseline: ["warn", "Baseline"] } as const;
+export type DataKind = "measured" | "reconstructed" | "derived" | "estimated" | "baseline";
+export function KindBadge({ kind }: { kind: DataKind }) {
+  const map = { measured: ["good", "Measured"], reconstructed: ["accent", "Reconstructed"], derived: ["neutral", "Derived"], estimated: ["warn", "Estimated"], baseline: ["warn", "Baseline"] } as const;
   const [tone, label] = map[kind];
   return <Badge tone={tone}>{label}</Badge>;
 }

@@ -10,6 +10,7 @@ import { friendlyError, get, post, type Fetched } from "./api";
 export function useApi<T>(path: string | null, body?: unknown) {
   const key = path === null ? null : body === undefined ? path : `${path}#${JSON.stringify(body)}`;
   const [st, setSt] = useState<{ key: string | null; data: Fetched<T> | null; error: string | null }>({ key: null, data: null, error: null });
+  const [nonce, setNonce] = useState(0);
   useEffect(() => {
     if (key === null) return;
     const [p, b] = key.includes("#") ? [key.slice(0, key.indexOf("#")), JSON.parse(key.slice(key.indexOf("#") + 1))] : [key, undefined];
@@ -20,7 +21,11 @@ export function useApi<T>(path: string | null, body?: unknown) {
     return () => {
       alive = false;
     };
-  }, [key]);
+  }, [key, nonce]);
   const settled = st.key === key;
-  return { data: st.data, error: settled ? st.error : null, loading: key !== null && !settled, settled };
+  const retry = () => {
+    setSt((s) => ({ ...s, key: null, error: null }));
+    setNonce((n) => n + 1);
+  };
+  return { data: st.data, error: settled ? st.error : null, loading: key !== null && !settled, settled, retry };
 }
