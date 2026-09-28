@@ -1,5 +1,5 @@
 {
-  "name": "gahan-frontend",
+  "name": "oceansight-frontend",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -23,11 +23,14 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/react": "^16.3.3",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.6",
+    "jsdom": "^26.1.0",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^3.2.7"

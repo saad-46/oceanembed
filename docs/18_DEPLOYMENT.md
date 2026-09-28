@@ -50,11 +50,11 @@ A single GitHub Actions workflow running the `pytest` suite (`17_TESTING_STRATEG
 *(Added during implementation; supersedes the generic notes above where they differ.)*
 
 **Artifacts**
-- API image: `docker build -f docker/backend.Dockerfile -t gahan-api .` (repo root context). It contains no
+- API image: `docker build -f docker/backend.Dockerfile -t oceansight-api .` (repo root context). It contains no
   model code beyond numpy helpers — the API only serves precomputed Zarr stores.
 - Data bundle for the API: `python scripts/make_deploy_bundle.py --start 2022-01-01 --end 2023-12-31`
   (held-out years; the full 2019–2023 bundle also works if the host has ~2 GB disk). Mount or `COPY` it to `/data`.
-- Web image: `docker build -f docker/frontend.Dockerfile --build-arg NEXT_PUBLIC_API_URL=https://<api-host> -t gahan-web frontend`.
+- Web image: `docker build -f docker/frontend.Dockerfile --build-arg NEXT_PUBLIC_API_URL=https://<api-host> -t oceansight-web frontend`.
 
 **Render (API)** — Web Service from `docker/backend.Dockerfile`; env `DATABASE_URL` (Supabase/Render Postgres with
 PostGIS enabled, `postgresql+psycopg://…`), `OCEANEMBED_DATA_DIR=/data`, `CORS_ORIGINS=https://<web-host>`.
