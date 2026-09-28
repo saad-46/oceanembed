@@ -163,3 +163,15 @@ input[type="range"] { accent-color: var(--accent); }
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* the tour moves focus to each stage heading for screen readers; no visual ring on that programmatic focus */
+[data-stage-title]:focus,
+[data-stage-title]:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+/* keep page content clear of the floating presenter bar during /demo */
+body:has([aria-label="Presenter demo"]) main {
+  padding-bottom: 116px;
+}

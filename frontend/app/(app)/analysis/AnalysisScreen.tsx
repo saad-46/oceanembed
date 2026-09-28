@@ -5,6 +5,9 @@ import { useMemo, useState } from "react";
 import { Activity, BoxSelect, ChevronLeft, ChevronRight, Flame, Gauge as GaugeIcon, Layers, LineChart as LineIcon, Tornado } from "lucide-react";
 import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import ColorLegend from "@/components/Legend";
+import Explain from "@/components/Explain";
+import Gauge from "@/components/FuelGauge";
+import type { TermKey } from "@/lib/glossary";
 import { Card, DataBadge, ErrorState, KindBadge, LoadingState, Notice, Segmented, Skeleton, StatTile, fmt, type DataKind } from "@/components/ui";
 import { type BBox, type CycloneTrack, type Fetched, type FuelResponse, type GridResponse, type Region, type RegionStats } from "@/lib/api";
 import { DEFAULT_DATE } from "@/lib/dates";
@@ -15,45 +18,13 @@ const BOB: BBox = { min_lat: 5, max_lat: 22, min_lon: 80, max_lon: 100 };
 const TIP = { background: "#0d1929", border: "1px solid #2ec5d8", borderRadius: 8, fontSize: 12 };
 const AXIS = { fill: "#8a96a8", fontSize: 10 };
 
-function Gauge({ value, max = 150 }: { value: number | null; max?: number }) {
-  const v = value === null ? 0 : Math.min(value, max);
-  const a = Math.PI * (1 - v / max);
-  const x = 100 + 80 * Math.cos(a), y = 100 - 80 * Math.sin(a);
-  const t50 = Math.PI * (1 - 50 / max);
-  const hot = v >= 50;
-  return (
-    <svg viewBox="0 0 200 124" className="w-full max-w-[280px]" role="img" aria-label={`TCHP gauge ${value === null ? "no data" : value.toFixed(0) + " kJ/cm²"}`}>
-      <defs>
-        <linearGradient id="gaugeHot" x1="0" x2="1">
-          <stop offset="0" stopColor="#3987e5" />
-          <stop offset="0.45" stopColor="#f0b429" />
-          <stop offset="1" stopColor="#ec5a3a" />
-        </linearGradient>
-      </defs>
-      <path d="M20 100 A80 80 0 0 1 180 100" fill="none" stroke="#1c2c42" strokeWidth="14" strokeLinecap="round" />
-      {value !== null && <path d={`M20 100 A80 80 0 0 1 ${x.toFixed(1)} ${y.toFixed(1)}`} fill="none" stroke={hot ? "url(#gaugeHot)" : "#3987e5"} strokeWidth="14" strokeLinecap="round" style={{ transition: "all .35s ease" }} />}
-      <line x1={100 + 64 * Math.cos(t50)} y1={100 - 64 * Math.sin(t50)} x2={100 + 96 * Math.cos(t50)} y2={100 - 96 * Math.sin(t50)} stroke="#e8edf4" strokeWidth="1.5" strokeDasharray="3 2" />
-      <text x={100 + 104 * Math.cos(t50)} y={100 - 104 * Math.sin(t50)} textAnchor="end" fill="#8a96a8" fontSize="8">
-        50
-      </text>
-      <text x="100" y="90" textAnchor="middle" fill="#e8edf4" fontSize="30" fontFamily="var(--font-plex-mono)">
-        {value === null ? "—" : value.toFixed(0)}
-      </text>
-      <text x="100" y="106" textAnchor="middle" fill="#8a96a8" fontSize="9.5">
-        kJ/cm² ocean heat content
-      </text>
-      <text x="100" y="121" textAnchor="middle" fill={value === null ? "#8a96a8" : hot ? "#f0b429" : "#7fa8d8"} fontSize="9.5" fontWeight="600">
-        {value === null ? "no ocean value here" : hot ? "above the 50 kJ/cm² reference level" : "below the 50 kJ/cm² reference level"}
-      </text>
-    </svg>
-  );
-}
-
-function ProvRow({ label, value, source, kind }: { label: string; value: string; source: string; kind: DataKind }) {
+function ProvRow({ label, value, source, kind, info }: { label: string; value: string; source: string; kind: DataKind; info?: TermKey }) {
   return (
     <div className="flex items-center gap-3 py-2 border-b border-line last:border-0">
       <div className="flex-1 min-w-0">
-        <div className="text-[12.5px] text-ink">{label}</div>
+        <div className="text-[12.5px] text-ink">
+          {label} {info && <Explain term={info} />}
+        </div>
         <div className="text-[10.5px] text-ink-3 truncate">{source}</div>
       </div>
       <div className="num text-sm text-ink text-right whitespace-nowrap">{value}</div>
@@ -199,12 +170,12 @@ export default function AnalysisScreen() {
             {statsErr && <ErrorState message={statsErr} why="Region statistics could not be computed for this box and date." action="Pick a date in 2019–2023 or a box that covers ocean cells." onRetry={statsQ.retry} />}
             {stats?.notice && <Notice>{stats.notice}</Notice>}
             <div className="grid grid-cols-2 gap-2.5">
-              <StatTile icon={<Flame size={13} />} label="Mean TCHP" value={fmt(stats?.mean_tchp_kj_cm2, 0)} unit="kJ/cm²" loading={statsLoading && !stats} hint={stats ? `max ${fmt(stats.max_tchp_kj_cm2, 0)} · ${fmt((stats.frac_cells_tchp_gt_50 ?? 0) * 100, 0)}% of area > 50` : undefined} />
-              <StatTile icon={<Activity size={13} />} label="Mixed-layer depth" value={fmt(stats?.mean_mld_m, 0)} unit="m" loading={statsLoading && !stats} hint="0.5 °C below 10 m temperature" />
-              <StatTile icon={<Layers size={13} />} label="D26 / D20" value={stats ? `${fmt(stats.mean_d26_m, 0)} / ${fmt(stats.mean_d20_m, 0)}` : null} unit="m" loading={statsLoading && !stats} hint="isotherm depths" />
+              <StatTile icon={<Flame size={13} />} label="Mean TCHP" info="tchp" value={fmt(stats?.mean_tchp_kj_cm2, 0)} unit="kJ/cm²" loading={statsLoading && !stats} hint={stats ? `max ${fmt(stats.max_tchp_kj_cm2, 0)} · ${fmt((stats.frac_cells_tchp_gt_50 ?? 0) * 100, 0)}% of area > 50` : undefined} />
+              <StatTile icon={<Activity size={13} />} label="Mixed-layer depth" info="mld" value={fmt(stats?.mean_mld_m, 0)} unit="m" loading={statsLoading && !stats} hint="0.5 °C below 10 m temperature" />
+              <StatTile icon={<Layers size={13} />} label="D26 / D20" info="d26" value={stats ? `${fmt(stats.mean_d26_m, 0)} / ${fmt(stats.mean_d20_m, 0)}` : null} unit="m" loading={statsLoading && !stats} hint="isotherm depths" />
               <StatTile
                 icon={<GaugeIcon size={13} />}
-                label="Barrier-layer proxy"
+                label="Barrier-layer proxy" info="barrier"
                 value={stats?.barrier_layer_flag === null || stats?.barrier_layer_flag === undefined ? "—" : stats.barrier_layer_flag ? "Likely" : "Unlikely"}
                 loading={statsLoading && !stats}
                 hint={stats ? `${fmt((stats.barrier_layer_proxy.frac_cells_sss_below_threshold ?? 0) * 100, 0)}% of area SSS < ${stats.barrier_layer_proxy.sss_threshold_psu} PSU` : undefined}
@@ -280,9 +251,9 @@ export default function AnalysisScreen() {
                   <div className="mt-3">
                     <ProvRow label="Storm position & time" value={`${cur.lat.toFixed(1)}°N ${cur.lon.toFixed(1)}°E`} source={`NOAA IBTrACS best track · ${cur.time.slice(0, 16).replace("T", " ")} UTC`} kind="measured" />
                     <ProvRow label="Intensity" value={cur.wind_kt ? `${cur.wind_kt} kt` : "—"} source={`IBTrACS · ${cur.category ?? "category n/a"}`} kind="measured" />
-                    <ProvRow label="Sea-surface temperature" value={cur.sst_c === null ? "—" : `${cur.sst_c.toFixed(1)} °C`} source={`OceanSight reconstruction · ocean state ${cur.ocean_date ?? "—"}`} kind="reconstructed" />
-                    <ProvRow label="Tropical-cyclone heat potential" value={cur.tchp_kj_cm2 === null ? "—" : `${cur.tchp_kj_cm2.toFixed(0)} kJ/cm²`} source="Integrated from the reconstructed column above 26 °C" kind="derived" />
-                    <ProvRow label="Depth of the 26 °C isotherm" value={cur.d26_m === null ? "—" : `${cur.d26_m.toFixed(0)} m`} source="Interpolated from the reconstructed profile" kind="derived" />
+                    <ProvRow label="Sea-surface temperature" value={cur.sst_c === null ? "—" : `${cur.sst_c.toFixed(1)} °C`} source={`OceanSight reconstruction · ocean state ${cur.ocean_date ?? "—"}`} kind="reconstructed" info="reconstruction" />
+                    <ProvRow label="Tropical-cyclone heat potential" value={cur.tchp_kj_cm2 === null ? "—" : `${cur.tchp_kj_cm2.toFixed(0)} kJ/cm²`} source="Integrated from the reconstructed column above 26 °C" kind="derived" info="tchp" />
+                    <ProvRow label="Depth of the 26 °C isotherm" value={cur.d26_m === null ? "—" : `${cur.d26_m.toFixed(0)} m`} source="Interpolated from the reconstructed profile" kind="derived" info="d26" />
                   </div>
                   {cur.tchp_kj_cm2 === null && <p className="text-xs text-ink-3 mt-2">This track point is over land or outside the 5–30°N, 45–105°E domain, so there is no ocean value.</p>}
                 </Card>
