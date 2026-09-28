@@ -18,6 +18,9 @@ COMPLETED:
   workspace with measured/reconstructed/derived/estimated badges on the Cyclone Fuel Gauge; validation story;
   computed insight cards; export cards with states; interactive methodology pipeline; reduced-motion support;
   no horizontal scroll at 375 px on any page
+- Guided experience (2026-09-28): /tour 9-stage interactive story on real data; /demo deterministic 8-step
+  presenter scenario (Bay of Bengal / Cyclone Mocha) with presenter bar; Guide me context help; simple/technical
+  glossary popovers; landing tour CTAs; vitest suite (12 tests) in CI
 - Tests 46/46 + CI green; backend Docker image builds and serves against PostGIS
 - Docs: README (results), DECISIONS D-001..D-013, RESULTS, 24 judge Q&A as built, 25 demo script as built
 - Audit: no secrets tracked; typed errors (no stack traces); CORS restricted; warm API latencies <= 350 ms
@@ -46,7 +49,7 @@ KNOWN BUGS / LIMITATIONS:
 - Embedded browser panes without a PDF plugin show a blank inline PDF preview (download/new-tab links work)
 - First request after API start is slow (~4 s: store + DB pool warm-up); subsequent requests fast
 - Salinity ablation shows no measurable effect (reported honestly; docs/24 #8)
-TEST STATUS: 46/46 pytest; frontend lint/typecheck/build clean; CI (GitHub Actions) green.
+TEST STATUS: 46/46 pytest; 12/12 vitest; frontend lint/typecheck/build clean; CI (GitHub Actions) green.
 GIT: branch main, pushed to origin (github.com/saad-46/oceanembed)
 
 ENVIRONMENT REQUIREMENTS:
