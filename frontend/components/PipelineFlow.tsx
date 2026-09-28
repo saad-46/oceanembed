@@ -64,7 +64,7 @@ const STAGES = [
     points: [
       "Every day of 2019–2023 precomputed into compact Zarr stores — no live inference on screen.",
       "Derived products from the reconstructed column: TCHP, mixed-layer depth (0.5 °C), D20, D26.",
-      "FastAPI + PostGIS behind this platform: maps, profiles, Cyclone Fuel Gauge, reports and a documented REST API.",
+      "FastAPI + PostGIS behind this platform: maps, profiles, timelines, sections, cyclone-track analysis, reports and a documented REST API.",
     ],
     out: "Maps · profiles · reports",
   },

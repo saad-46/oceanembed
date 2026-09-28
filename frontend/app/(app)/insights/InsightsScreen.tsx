@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis, ZAxis } from "recharts";
 import { BrainCircuit, CalendarDays, MessageSquareText, Orbit, Sparkles } from "lucide-react";
 import InsightCards from "@/components/InsightCards";
-import { Card, DataBadge, ErrorState, LoadingState, Segmented } from "@/components/ui";
+import { Card, DataBadge, ErrorState, LoadingState, PageHeader, Segmented } from "@/components/ui";
 import { friendlyError, get, post } from "@/lib/api";
 import { DEFAULT_DATE, DEFAULT_POINT, STANDARD_DEPTHS } from "@/lib/dates";
 
@@ -46,28 +46,26 @@ export default function InsightsScreen() {
   };
 
   return (
-    <div className="px-4 md:px-7 py-6 space-y-6 max-w-[1500px] w-full mx-auto">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <div className="eyebrow">Ocean insights</div>
-          <h2 className="font-display text-2xl md:text-[28px] mt-1">What the reconstruction says today</h2>
-          <p className="text-sm text-ink-2 mt-1.5 max-w-3xl leading-relaxed">
-            Each card is computed live from the reconstructed fields for the chosen date — no hand-written numbers. Badges show whether a value is reconstructed, derived or an estimate.
-          </p>
-        </div>
-        <label className="flex items-center gap-2 text-xs text-ink-3">
-          <CalendarDays size={14} className="text-accent" /> Date
-          <input type="date" value={insDate} min="2019-01-01" max="2023-12-31" onChange={(e) => e.target.value && setInsDate(e.target.value)} className="num bg-bg border border-line rounded-md px-2 py-1 text-sm text-ink [color-scheme:dark]" aria-label="Insight date" />
-        </label>
-      </div>
+    <div className="px-4 md:px-7 py-5 space-y-5 max-w-[1500px] w-full mx-auto">
+      <PageHeader
+        group="Analyze"
+        title="Daily summary"
+        description="Summaries computed from the reconstructed fields for one date. Each value is labelled reconstructed, derived or estimated."
+        actions={
+          <label className="flex items-center gap-2 text-xs text-ink-3">
+            <CalendarDays size={14} className="text-accent" /> Date
+            <input type="date" value={insDate} min="2019-01-01" max="2023-12-31" onChange={(e) => e.target.value && setInsDate(e.target.value)} className="num bg-bg border border-line rounded-md px-2 py-1 text-sm text-ink [color-scheme:dark]" aria-label="Summary date" />
+          </label>
+        }
+      />
       <InsightCards date={insDate} />
 
       <div className="pt-2">
-        <div className="eyebrow flex items-center gap-1.5"><BrainCircuit size={12} /> Inside the model</div>
-        <h3 className="font-display text-xl mt-1">The satellite embedding</h3>
+        <div className="eyebrow flex items-center gap-1.5"><BrainCircuit size={12} /> Model internals</div>
+        <h2 className="font-display text-lg mt-1">The satellite embedding</h2>
         <p className="text-sm text-ink-2 mt-1 max-w-3xl">
           The U-Net encoder compresses each day&apos;s basin-wide surface state (SST, SSS, SLA, currents, winds) into a compact latent representation — the
-          &ldquo;satellite embedding&rdquo; the problem statement asks for. Below, each dot is one day&apos;s embedding pooled over a region, projected to 2-D.
+          satellite embedding. Each dot is one day&apos;s embedding pooled over a region, projected to two dimensions.
         </p>
       </div>
       <Card
@@ -135,7 +133,7 @@ export default function InsightsScreen() {
       <div className="grid lg:grid-cols-2 gap-4">
         <Card
           icon={<Sparkles size={14} />}
-          title="What drives the baseline? (LightGBM importance)"
+          title="Feature importance of the LightGBM baseline"
           right={
             <select value={depth} onChange={(e) => setDepth(Number(e.target.value))} className="bg-bg border border-line rounded px-2 py-1 text-xs num" aria-label="Depth">
               {STANDARD_DEPTHS.map((z) => (
@@ -163,7 +161,7 @@ export default function InsightsScreen() {
           )}
           <p className="text-[11px] text-ink-3">Share of LightGBM split gain per input at the selected depth — which surface signal the per-pixel baseline relies on.</p>
         </Card>
-        <Card icon={<MessageSquareText size={14} />} title="Ask about a location">
+        <Card icon={<MessageSquareText size={14} />} title="Location summary">
           <div className="grid grid-cols-3 gap-2">
             <label className="text-[11px] text-ink-3">
               Latitude

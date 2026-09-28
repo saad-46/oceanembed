@@ -1,179 +1,187 @@
 import Link from "next/link";
-import { AlertTriangle, BookOpen, BrainCircuit, CheckCircle2, Database, ShieldCheck, Workflow, XCircle } from "lucide-react";
+import ModelVersion from "@/components/ModelVersion";
 import PipelineFlow from "@/components/PipelineFlow";
 
-export const metadata = { title: "Methodology — OceanSight" };
+export const metadata = { title: "Methodology", description: "Data, processing, reconstruction, derived products, validation and limitations of OceanSight." };
 
-const SOURCES = [
-  ["SST", "CMEMS OSTIA L4", "NOAA OISST v2.1 (0.25°, daily)"],
-  ["SSS", "CMEMS Multi-Obs SSS", "NOAA SMAP daily merged with bias-corrected SMOS 3-day"],
-  ["SLA", "CMEMS DUACS L4", "NOAA blended altimetry SLA (0.25°, daily)"],
-  ["Currents", "CMEMS GlobCurrent (total)", "NOAA altimetry geostrophic currents (0.25°, daily)"],
-  ["Winds", "ERA5 10 m (CDS)", "NOAA NCEI Blended Seawinds v2 (0.25°, daily)"],
-  ["Training target", "GLORYS12V1 (1/12°)", "HYCOM GOFS 3.1 analysis (1/12°), coarsened to 0.25°"],
-  ["Validation", "Gridded Argo via INCOIS LAS", "Argo GDAC profiles via argopy (QC 1/2)"],
-  ["Cyclone tracks", "—", "NOAA IBTrACS v04r01 (North Indian)"],
+const TOC = [
+  ["overview", "Overview"],
+  ["data", "Data"],
+  ["processing", "Processing"],
+  ["reconstruction", "Reconstruction"],
+  ["derived", "Derived products"],
+  ["validation", "Validation"],
+  ["limitations", "Limitations"],
+  ["version", "Version"],
+] as const;
+
+const DATA = [
+  ["Sea-surface temperature", "NOAA OISST v2.1 (AVHRR)", "NOAA NCEI", "0.25° daily", "model input"],
+  ["Sea-surface salinity", "SMAP daily merged with bias-corrected SMOS", "NASA / ESA via NOAA CoastWatch", "0.25° daily", "model input"],
+  ["Sea-level anomaly", "NOAA blended altimetry", "NOAA CoastWatch", "0.25° daily", "model input"],
+  ["Surface currents", "Geostrophic currents from blended altimetry", "NOAA CoastWatch", "0.25° daily", "model input"],
+  ["Surface winds", "NOAA NCEI Blended Seawinds v2", "NOAA NCEI", "0.25° daily", "model input"],
+  ["Subsurface temperature", "HYCOM GOFS 3.1 analysis", "HYCOM consortium", "1/12° → 0.25°", "training target (2019–2021)"],
+  ["Temperature profiles", "Argo GDAC (QC flags 1/2), via argopy", "Argo programme", "profiles", "validation, map overlay"],
+  ["Gridded subsurface", "Met Office EN4", "Met Office Hadley Centre", "1° monthly", "independent cross-check"],
+  ["Cyclone tracks", "IBTrACS v04r01 (North Indian)", "NOAA NCEI", "6-hourly", "event context"],
 ];
 
-const CAN = [
-  "The reconstruction is validated against Argo float profiles from held-out years, with the reanalysis-assimilation caveat disclosed.",
-  "All data used is free and openly accessible; the Copernicus/ERA5 adapters switch on with free credentials, no code change.",
-  "The model is compared honestly against a seasonal climatology and a LightGBM baseline, per depth.",
-  "This is a proof of concept over 2019–2023, not an operational real-time system.",
-  "Reported skill numbers are exactly those computed by the pipeline in this repository (see Validation).",
-];
-const CANNOT = [
-  "“Beats state of the art” — no like-for-like benchmark (same region, metric and protocol) has been run.",
-  "“Production-ready” or “adopted by INCOIS” — no such review or relationship exists.",
-  "“Fully independent validation” without the caveat — the training target assimilates Argo.",
-  "That INCOIS LAS gridded Argo or GLORYS were used — the open substitutes above were used for the current model.",
-];
+function H({ id, n, children }: { id: string; n: number; children: React.ReactNode }) {
+  return (
+    <h2 id={id} className="scroll-mt-6 font-display text-xl text-ink flex items-baseline gap-2">
+      <span className="num text-[13px] text-ink-3">{n}</span> {children}
+    </h2>
+  );
+}
 
 export default function Methodology() {
   return (
-    <article className="px-4 md:px-7 py-6 max-w-[1100px] w-full mx-auto space-y-8 text-[15px] leading-relaxed">
-      <header className="space-y-2">
-        <div className="eyebrow">Methodology</div>
-        <h2 className="font-display text-2xl md:text-[28px]">How OceanSight works — and where its limits are</h2>
-        <p className="text-ink-2">
-          OceanSight is our implementation of <strong>SIH26066 “OceanEmbed”</strong> (Ministry of Earth Sciences / INCOIS): reconstruct subsurface ocean temperature at 15
-          standard depths (0–1000 m) over the North Indian Ocean (5–30°N, 45–105°E) at 0.25° and daily resolution, from surface satellite observations alone.
-        </p>
-        <nav className="flex flex-wrap gap-2 pt-1" aria-label="On this page">
-          {[
-            ["pipeline", "Pipeline"],
-            ["data", "Data"],
-            ["models", "Models"],
-            ["validation", "Validation"],
-            ["claims", "Claims & limits"],
-            ["ps", "Problem statement"],
-          ].map(([a, l]) => (
-            <a key={a} href={`#${a}`} className="text-xs rounded-full border border-line px-3 py-1 text-ink-2 hover:text-accent hover:border-accent/50">
+    <div className="px-4 md:px-7 py-5 max-w-[1200px] w-full mx-auto grid lg:grid-cols-[180px_minmax(0,1fr)] gap-8">
+      <nav aria-label="On this page" className="hidden lg:block">
+        <div className="sticky top-4 space-y-1">
+          <div className="text-[11px] uppercase tracking-[0.12em] text-ink-3 mb-2">On this page</div>
+          {TOC.map(([id, l]) => (
+            <a key={id} href={`#${id}`} className="block text-[13px] text-ink-2 hover:text-ink py-0.5">
               {l}
             </a>
           ))}
-        </nav>
-      </header>
+        </div>
+      </nav>
 
-      <section id="pipeline" className="space-y-3">
-        <h3 className="font-display text-xl flex items-center gap-2"><Workflow size={18} className="text-accent" /> 1 · Pipeline</h3>
-        <PipelineFlow />
-        <p className="text-ink-2 text-sm">
-          Nothing on screen triggers live model inference: every day of 2019–2023 is reconstructed ahead of time and served from cached Zarr stores, so the demo is
-          independent of external services. Metadata, Argo profiles and validation records live in PostgreSQL + PostGIS (spatial indexes for nearest-float queries).
-        </p>
-      </section>
+      <article className="space-y-10 text-[14.5px] leading-relaxed text-ink-2 min-w-0">
+        <header id="overview" className="space-y-2">
+          <div className="eyebrow">Learn</div>
+          <h1 className="font-display text-2xl text-ink">Methodology</h1>
+          <p>
+            OceanSight reconstructs daily ocean temperature at 15 standard depths from the surface to 1000 m over the North Indian Ocean (5–30°N, 45–105°E) on a 0.25° grid,
+            for 2019–2023, from satellite surface observations. It is a reconstruction of past states, not a forecast, and every value carries its provenance and uncertainty.
+          </p>
+          <PipelineFlow />
+        </header>
 
-      <section id="data" className="space-y-3">
-        <h3 className="font-display text-xl flex items-center gap-2"><Database size={18} className="text-accent" /> 2 · Data sources</h3>
-        <p className="text-ink-2 text-sm">
-          The problem statement allows substituting openly available products with regridding. Copernicus Marine and ERA5 need a (free) account that was not
-          available to the automated build, so the current model uses open NOAA/HYCOM equivalents. Both sets are implemented behind the same adapter interface.
-        </p>
-        <div className="panel overflow-x-auto px-4 py-2">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-[11px] uppercase tracking-wider text-ink-3 border-b border-line">
-                <th className="text-left font-normal py-2 pr-4">Variable</th>
-                <th className="text-left font-normal pr-4">Spec primary (credentialed)</th>
-                <th className="text-left font-normal">Used for the current model (open)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {SOURCES.map(([v, a, b]) => (
-                <tr key={v} className="border-b border-line/60">
-                  <td className="py-1.5 pr-4 text-ink">{v}</td>
-                  <td className="pr-4 text-ink-2">{a}</td>
-                  <td className="text-ink">{b}</td>
+        <section className="space-y-3">
+          <H id="data" n={1}>
+            Data
+          </H>
+          <div className="overflow-x-auto panel">
+            <table className="w-full text-[13px]">
+              <thead>
+                <tr className="text-[11px] uppercase tracking-[0.1em] text-ink-3 border-b border-line text-left">
+                  <th className="font-normal px-3 py-2">Variable</th>
+                  <th className="font-normal px-3">Dataset</th>
+                  <th className="font-normal px-3">Provider</th>
+                  <th className="font-normal px-3">Resolution</th>
+                  <th className="font-normal px-3">Role in OceanSight</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <p className="text-ink-2 text-sm">
-          Satellite salinity only exists from 2010 (SMOS) / 2015 (SMAP) and the open HYCOM analysis starts in December 2018, so the study period is 2019–2023. Targets
-          are fetched every 3rd day (daily in May–June 2023); the model still outputs every day, since inference only needs the surface inputs.
-        </p>
-      </section>
+              </thead>
+              <tbody>
+                {DATA.map(([v, d, p, r, role]) => (
+                  <tr key={v + d} className="border-b border-line/60 last:border-0">
+                    <td className="px-3 py-1.5 text-ink">{v}</td>
+                    <td className="px-3">{d}</td>
+                    <td className="px-3">{p}</td>
+                    <td className="px-3 num">{r}</td>
+                    <td className="px-3">{role}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-[13px]">
+            Satellite salinity is available from 2010 (SMOS) and 2015 (SMAP) and the open HYCOM analysis from December 2018, which sets the 2019–2023 period. Training targets were
+            sampled every third day (daily in May–June 2023); the model reconstructs every day because it needs only the surface inputs. Copernicus Marine / ERA5 equivalents are
+            supported by the same ingestion interface.
+          </p>
+        </section>
 
-      <section id="models" className="space-y-3">
-        <h3 className="font-display text-xl flex items-center gap-2"><BrainCircuit size={18} className="text-accent" /> 3 · Models</h3>
-        <ul className="panel p-4 pl-9 space-y-2 text-ink-2 list-disc">
-          <li>
-            <strong className="text-ink">Seasonal climatology</strong> — harmonic (annual + semi-annual) fit per cell and depth on the training years. The
-            &ldquo;do nothing clever&rdquo; baseline every model must beat.
-          </li>
-          <li>
-            <strong className="text-ink">LightGBM</strong> — one gradient-boosted regressor per depth on per-pixel features (7 surface fields, lat/lon, season). Fast,
-            interpretable (feature importances on AI Insights), no spatial context.
-          </li>
-          <li>
-            <strong className="text-ink">U-Net encoder–decoder (primary)</strong> — a CNN over the whole 100×240 surface image. Its bottleneck is the{" "}
-            <em>satellite embedding</em>: a compact latent representation of the basin&apos;s surface state. The decoder predicts each depth as a departure from the
-            climatology plus a per-depth variance (heteroscedastic uncertainty head).
-          </li>
-          <li>
-            <strong className="text-ink">Salinity ablation</strong> — the same U-Net trained without the SSS channel, to measure what satellite salinity (and the Bay of
-            Bengal barrier layer) contributes.
-          </li>
-          <li>
-            <strong className="text-ink">Derived products</strong> — deterministic formulas on the reconstructed profile: TCHP (heat above 26°C, Leipper &amp;
-            Volgenau), mixed-layer depth (0.5°C criterion), D20 and D26 isotherm depths.
-          </li>
-        </ul>
-      </section>
-
-      <section id="validation" className="space-y-3">
-        <h3 className="font-display text-xl flex items-center gap-2"><ShieldCheck size={18} className="text-accent" /> 4 · Validation protocol</h3>
-        <ul className="panel p-4 pl-9 space-y-2 text-ink-2 list-disc">
-          <li>Whole-year split: train 2019–2021, validate 2022 (early stopping only), test 2023 (touched once). Random day splits would leak autocorrelation.</li>
-          <li>Normalisation statistics and climatology use training years only.</li>
-          <li>Independent check: each held-out Argo profile is compared with the reconstruction for its day at its 0.25° cell, per standard depth (RMSE, bias, r, skill vs climatology).</li>
-          <li>
-            <AlertTriangle size={14} className="inline text-warn -mt-0.5" aria-hidden /> <strong className="text-warn">Caveat:</strong> the training target (HYCOM, like GLORYS) assimilates Argo. Held-out floats are independent of our model&apos;s training
-            but not fully independent of the product it learned from. We also show that target product&apos;s own error against the same floats as a reference ceiling.
-          </li>
-        </ul>
-        <Link href="/validation" className="text-accent text-sm hover:underline">
-          → See the computed numbers on the Validation screen
-        </Link>
-      </section>
-
-      <section id="claims" className="grid md:grid-cols-2 gap-4">
-        <div className="panel border-good/40 p-4">
-          <h3 className="font-display text-lg text-good mb-2 flex items-center gap-2"><CheckCircle2 size={17} /> Claims we make</h3>
-          <ul className="space-y-1.5 text-sm text-ink-2 list-disc pl-4">
-            {CAN.map((c) => (
-              <li key={c}>{c}</li>
-            ))}
+        <section className="space-y-3">
+          <H id="processing" n={2}>
+            Processing
+          </H>
+          <ul className="list-disc pl-5 space-y-1.5">
+            <li>One adapter per source with cached, resumable downloads; unit harmonisation, physical-range checks and de-duplication.</li>
+            <li>All fields regridded to a common 0.25° daily grid (100 × 240 cells): bilinear for coarser sources, area-weighted for finer ones.</li>
+            <li>Seven surface channels (SST, SSS, SLA, geostrophic U/V, wind U/V) plus position and season; normalisation statistics from the training years only.</li>
+            <li>Argo profiles interpolated to the 15 standard depths and matched to the reconstruction by day and grid cell.</li>
           </ul>
-        </div>
-        <div className="panel border-bad/40 p-4">
-          <h3 className="font-display text-lg text-bad mb-2 flex items-center gap-2"><XCircle size={17} /> Claims we do not make</h3>
-          <ul className="space-y-1.5 text-sm text-ink-2 list-disc pl-4">
-            {CANNOT.map((c) => (
-              <li key={c}>{c}</li>
-            ))}
-          </ul>
-        </div>
-      </section>
+        </section>
 
-      <section id="ps" className="space-y-2">
-        <h3 className="font-display text-xl flex items-center gap-2"><BookOpen size={18} className="text-accent" /> 5 · Official problem statement (summary of the verified record)</h3>
-        <div className="panel p-4 text-sm text-ink-2 space-y-2">
+        <section className="space-y-3">
+          <H id="reconstruction" n={3}>
+            Reconstruction
+          </H>
           <p>
-            <strong className="text-ink">SIH26066 — OceanEmbed:</strong> Satellite Embedding-Based Deep Learning Framework for Reconstruction of Subsurface Ocean Temperature
-            from Surface Satellite Observations. Ministry of Earth Sciences, INCOIS. Category: Software · Theme: Space Technology.
+            The production model is a <strong className="text-ink">U-Net encoder–decoder</strong> applied to the whole basin image each day. Its bottleneck, the <em>satellite
+            embedding</em>, is a compact representation of the day&apos;s surface state. The decoder predicts each depth as a departure from a harmonic seasonal climatology,
+            together with a per-depth uncertainty (heteroscedastic σ), calibrated after training against 2022 Argo profiles.
           </p>
           <p>
-            Reconstruct depth-wise subsurface temperature from daily surface satellite observations at 0.25° for the North Indian Ocean (5°N–30°N, 45°E–105°E), using SST,
-            SSS, SSH/SLA, surface currents (U,V) and surface winds (U,V); generate compact satellite embeddings with CNN/ViT/autoencoder/GNN/attention architectures;
-            reconstruct the 15 standard depths 0, 5, 10, 20, 30, 50, 75, 100, 125, 150, 200, 300, 500, 700 and 1000 m; evaluate against independent observations with
-            correlation, RMSE and bias. Named target: GLORYS reanalysis; in-situ: gridded Argo via INCOIS LAS. Openly available substitutes with regridding are permitted.
+            Two baselines are trained on the same data for comparison: the <strong className="text-ink">seasonal climatology</strong> (annual + semi-annual harmonics per cell and
+            depth) and <strong className="text-ink">LightGBM</strong> per depth on per-pixel features. A U-Net without the salinity channel measures what satellite salinity
+            contributes.
           </p>
-          <p className="text-ink-3 text-xs">Full verified text: docs/01_OFFICIAL_PROBLEM_STATEMENT.md in the repository.</p>
-        </div>
-      </section>
-    </article>
+        </section>
+
+        <section className="space-y-3">
+          <H id="derived" n={4}>
+            Derived products
+          </H>
+          <p>Calculated from the reconstructed column at every cell and day (provenance: derived):</p>
+          <dl className="grid sm:grid-cols-2 gap-x-8 gap-y-2.5 text-[13.5px]">
+            {(
+              [
+                ["Mixed-layer depth (MLD)", "First depth below 10 m where temperature is 0.5 °C colder than at 10 m."],
+                ["D20 / D26", "Depth of the 20 °C / 26 °C isotherm, interpolated between standard depths; undefined where not crossed."],
+                ["Tropical Cyclone Heat Potential (TCHP)", "Heat content of water warmer than 26 °C, integrated from the surface to D26 (kJ/cm²)."],
+                ["Anomaly", "Reconstructed temperature minus the seasonal climatology of the training years."],
+              ] as const
+            ).map(([k, v]) => (
+              <div key={k}>
+                <dt className="text-ink">{k}</dt>
+                <dd>{v}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+
+        <section className="space-y-3">
+          <H id="validation" n={5}>
+            Validation
+          </H>
+          <ul className="list-disc pl-5 space-y-1.5">
+            <li>Whole-year split: training 2019–2021, tuning 2022 (early stopping and σ calibration), independent test 2023 — no random day splits, which would leak autocorrelation.</li>
+            <li>Every 2023 Argo profile is compared with the reconstruction for its day and 0.25° cell at each standard depth: RMSE, bias, correlation, and skill against the climatology.</li>
+            <li>Uncertainty is checked by coverage: the share of observations inside ±1σ and ±2σ.</li>
+            <li>A monthly comparison with Met Office EN4 provides a second, gridded reference.</li>
+          </ul>
+          <p>
+            <Link href="/validation" className="text-accent hover:underline">
+              See the evidence →
+            </Link>
+          </p>
+        </section>
+
+        <section className="space-y-3">
+          <H id="limitations" n={6}>
+            Limitations
+          </H>
+          <ul className="list-disc pl-5 space-y-1.5">
+            <li>The training target assimilates Argo. Held-out floats are independent of OceanSight&apos;s training but not fully independent of that product.</li>
+            <li>OceanSight reconstructs 2019–2023; it is not a forecast and skill outside this period and region is not established.</li>
+            <li>Values are 0.25° cell averages; comparisons with point measurements include representativeness error.</li>
+            <li>Removing satellite salinity does not measurably change skill in this version; the barrier-layer indicator is therefore shown as an estimate only.</li>
+            <li>Cyclone views describe the ocean along observed tracks; they do not predict storm intensity or establish cause and effect.</li>
+          </ul>
+        </section>
+
+        <section className="space-y-3">
+          <H id="version" n={7}>
+            Version
+          </H>
+          <ModelVersion />
+        </section>
+      </article>
+    </div>
   );
 }

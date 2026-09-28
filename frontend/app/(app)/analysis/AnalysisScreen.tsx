@@ -107,7 +107,7 @@ export default function AnalysisScreen() {
         />
         <div className="absolute top-3 left-3 right-3 flex flex-col items-start gap-2 pointer-events-none">
           <div className="pointer-events-auto glass p-1">
-            <Segmented label="Analysis mode" value={mode} onChange={setMode} options={[{ value: "region", label: "Region analysis" }, { value: "cyclone", label: "Cyclone Fuel Gauge" }]} />
+            <Segmented label="Analysis mode" value={mode} onChange={setMode} options={[{ value: "region", label: "Region" }, { value: "cyclone", label: "Cyclone track" }]} />
           </div>
           {mode === "region" && (
             <div className="glass px-3 py-1.5 text-[12px] text-ink-2 flex items-center gap-2">
@@ -138,12 +138,12 @@ export default function AnalysisScreen() {
       <aside className="xl:w-[540px] shrink-0 border-t xl:border-t-0 xl:border-l border-line bg-bg-2/60 overflow-y-auto p-4 md:p-5 space-y-4">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <div className="eyebrow">Analysis workspace</div>
-            <h2 className="font-display text-xl mt-1">{mode === "region" ? "Regional ocean state" : "Cyclone Fuel Gauge"}</h2>
+            <div className="eyebrow">Analyze · Events &amp; regions</div>
+            <h2 className="font-display text-xl mt-1">{mode === "region" ? "Regional ocean state" : "Ocean heat along a cyclone track"}</h2>
             <p className="text-[12.5px] text-ink-3 mt-1 leading-relaxed">
               {mode === "region"
                 ? "Upper-ocean heat and stratification averaged over a box, from the daily reconstruction."
-                : "How much ocean heat sat beneath a real cyclone's track, a few days before it passed."}
+                : "Upper-ocean heat content beneath an observed cyclone track, using the ocean state a few days before the storm passed. This describes the ocean; it does not forecast the storm."}
             </p>
           </div>
           <DataBadge fallback={mode === "region" ? stats?.__fallback : fuel?.__fallback} />
@@ -235,7 +235,8 @@ export default function AnalysisScreen() {
             {!fuel && !fuelErr && <LoadingState label="Sampling reconstructed ocean heat along the track…" className="h-72" />}
             {fuel && cur && (
               <>
-                <Card title="Fuel under the storm" icon={<Flame size={14} />}>
+                <div data-guide="fuel-gauge">
+                <Card title="Heat content beneath the storm" icon={<Flame size={14} />} className="scroll-mt-4">
                   <div className="flex flex-col items-center">
                     <Gauge value={cur.tchp_kj_cm2} />
                     <div className="flex items-center gap-2 mt-2">
@@ -257,6 +258,7 @@ export default function AnalysisScreen() {
                   </div>
                   {cur.tchp_kj_cm2 === null && <p className="text-xs text-ink-3 mt-2">This track point is over land or outside the 5–30°N, 45–105°E domain, so there is no ocean value.</p>}
                 </Card>
+                </div>
                 <Card title="Heat content along the track" icon={<LineIcon size={14} />} right={<span className="text-[11px] text-ink-3 num">{nAbove}/{nOcean} ocean points ≥ 50</span>}>
                   <div className="h-44">
                     <ResponsiveContainer>

@@ -118,7 +118,7 @@ export default function InsightCards({ date }: { date: string }) {
         loading={tracksQ.loading || (!!storm && !fuel && !fuelQ.error)}
         error={tracksQ.error ?? fuelQ.error}
         href={storm ? "/analysis?mode=cyclone" : undefined}
-        cta="Open the Fuel Gauge"
+        cta="Investigate the track"
       >
         {storm && fuel ? (
           <>
