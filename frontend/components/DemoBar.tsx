@@ -1,6 +1,6 @@
 "use client";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Presentation, X } from "lucide-react";
 import { DEMO_KEY, DEMO_STEPS, N_DEMO, demoHref, parseDemo } from "@/lib/demo";
 
@@ -34,8 +34,14 @@ export default function DemoBar() {
     return () => cancelAnimationFrame(raf);
   }, [fromUrl]);
   const step = fromUrl ?? stored;
+  // where we are heading: a burst of clicker presses queues up instead of collapsing into one step
+  const target = useRef<number | null>(null);
+  useEffect(() => {
+    if (target.current === step) target.current = null;
+  }, [step]);
 
   const go = (i: number) => {
+    target.current = i;
     store(i);
     router.push(demoHref(i));
   };
@@ -50,8 +56,9 @@ export default function DemoBar() {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;
       if (t.closest("input, select, textarea, [contenteditable]")) return;
-      if (e.key === "PageDown" || (e.key === "ArrowRight" && e.altKey)) go(Math.min(N_DEMO - 1, step + 1));
-      if (e.key === "PageUp" || (e.key === "ArrowLeft" && e.altKey)) go(Math.max(0, step - 1));
+      const base = target.current ?? step;
+      if (e.key === "PageDown" || (e.key === "ArrowRight" && e.altKey)) go(Math.min(N_DEMO - 1, base + 1));
+      if (e.key === "PageUp" || (e.key === "ArrowLeft" && e.altKey)) go(Math.max(0, base - 1));
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
