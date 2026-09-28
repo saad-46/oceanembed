@@ -1,4 +1,6 @@
 "use client";
+import Explain from "@/components/Explain";
+import type { TermKey } from "@/lib/glossary";
 import { useState } from "react";
 import { API_URL, friendlyError, post, type ProfileResponse } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
@@ -22,10 +24,12 @@ export function useProfile(date: string, lat: number | null, lon: number | null)
   return { data: error ? null : data, error, loading };
 }
 
-function Chip({ label, value, unit, hint }: { label: string; value: number | null; unit: string; hint: string }) {
+function Chip({ label, value, unit, hint, term }: { label: string; value: number | null; unit: string; hint: string; term: TermKey }) {
   return (
     <div className="border border-line rounded px-2.5 py-1.5 min-w-0" title={hint}>
-      <div className="text-[10px] uppercase tracking-wider text-ink-3">{label}</div>
+      <div className="text-[10px] uppercase tracking-wider text-ink-3 flex items-center gap-0.5">
+        {label} <Explain term={term} />
+      </div>
       <div className="num text-base text-ink">
         {fmt(value, 0)} <span className="text-[11px] text-ink-2">{value === null ? "" : unit}</span>
       </div>
@@ -141,7 +145,9 @@ export default function ProfilePanel({ date, lat, lon, onClose, wide = false }: 
                 ["σ at 100 m", data.uncertainty_c?.[7] ?? null, "°C"],
               ].map(([k, v, u]) => (
                 <div key={k as string} className="rounded-lg border border-line bg-white/[0.02] px-2.5 py-2">
-                  <div className="text-[10px] uppercase tracking-wider text-ink-3">{k}</div>
+                  <div className="text-[10px] uppercase tracking-wider text-ink-3 flex items-center gap-0.5">
+                    {k} {(k as string).startsWith("σ") && <Explain term="uncertainty" />}
+                  </div>
                   <div className="num text-lg text-ink">
                     {(k as string).startsWith("σ") ? "±" : ""}
                     {fmt(v as number | null, 2)} <span className="text-[11px] text-ink-3">{u}</span>
@@ -160,10 +166,10 @@ export default function ProfilePanel({ date, lat, lon, onClose, wide = false }: 
             </div>
             <div className="text-[10px] uppercase tracking-wider text-ink-3 flex items-center gap-2">Derived products <KindBadge kind="derived" /></div>
             <div className="grid grid-cols-4 gap-2">
-              <Chip label="TCHP" value={data.derived.tchp_kj_cm2} unit="kJ/cm²" hint="Tropical cyclone heat potential: heat content above the 26°C isotherm" />
-              <Chip label="MLD" value={data.derived.mld_m} unit="m" hint="Mixed-layer depth (0.5°C below the 10 m temperature)" />
-              <Chip label="D26" value={data.derived.d26_m} unit="m" hint="Depth of the 26°C isotherm" />
-              <Chip label="D20" value={data.derived.d20_m} unit="m" hint="Depth of the 20°C isotherm (thermocline proxy)" />
+              <Chip label="TCHP" value={data.derived.tchp_kj_cm2} unit="kJ/cm²" hint="Tropical cyclone heat potential: heat content above the 26°C isotherm" term="tchp" />
+              <Chip label="MLD" value={data.derived.mld_m} unit="m" hint="Mixed-layer depth (0.5°C below the 10 m temperature)" term="mld" />
+              <Chip label="D26" value={data.derived.d26_m} unit="m" hint="Depth of the 26°C isotherm" term="d26" />
+              <Chip label="D20" value={data.derived.d20_m} unit="m" hint="Depth of the 20°C isotherm (thermocline proxy)" term="d20" />
             </div>
             <fieldset className="grid grid-cols-2 gap-x-3 gap-y-1.5">
               <legend className="text-[11px] uppercase tracking-wider text-ink-3 mb-1">Compare with</legend>

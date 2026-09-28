@@ -1,4 +1,6 @@
 "use client";
+import Explain from "@/components/Explain";
+import type { TermKey } from "@/lib/glossary";
 /**
  * OceanSight UI primitives. Existing exports (Card, StatTile, Skeleton, ErrorState, Notice, DataBadge,
  * Toggle, Segmented, fmt) keep their signatures; new design-system pieces are added below them.
@@ -26,12 +28,13 @@ export function Card({ children, className = "", title, right, icon }: { childre
   );
 }
 
-export function StatTile({ label, value, unit, hint, loading, icon }: { label: string; value: string | number | null | undefined; unit?: string; hint?: ReactNode; loading?: boolean; icon?: ReactNode }) {
+export function StatTile({ label, value, unit, hint, loading, icon, info }: { label: string; value: string | number | null | undefined; unit?: string; hint?: ReactNode; loading?: boolean; icon?: ReactNode; info?: TermKey }) {
   return (
     <div className="panel px-4 py-3 min-w-0">
       <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-ink-3">
         {icon && <span className="text-accent">{icon}</span>}
         {label}
+        {info && <Explain term={info} />}
       </div>
       {loading ? (
         <div className="skeleton h-7 w-24 mt-1.5" />

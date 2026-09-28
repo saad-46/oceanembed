@@ -3,6 +3,7 @@ import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Map as MLMap } from "maplibre-gl";
+import Explain from "@/components/Explain";
 import ColorLegend from "@/components/Legend";
 import ProfilePanel from "@/components/ProfilePanel";
 import { Badge, Button, DataBadge, ErrorState, Notice, Skeleton, Toggle } from "@/components/ui";
@@ -243,7 +244,10 @@ export default function MapScreen() {
           </div>
           <div className="space-y-1.5">
             <div className="text-[10.5px] uppercase tracking-wider text-ink-3">Overlays</div>
-            <Toggle checked={showArgo} onChange={setShowArgo} label="Argo floats (±3 days)" color="#199e70" />
+            <div className="flex items-center gap-1">
+              <Toggle checked={showArgo} onChange={setShowArgo} label="Argo floats (±3 days)" color="#199e70" />
+              <Explain term="argo" />
+            </div>
             <Toggle checked={showTracks} onChange={setShowTracks} label="Cyclone tracks (IBTrACS)" color="#e8edf4" />
             {showArgo && argo && (
               <p className="text-[11px] text-ink-3">

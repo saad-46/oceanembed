@@ -119,11 +119,12 @@ export default function ValidationScreen() {
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatTile icon={<Database size={13} />} label="Profiles scored" value={sum?.n_profiles.toLocaleString("en-IN")} hint={sum ? `held-out ${sum.held_out_period}` : undefined} loading={!sum && !err} />
-        <StatTile icon={<BarChart3 size={13} />} label="RMSE at 100 m" value={fmt(at100?.rmse_c, 2)} unit="°C" hint={at100 ? `climatology ${fmt(at100.baseline_rmse_c, 2)} °C` : undefined} loading={!sum && !err} />
+        <StatTile icon={<BarChart3 size={13} />} label="RMSE at 100 m" info="climatology" value={fmt(at100?.rmse_c, 2)} unit="°C" hint={at100 ? `climatology ${fmt(at100.baseline_rmse_c, 2)} °C` : undefined} loading={!sum && !err} />
         <StatTile icon={<ShieldCheck size={13} />} label="Depths better than climatology" value={sum ? `${nBetter} / ${sum.per_depth.length}` : null} hint="positive skill score" loading={!sum && !err} />
         <StatTile
           icon={<Target size={13} />}
           label="Within ±1σ (ideal 68%)"
+          info="uncertainty"
           value={cal1 === null ? "—" : `${(cal1 * 100).toFixed(0)}%`}
           hint={cal1 === null ? undefined : sum?.uncertainty_calibration.calibrated?.frac_within_1sigma !== undefined ? "calibrated σ, held-out floats" : "raw model σ"}
           loading={!sum && !err}

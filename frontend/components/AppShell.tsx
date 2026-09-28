@@ -1,4 +1,6 @@
 "use client";
+import DemoBar from "@/components/DemoBar";
+import GuideMe from "@/components/GuideMe";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { ReactNode, Suspense, useState } from "react";
@@ -106,6 +108,7 @@ function TopBar({ onMenu }: { onMenu: () => void }) {
         <StatusDot ok={ok} />
         {ok === null ? "…" : ok ? "Live API" : "Offline"}
       </span>
+      <GuideMe />
       <Link href="/methodology" className="p-2 rounded-md text-ink-3 hover:text-ink" aria-label="Help and methodology">
         <CircleHelp size={18} />
       </Link>
@@ -139,6 +142,9 @@ export default function AppShell({ children }: { children: ReactNode }) {
         <main key={path} className="flex-1 min-h-0 overflow-y-auto flex flex-col fade-in">
           {children}
         </main>
+        <Suspense fallback={null}>
+          <DemoBar />
+        </Suspense>
       </div>
     </div>
   );
