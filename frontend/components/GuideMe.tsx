@@ -8,6 +8,8 @@ const HELP: Record<string, { title: string; body: string; tips: string[] }> = {
   "/overview": { title: "Overview", body: "A snapshot of the platform: how many days are reconstructed, how accurate the model is at 100 m, and quick links into the most useful views.", tips: ["Open a quick-launch card to jump straight to a prepared view.", "Regional cards compare the Bay of Bengal and the Arabian Sea on one day."] },
   "/map": { title: "Ocean Map", body: "This map shows the reconstructed ocean state. Use the depth and date controls to explore how conditions change below the surface.", tips: ["Drag the depth slider — each step is a new layer the model reconstructed.", "Click any ocean cell to open its full temperature profile.", "Green dots are real Argo floats from the held-out year."] },
   "/profiles": { title: "Profiles", body: "Click anywhere on the map to inspect the reconstructed water column — temperature from the surface down to 1000 m, with its uncertainty band.", tips: ["The shaded band is ±1σ: where it is wide, trust the value less.", "Dots are real Argo measurements, when a float was nearby."] },
+  "/timeline": { title: "Ocean State Timeline", body: "One point, followed through time: temperature from the surface down, day by day, with the mixed layer and the 20 °C / 26 °C depths drawn on top.", tips: ["Pick a point on the small map or use a preset.", "Click a day in the chart to see its full profile, then 'Explore this state' to open it on the map.", "Drag across the chart to zoom; arrow keys move the selected day."] },
+  "/section": { title: "Vertical section", body: "A slice through the ocean along a line: distance across, depth down, colour = temperature (or anomaly / uncertainty) on the chosen day.", tips: ["Choose a longitude transect (west–east) or a latitude transect (south–north).", "Click the small map to move the line; presets jump to useful slices.", "Click a column to open its profile or follow it through time."] },
   "/analysis": { title: "Analysis", body: "Use this workspace to investigate ocean conditions over a region or along a cyclone track. Every number is labelled measured, reconstructed, derived or estimated.", tips: ["Region mode: click two corners on the map to draw a box.", "Cyclone mode: step along the track to see the ocean heat beneath the storm."] },
   "/validation": { title: "Validation", body: "This page compares OceanSight's reconstruction against independent Argo observations from 2023 — a year the model never trained on — and against a simple climatology baseline.", tips: ["Lower RMSE is better; compare the blue line with the orange climatology line.", "The leakage caveat explains the one way the check is not fully independent."] },
   "/insights": { title: "Insights", body: "Cards computed live from the reconstruction for the chosen date, plus a look inside the model's satellite embedding.", tips: ["Change the date to recompute every card.", "Each card links to the screen that shows the underlying field."] },
@@ -36,8 +38,15 @@ export default function GuideMe() {
   const h = HELP[key];
   return (
     <div ref={ref} className="relative">
-      <button onClick={() => setOpenPath(open ? null : path)} aria-expanded={open} className="inline-flex items-center gap-1.5 text-xs rounded-full border border-accent/40 text-accent px-3 py-1 hover:bg-accent/10">
-        <Compass size={13} aria-hidden /> <span className="hidden sm:inline">Guide me</span>
+      <button
+        onClick={() => setOpenPath(open ? null : path)}
+        aria-expanded={open}
+        aria-haspopup="dialog"
+        aria-label={`Guide me: explain the ${h.title} screen`}
+        title="Guide me — explain this screen"
+        className="inline-flex items-center gap-1.5 text-xs rounded-full border border-accent/40 text-accent px-3 py-1 hover:bg-accent/10"
+      >
+        <Compass size={13} aria-hidden /> <span className="hidden sm:inline" aria-hidden>Guide me</span>
       </button>
       {open && (
         <div role="dialog" aria-label={`About ${h.title}`} className="absolute right-0 top-10 z-50 w-[min(340px,calc(100vw-24px))] glass glass-strong p-4 fade-in shadow-2xl">
