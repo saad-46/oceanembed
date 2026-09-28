@@ -1,37 +1,66 @@
 @import "tailwindcss";
 
-/* Design tokens — docs/12 §1 "deep-ocean scientific instrument". Dark-first. */
+/* ============================================================================
+   OceanSight design system — "deep ocean + satellite telemetry + scientific computing"
+   Dark-first. Colour is reserved for data; chrome stays calm navy/slate.
+   ========================================================================== */
 :root {
   color-scheme: dark;
-  --bg: #0a0e14;
-  --surface: #111826;
-  --surface-2: #162033;
-  --border: #1e2836;
-  --text: #e8edf4;
-  --text-2: #8a96a8;
-  --text-3: #5d6878;
-  --accent: #2ac3de;
-  --good: #1baf7a;
-  --warn: #eda100;
+  /* surfaces (deepest → raised) */
+  --bg: #050b14;
+  --bg-2: #081221;
+  --surface: #0d1929;
+  --surface-2: #122236;
+  --surface-3: #183049;
+  --glass: rgba(10, 22, 38, 0.72);
+  --glass-strong: rgba(8, 18, 32, 0.88);
+  --border: #1c2c42;
+  --border-2: #25405e;
+  /* text */
+  --text: #e8eef6;
+  --text-2: #93a3b8;
+  --text-3: #5f7189;
+  /* brand */
+  --accent: #2ec5d8;        /* cyan — interactive / brand */
+  --accent-2: #7fe3ef;      /* aqua highlight */
+  --ocean: #1f6fb2;         /* ocean blue — secondary brand */
+  /* status (never decorative) */
+  --good: #22b07d;
+  --warn: #e9a23b;
   --bad: #e5484d;
-  /* categorical series (validated with the dataviz validator on --surface, dark mode) */
+  /* categorical series (validated with the dataviz checker on --surface, dark) */
   --s-model: #3987e5;
   --s-clim: #d95926;
   --s-argo: #199e70;
   --s-lgbm: #c98500;
   --s-nosss: #d55181;
   --s-target: #9085e9;
+  /* shape */
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 16px;
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 16px rgba(0, 0, 0, 0.25);
+  --shadow-2: 0 10px 40px rgba(0, 0, 0, 0.45);
+  --glow: 0 0 0 1px rgba(46, 197, 216, 0.25), 0 8px 30px rgba(46, 197, 216, 0.12);
+  --grad-ocean: linear-gradient(180deg, #0a1a2e 0%, #061120 55%, #030810 100%);
+  --grad-accent: linear-gradient(135deg, #2ec5d8 0%, #1f6fb2 100%);
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
 @theme inline {
   --color-bg: var(--bg);
+  --color-bg-2: var(--bg-2);
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
   --color-line: var(--border);
+  --color-line-2: var(--border-2);
   --color-ink: var(--text);
   --color-ink-2: var(--text-2);
   --color-ink-3: var(--text-3);
   --color-accent: var(--accent);
+  --color-accent-2: var(--accent-2);
+  --color-ocean: var(--ocean);
   --color-good: var(--good);
   --color-warn: var(--warn);
   --color-bad: var(--bad);
@@ -47,35 +76,82 @@ body {
 }
 body {
   font-family: var(--font-inter), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 .num {
   font-family: var(--font-plex-mono), ui-monospace, monospace;
   font-variant-numeric: tabular-nums;
 }
-::selection {
-  background: #2ac3de55;
+::selection { background: #2ec5d855; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+/* ---------- surfaces ---------- */
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
 }
-:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+.glass {
+  background: var(--glass);
+  border: 1px solid rgba(64, 104, 148, 0.35);
+  border-radius: var(--radius);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  box-shadow: var(--shadow-1);
+}
+.glass-strong { background: var(--glass-strong); }
+.hairline { border-color: var(--border); }
+.eyebrow {
+  font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); font-weight: 600;
+}
+.text-gradient {
+  background: linear-gradient(90deg, #e8eef6 0%, #7fe3ef 60%, #2ec5d8 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.grid-bg {
+  background-image:
+    linear-gradient(rgba(46, 197, 216, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(46, 197, 216, 0.05) 1px, transparent 1px);
+  background-size: 48px 48px;
 }
 
-/* skeleton shimmer (docs/12: data-shaped placeholders, not spinners) */
+/* ---------- interaction ---------- */
+.lift { transition: transform 0.25s var(--ease), box-shadow 0.25s var(--ease), border-color 0.25s var(--ease); }
+.lift:hover { transform: translateY(-2px); box-shadow: var(--glow); border-color: var(--border-2); }
+
+/* ---------- motion ---------- */
 .skeleton {
-  background: linear-gradient(90deg, #131c2b 0%, #1a2638 50%, #131c2b 100%);
+  background: linear-gradient(90deg, #0f1d2f 0%, #17293f 50%, #0f1d2f 100%);
   background-size: 200% 100%;
   animation: shimmer 1.4s ease-in-out infinite;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
-@keyframes shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+.reveal { opacity: 0; transform: translateY(14px); transition: opacity 0.7s var(--ease), transform 0.7s var(--ease); }
+.reveal.in { opacity: 1; transform: none; }
+.fade-in { animation: fadeIn 0.45s var(--ease) both; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes dash { to { stroke-dashoffset: -24; } }
+.flow-line { stroke-dasharray: 6 6; animation: dash 1.2s linear infinite; }
+@keyframes pulse-ring { 0% { transform: scale(0.8); opacity: 0.8; } 100% { transform: scale(2.2); opacity: 0; } }
+.pulse-dot { position: relative; }
+.pulse-dot::after {
+  content: ""; position: absolute; inset: 0; border-radius: 999px; background: currentColor;
+  animation: pulse-ring 1.8s ease-out infinite;
 }
+@keyframes float-y { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+.float { animation: float-y 6s ease-in-out infinite; }
+
 @media (prefers-reduced-motion: reduce) {
-  .skeleton { animation: none; }
+  .skeleton, .flow-line, .pulse-dot::after, .float, .fade-in { animation: none !important; }
+  .reveal { opacity: 1; transform: none; transition: none; }
+  .lift, .lift:hover { transition: none; transform: none; }
 }
 
+/* ---------- third-party ---------- */
 .maplibregl-canvas { outline: none; }
 .maplibregl-ctrl-attrib, .maplibregl-ctrl-logo { display: none !important; }
-
+.maplibregl-ctrl-group { background: var(--glass-strong) !important; border: 1px solid var(--border-2); }
+.maplibregl-ctrl-group button { filter: invert(0.85); }
+.maplibregl-ctrl-scale { background: var(--glass-strong) !important; color: var(--text-2) !important; border-color: var(--text-3) !important; }
 input[type="range"] { accent-color: var(--accent); }
