@@ -1,378 +1,196 @@
 "use client";
-import dynamic from "next/dynamic";
 import Link from "next/link";
-import {
-  Compass,
-  Activity, ArrowRight, BrainCircuit, Database, FileDown, Gauge, GitBranch, Layers, Satellite, ShieldCheck, Sigma, Tornado, Waves,
-} from "lucide-react";
-import CrossSection from "@/components/landing/CrossSection";
-import { Badge, Button, CountUp, Logo, Reveal, SectionHeader, Skeleton, fmt } from "@/components/ui";
-import type { Headline, Meta, SectionResponse } from "@/lib/api";
-import { readTourStatus } from "@/lib/tour";
+import { Suspense } from "react";
+import { ArrowRight, Compass, FileText, GitCompareArrows, History, Layers, Map as MapIcon, ShieldCheck, Tornado } from "lucide-react";
+import OnboardingPrompt from "@/components/guide/OnboardingPrompt";
+import FieldHero from "@/components/landing/FieldHero";
+import { Button, Logo, fmt } from "@/components/ui";
+import type { Headline, Meta } from "@/lib/api";
+import { stepHref } from "@/lib/guide";
 import { useApi } from "@/lib/useApi";
-import { useEffect, useState } from "react";
 
-const ProductPreview = dynamic(() => import("@/components/landing/ProductPreview"), {
-  ssr: false,
-  loading: () => <Skeleton className="h-[480px] rounded-[var(--radius-lg)]" />,
-});
-
-const CAPABILITIES = [
-  { icon: Waves, title: "Subsurface reconstruction", body: "Daily temperature at 15 standard depths, 0–1000 m, on a 0.25° grid across the North Indian Ocean." },
-  { icon: BrainCircuit, title: "Satellite-embedding model", body: "A U-Net encoder compresses each day's surface state into an embedding; the decoder rebuilds the water column." },
-  { icon: Layers, title: "Depth profiles anywhere", body: "Click any ocean cell for its full temperature profile, compared with climatology and baselines." },
-  { icon: Sigma, title: "Calibrated uncertainty", body: "Every value carries an error bar calibrated against real Argo floats — see where not to trust it." },
-  { icon: ShieldCheck, title: "Independent validation", body: "Scored per depth against Argo floats from a year the model never saw, plus an EN4 cross-check." },
-  { icon: Tornado, title: "Cyclone fuel gauge", body: "Reconstructed heat potential replayed along real IBTrACS cyclone tracks, e.g. Mocha 2023." },
-  { icon: Gauge, title: "Ocean analytics", body: "Tropical cyclone heat potential, mixed-layer depth and the 20 °C / 26 °C isotherm depths, every day." },
-  { icon: FileDown, title: "Reports & exports", body: "One-page PDF and CSV profile reports and map snapshots for any point and day." },
+const TASKS = [
+  { icon: MapIcon, title: "Explore", body: "Navigate the reconstructed ocean by variable, depth and date, with Argo observations and cyclone tracks on the map.", href: "/map", cta: "Open the map" },
+  { icon: Layers, title: "Dive deeper", body: "Open any point's water column from the surface to 1000 m, with its uncertainty band and derived structure.", href: "/profiles", cta: "Inspect a profile" },
+  { icon: History, title: "Follow change", body: "Follow one location day by day to see the mixed layer and thermocline move through the seasons.", href: "/timeline", cta: "Open the timeline" },
+  { icon: GitCompareArrows, title: "Compare", body: "Set the reconstruction against measured Argo profiles, the seasonal climatology and baseline models.", href: "/section", cta: "Cut a section" },
+  { icon: ShieldCheck, title: "Validate", body: "See the evidence: error by depth against observations never used for training, and how well the uncertainty is calibrated.", href: "/validation", cta: "Review the evidence" },
+  { icon: Tornado, title: "Investigate", body: "Examine upper-ocean heat content along observed cyclone tracks and over regions, and save the result as a report.", href: "/analysis?mode=cyclone", cta: "Investigate an event" },
 ];
 
-const STEPS = [
-  { n: "01", icon: Satellite, title: "Satellite observations", body: "SST, sea-surface salinity, sea-level anomaly, surface currents and winds — five daily fields." },
-  { n: "02", icon: Database, title: "Data harmonisation", body: "Quality control, gap filling and regridding of every source to one 0.25° daily grid." },
-  { n: "03", icon: BrainCircuit, title: "ML reconstruction", body: "U-Net satellite embedding → temperature at 15 depths with uncertainty; LightGBM and climatology as baselines." },
-  { n: "04", icon: ShieldCheck, title: "Independent validation", body: "Whole-year hold-out; per-depth error against Argo floats; uncertainty calibrated on 2022, checked on 2023." },
-  { n: "05", icon: Activity, title: "Ocean intelligence", body: "Maps, profiles, TCHP / MLD / D20 / D26 and cyclone replay — served from precomputed daily fields." },
+const SOURCES = [
+  { role: "Model inputs · satellite, daily", items: ["NOAA OISST v2.1 — sea-surface temperature", "NASA SMAP + ESA SMOS — sea-surface salinity", "NOAA blended altimetry — sea level and geostrophic currents", "NOAA NCEI Blended Seawinds — surface winds"] },
+  { role: "Training target", items: ["HYCOM GOFS 3.1 ocean analysis, 2019–2021 (coarsened to 0.25°)"] },
+  { role: "Independent observations", items: ["Argo float profiles — validation (2023 held out) and on-map comparison", "Met Office EN4 — monthly cross-check"] },
+  { role: "Events", items: ["NOAA IBTrACS — observed cyclone tracks and winds"] },
 ];
 
 export default function Landing() {
   const h = useApi<Headline>("/v1/summary/headline").data;
-  const [tourDone, setTourDone] = useState(false);
-  useEffect(() => {
-    const r = requestAnimationFrame(() => setTourDone(readTourStatus() === "completed"));
-    return () => cancelAnimationFrame(r);
-  }, []);
   const meta = useApi<Meta>("/v1/meta").data;
-  const sectionQ = useApi<SectionResponse>("/v1/section/2023-05-11?lat=15&lon_min=80&lon_max=97");
-  const at = (z: number) => h?.validation?.at_depths.find((d) => d.depth_m === z);
-  const metrics: { value: number | null | undefined; label: string; decimals?: number; suffix?: string }[] = [
-    { value: meta?.depths_m.length, label: "depth levels, 0–1000 m" },
-    { value: 0.25, label: "grid resolution", decimals: 2, suffix: "°" },
-    { value: h?.n_days_reconstructed, label: "daily fields reconstructed" },
-    { value: h?.n_argo_profiles_total, label: "Argo profiles ingested" },
-    { value: h?.validation?.n_independent_profiles, label: "held-out Argo profiles (2023)" },
-    { value: h?.target_days, label: "3-D training-target days" },
-    { value: h?.n_models_compared, label: "models compared side by side" },
-    { value: 46, label: "automated tests in CI" },
-  ];
+  const v = h?.validation;
+  const r100 = v?.at_depths.find((d) => d.depth_m === 100);
+  const period = meta ? `${meta.period.start.slice(0, 4)}–${meta.period.end.slice(0, 4)}` : "2019–2023";
 
   return (
-    <div className="bg-bg text-ink">
-      {/* ---------------- nav ---------------- */}
-      <header className="fixed top-0 inset-x-0 z-40 border-b border-white/[0.06] bg-bg/70 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-5 h-16 flex items-center gap-6">
+    <div className="min-h-dvh bg-bg">
+      <header className="sticky top-0 z-30 border-b border-line bg-bg/85 backdrop-blur">
+        <div className="max-w-6xl mx-auto px-5 h-14 flex items-center gap-6">
           <Link href="/" aria-label="OceanSight home">
-            <Logo />
+            <Logo size={24} />
           </Link>
-          <nav className="hidden md:flex items-center gap-1 text-sm text-ink-2" aria-label="Sections">
-            {[
-              ["#why", "Why"],
-              ["#capabilities", "Capabilities"],
-              ["#how", "How it works"],
-              ["#validation", "Validation"],
-            ].map(([href, label]) => (
-              <a key={href} href={href} className="px-3 py-1.5 rounded-md hover:text-ink hover:bg-white/[0.04] transition-colors">
-                {label}
-              </a>
-            ))}
+          <nav aria-label="Site" className="hidden md:flex items-center gap-5 text-[13.5px] text-ink-2">
+            <Link href="/map" className="hover:text-ink">
+              Explore
+            </Link>
+            <Link href="/validation" className="hover:text-ink">
+              Validation
+            </Link>
+            <Link href="/methodology" className="hover:text-ink">
+              Methodology
+            </Link>
           </nav>
           <div className="flex-1" />
-          <Button href="/map" size="sm" icon={<ArrowRight size={14} />}>
-            Open platform
+          <Link href={stepHref(0)} className="hidden sm:inline text-[13.5px] text-ink-2 hover:text-ink">
+            Guided Exploration
+          </Link>
+          <Button href="/map" size="sm">
+            Explore ocean
           </Button>
         </div>
       </header>
 
-      {/* ---------------- hero ---------------- */}
-      <section className="relative pt-28 md:pt-32 pb-16 overflow-hidden">
-        <div className="absolute inset-0 grid-bg opacity-60 [mask-image:radial-gradient(ellipse_at_top,black_30%,transparent_75%)]" aria-hidden />
-        <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[900px] h-[600px] rounded-full bg-[radial-gradient(circle,rgba(31,111,178,0.28),transparent_65%)]" aria-hidden />
-        <div className="relative max-w-7xl mx-auto px-5 grid lg:grid-cols-[1fr_1.15fr] gap-12 items-center">
-          <div className="fade-in">
-            <Badge tone="accent" className="mb-5">SIH26066 · OceanEmbed · MoES / INCOIS</Badge>
-            <h1 className="font-display text-5xl md:text-6xl leading-[1.04] tracking-tight">
-              See beneath <br />
-              <span className="text-gradient">the surface.</span>
-            </h1>
-            <p className="mt-5 text-lg text-ink-2 max-w-xl leading-relaxed">
-              Daily reconstruction of North Indian Ocean temperature from the surface to 1000 m — learned from satellite observations and
-              checked against independent Argo floats.
+      <main>
+        <section className="max-w-6xl mx-auto px-5 pt-12 md:pt-20 pb-14 grid lg:grid-cols-[0.9fr_1.1fr] gap-10 lg:gap-14 items-center">
+          <div>
+            <p className="text-[12.5px] text-ink-3 num">North Indian Ocean · {period} · 0–1000 m</p>
+            <h1 className="font-display text-[40px] md:text-[56px] leading-[1.04] tracking-tight text-ink mt-3">See beneath the surface.</h1>
+            <p className="text-ink-2 text-[17px] leading-relaxed mt-5 max-w-xl">
+              Explore reconstructed ocean temperature structure across space, depth and time — with independent observations, uncertainty and validation one step away.
             </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Button href="/map" size="lg" icon={<Waves size={17} />}>
-                Explore the ocean
+            <div className="mt-7 flex flex-wrap gap-3">
+              <Button href="/map" size="lg" icon={<MapIcon size={16} />}>
+                Explore ocean
               </Button>
-              <Button href="/tour" variant="secondary" size="lg" icon={<Compass size={17} />}>
-                {tourDone ? "Replay the tour" : "Take the 3-minute tour"}
+              <Button href={stepHref(0)} size="lg" variant="secondary" icon={<Compass size={16} />}>
+                Guided Exploration
               </Button>
             </div>
-            <p className="mt-3 text-[12.5px] text-ink-3">
-              New to ocean science? The tour explains everything in plain language.{" "}
-              <Link href="/demo" className="text-accent hover:underline">
-                Presenting to judges? Use the demo mode →
-              </Link>
-            </p>
-            <dl className="mt-10 grid grid-cols-3 gap-4 max-w-md">
-              {[
-                ["0–1000 m", "15 standard depths"],
-                ["0.25°", "daily grid"],
-                [h?.validation ? `${fmt(at(100)?.rmse_c, 2)} °C` : "—", "RMSE at 100 m vs held-out Argo"],
-              ].map(([v, l]) => (
-                <div key={l}>
-                  <dt className="sr-only">{l}</dt>
-                  <dd className="num text-xl text-ink">{v}</dd>
-                  <dd className="text-[11px] text-ink-3 leading-snug mt-0.5">{l}</dd>
+            <p className="text-[12.5px] text-ink-3 mt-4">Reconstruction, not forecast: 0.25° daily fields from satellite surface observations.</p>
+          </div>
+          <FieldHero />
+        </section>
+
+        <section aria-labelledby="tasks" className="border-t border-line">
+          <div className="max-w-6xl mx-auto px-5 py-16">
+            <h2 id="tasks" className="font-display text-2xl text-ink">What you can do</h2>
+            <div className="mt-8 grid sm:grid-cols-2 lg:grid-cols-3 gap-x-10 gap-y-9">
+              {TASKS.map(({ icon: Icon, title, body, href, cta }) => (
+                <div key={title}>
+                  <div className="flex items-center gap-2.5">
+                    <Icon size={17} className="text-accent" aria-hidden />
+                    <h3 className="text-[15px] text-ink font-medium">{title}</h3>
+                  </div>
+                  <p className="text-[13.5px] text-ink-2 mt-2 leading-relaxed">{body}</p>
+                  <Link href={href} className="inline-flex items-center gap-1 text-[13px] text-accent mt-2.5 hover:underline">
+                    {cta} <ArrowRight size={13} aria-hidden />
+                  </Link>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section aria-labelledby="data" className="border-t border-line bg-bg-2/50">
+          <div className="max-w-6xl mx-auto px-5 py-16 grid lg:grid-cols-[0.8fr_1.2fr] gap-10">
+            <div>
+              <h2 id="data" className="font-display text-2xl text-ink">
+                Built on observations and physical context
+              </h2>
+              <p className="text-[14px] text-ink-2 mt-3 leading-relaxed">
+                OceanSight learns how surface patterns relate to the temperature below from a physical ocean analysis, then reconstructs the subsurface from daily satellite observations. Independent float measurements are kept apart to test it.
+              </p>
+              <p className="text-[14px] text-ink-2 mt-4 leading-relaxed">
+                {v && r100 ? (
+                  <>
+                    Against <span className="num text-ink">{v.n_independent_profiles.toLocaleString("en-IN")}</span> Argo profiles from 2023 — a year not used for training — the reconstruction&apos;s error at 100 m is{" "}
+                    <span className="num text-ink">{fmt(r100.rmse_c, 2)} °C</span>, compared with <span className="num text-ink">{fmt(r100.climatology_rmse_c, 2)} °C</span> for the seasonal climatology.
+                  </>
+                ) : (
+                  "Accuracy is reported by depth against Argo profiles that were not used for training."
+                )}{" "}
+                <Link href="/validation" className="text-accent hover:underline whitespace-nowrap">
+                  Review the evidence →
+                </Link>
+              </p>
+            </div>
+            <dl className="grid sm:grid-cols-2 gap-x-8 gap-y-6">
+              {SOURCES.map((s) => (
+                <div key={s.role}>
+                  <dt className="text-[11px] uppercase tracking-[0.12em] text-ink-3">{s.role}</dt>
+                  {s.items.map((i) => (
+                    <dd key={i} className="text-[13.5px] text-ink-2 mt-1.5 leading-snug">
+                      {i}
+                    </dd>
+                  ))}
                 </div>
               ))}
             </dl>
           </div>
-          <div className="fade-in [animation-delay:150ms]">
-            <CrossSection data={sectionQ.data ?? null} error={sectionQ.error} />
-          </div>
-        </div>
-      </section>
+        </section>
 
-      {/* ---------------- metrics ---------------- */}
-      <section aria-label="Key figures" className="border-y border-line bg-bg-2/60">
-        <div className="max-w-7xl mx-auto px-5 py-8 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-y-6 gap-x-4">
-          {metrics.map((m, i) => (
-            <Reveal key={m.label} delay={i * 50}>
-              <div className="text-2xl md:text-[26px] text-ink">
-                {m.value === undefined || m.value === null ? <span className="num text-ink-3">—</span> : <CountUp value={m.value} decimals={m.decimals} suffix={m.suffix} />}
-              </div>
-              <div className="text-[11.5px] text-ink-3 mt-1 leading-snug">{m.label}</div>
-            </Reveal>
-          ))}
-        </div>
-      </section>
-
-      {/* ---------------- why ---------------- */}
-      <section id="why" className="scroll-mt-20 max-w-7xl mx-auto px-5 py-24 grid lg:grid-cols-2 gap-14 items-center">
-        <Reveal>
-          <SectionHeader
-            eyebrow="The problem"
-            title={<>Satellites see the surface. <span className="text-ink-2">The ocean&apos;s heat lives below it.</span></>}
-            sub="Cyclone intensification, fish habitat and climate signals depend on temperature tens to hundreds of metres down. Argo floats, buoys and ships measure it only at scattered points and times. Satellites cover the whole basin every day — but only the top millimetres."
-          />
-          <p className="mt-5 text-ink-2 leading-relaxed">
-            The surface carries fingerprints of what is underneath: a raised sea level often sits over a deep warm layer. OceanSight learns those
-            fingerprints and rebuilds the full column.
-          </p>
-        </Reveal>
-        <Reveal delay={120}>
-          <ol className="relative space-y-3" aria-label="From satellite to ocean intelligence">
-            {[
-              { icon: Satellite, t: "Satellite observations", d: "Five surface fields, every day, whole basin", tone: "text-accent-2" },
-              { icon: BrainCircuit, t: "AI reconstruction", d: "Satellite embedding → 15-depth temperature + σ", tone: "text-accent" },
-              { icon: Waves, t: "Subsurface temperature", d: "0–1000 m, 0.25°, daily, 2019–2023", tone: "text-ocean" },
-              { icon: Gauge, t: "Ocean intelligence", d: "TCHP · MLD · D20 · D26 · cyclone replay", tone: "text-good" },
-            ].map(({ icon: Icon, t, d, tone }, i, arr) => (
-              <li key={t} className="relative">
-                <div className="panel lift flex items-center gap-4 px-5 py-4">
-                  <span className={`w-10 h-10 rounded-lg bg-white/[0.04] border border-line flex items-center justify-center ${tone}`}>
-                    <Icon size={20} aria-hidden />
-                  </span>
-                  <div>
-                    <div className="font-medium text-ink">{t}</div>
-                    <div className="text-sm text-ink-2">{d}</div>
-                  </div>
-                </div>
-                {i < arr.length - 1 && (
-                  <svg className="absolute left-[38px] -bottom-3 h-3 w-2" viewBox="0 0 2 12" aria-hidden>
-                    <line x1="1" y1="0" x2="1" y2="12" stroke="#2ec5d8" strokeWidth="2" className="flow-line" />
-                  </svg>
-                )}
-              </li>
-            ))}
-          </ol>
-        </Reveal>
-      </section>
-
-      {/* ---------------- capabilities ---------------- */}
-      <section id="capabilities" className="scroll-mt-20 border-t border-line bg-bg-2/40">
-        <div className="max-w-7xl mx-auto px-5 py-24">
-          <Reveal>
-            <SectionHeader eyebrow="Capabilities" title="Everything here runs on real reconstructions" sub="Each capability below is implemented and backed by the precomputed 2019–2023 record." />
-          </Reveal>
-          <div className="mt-12 grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {CAPABILITIES.map(({ icon: Icon, title, body }, i) => (
-              <Reveal key={title} delay={(i % 4) * 70}>
-                <div className="panel lift h-full p-5">
-                  <span className="w-10 h-10 rounded-lg bg-accent/[0.08] border border-accent/20 flex items-center justify-center text-accent">
-                    <Icon size={19} aria-hidden />
-                  </span>
-                  <h3 className="mt-4 font-medium text-ink">{title}</h3>
-                  <p className="mt-1.5 text-sm text-ink-2 leading-relaxed">{body}</p>
-                </div>
-              </Reveal>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ---------------- how it works ---------------- */}
-      <section id="how" className="scroll-mt-20 max-w-7xl mx-auto px-5 py-24">
-        <Reveal>
-          <SectionHeader eyebrow="How it works" title="From satellite pixels to a validated ocean column" />
-        </Reveal>
-        <div className="mt-12 grid md:grid-cols-5 gap-4 relative">
-          <svg className="hidden md:block absolute top-[34px] left-[10%] right-[10%] h-2 w-[80%]" viewBox="0 0 100 2" preserveAspectRatio="none" aria-hidden>
-            <line x1="0" y1="1" x2="100" y2="1" stroke="#2ec5d8" strokeOpacity=".5" strokeWidth="2" vectorEffect="non-scaling-stroke" className="flow-line" />
-          </svg>
-          {STEPS.map(({ n, icon: Icon, title, body }, i) => (
-            <Reveal key={n} delay={i * 90}>
-              <div className="relative text-center md:text-left">
-                <div className="mx-auto md:mx-0 w-[68px] h-[68px] rounded-2xl glass flex flex-col items-center justify-center relative z-10">
-                  <Icon size={20} className="text-accent" aria-hidden />
-                  <span className="num text-[10px] text-ink-3 mt-1">{n}</span>
-                </div>
-                <h3 className="mt-4 font-medium text-ink">{title}</h3>
-                <p className="mt-1.5 text-sm text-ink-2 leading-relaxed">{body}</p>
-              </div>
-            </Reveal>
-          ))}
-        </div>
-      </section>
-
-      {/* ---------------- product preview ---------------- */}
-      <section className="border-t border-line bg-[radial-gradient(ellipse_at_top,rgba(31,111,178,0.14),transparent_60%)]">
-        <div className="max-w-7xl mx-auto px-5 py-24">
-          <Reveal>
-            <SectionHeader
-              eyebrow="Live preview"
-              title="The platform, running on real data"
-              sub="Switch depth to see the thermocline structure change; the profile on the right is a real reconstruction next to a real Argo float, days before Cyclone Mocha (May 2023)."
-            />
-          </Reveal>
-          <Reveal className="mt-10">
-            <ProductPreview />
-          </Reveal>
-        </div>
-      </section>
-
-      {/* ---------------- validation ---------------- */}
-      <section id="validation" className="scroll-mt-20 max-w-7xl mx-auto px-5 py-24 grid lg:grid-cols-[1fr_1.1fr] gap-12 items-center">
-        <Reveal>
-          <SectionHeader
-            eyebrow="Validation"
-            title="How do we know it works?"
-            sub="We score it against the real ocean — Argo floats from 2023, a year the model never saw in training, normalisation or tuning."
-          />
-          <ul className="mt-6 space-y-2.5 text-sm text-ink-2">
-            {[
-              "Whole-year split: train 2019–2021 · validate 2022 · test 2023",
-              "Error per depth — never one headline number",
-              "Compared with climatology and LightGBM baselines",
-              "Uncertainty calibrated on 2022, verified on 2023",
-            ].map((t) => (
-              <li key={t} className="flex gap-2.5">
-                <ShieldCheck size={16} className="text-good shrink-0 mt-0.5" aria-hidden /> {t}
-              </li>
-            ))}
-          </ul>
-          <div className="mt-7">
-            <Button href="/validation" variant="secondary" icon={<ArrowRight size={15} />}>
-              See the full validation
-            </Button>
-          </div>
-        </Reveal>
-        <Reveal delay={120}>
-          <div className="panel p-6">
-            <div className="flex items-center justify-between">
-              <span className="eyebrow">Held-out 2023 · RMSE vs Argo</span>
-              <span className="num text-xs text-ink-3">n = {h?.validation?.n_independent_profiles?.toLocaleString("en-IN") ?? "—"} profiles</span>
+        <section className="border-t border-line">
+          <div className="max-w-6xl mx-auto px-5 py-14 flex flex-wrap items-center justify-between gap-6">
+            <div>
+              <h2 className="font-display text-xl text-ink">Start with a place and a date.</h2>
+              <p className="text-[14px] text-ink-2 mt-1.5">Open the map, or take eight short steps through the application first.</p>
             </div>
-            <div className="mt-5 space-y-4">
-              {(h?.validation?.at_depths ?? []).map((d) => {
-                const max = Math.max(...(h?.validation?.at_depths ?? []).map((x) => x.climatology_rmse_c ?? 0), 0.01);
-                return (
-                  <div key={d.depth_m}>
-                    <div className="flex justify-between text-xs mb-1">
-                      <span className="num text-ink-2">{d.depth_m} m</span>
-                      <span className="num text-ink">
-                        {fmt(d.rmse_c, 2)} °C <span className="text-ink-3">vs {fmt(d.climatology_rmse_c, 2)} climatology</span>
-                      </span>
-                    </div>
-                    <div className="relative h-2 rounded-full bg-white/[0.05] overflow-hidden">
-                      <div className="absolute inset-y-0 left-0 rounded-full bg-[#d95926]/45" style={{ width: `${((d.climatology_rmse_c ?? 0) / max) * 100}%` }} />
-                      <div className="absolute inset-y-0 left-0 rounded-full bg-[#3987e5]" style={{ width: `${((d.rmse_c ?? 0) / max) * 100}%` }} />
-                    </div>
-                  </div>
-                );
-              })}
-              {!h && <Skeleton className="h-40" />}
+            <div className="flex flex-wrap gap-3">
+              <Button href="/map" icon={<MapIcon size={15} />}>
+                Explore ocean
+              </Button>
+              <Button href={stepHref(0)} variant="secondary" icon={<Compass size={15} />}>
+                Guided Exploration
+              </Button>
+              <Button href="/reports" variant="ghost" icon={<FileText size={15} />}>
+                Create a report
+              </Button>
             </div>
-            <div className="mt-4 flex gap-4 text-[11px] text-ink-3">
-              <span className="flex items-center gap-1.5"><span className="w-3 h-2 rounded-sm bg-[#3987e5]" />OceanSight U-Net</span>
-              <span className="flex items-center gap-1.5"><span className="w-3 h-2 rounded-sm bg-[#d95926]/45" />Seasonal climatology</span>
-            </div>
-            <p className="mt-4 text-[11.5px] text-ink-3 leading-relaxed">{h?.validation?.caveat}</p>
           </div>
-        </Reveal>
-      </section>
+        </section>
+      </main>
 
-      {/* ---------------- guided tour band ---------------- */}
-      <section className="border-t border-line bg-[radial-gradient(ellipse_at_center,rgba(46,197,216,0.10),transparent_65%)]">
-        <div className="max-w-7xl mx-auto px-5 py-20 grid lg:grid-cols-[1.1fr_1fr] gap-10 items-center">
-          <div>
-            <div className="eyebrow">Guided tour · 9 short stages</div>
-            <h2 className="font-display text-3xl md:text-4xl mt-2">Understand OceanSight in three minutes.</h2>
-            <p className="text-ink-2 mt-3 leading-relaxed max-w-xl">
-              An interactive story told by the product itself: the problem, the AI, a live dive through the reconstructed ocean, a real water column, the validation against floats the model never saw, and a
-              real cyclone. No oceanography background needed.
+      <footer className="border-t border-line">
+        <div className="max-w-6xl mx-auto px-5 py-8 grid md:grid-cols-[1fr_auto] gap-6 text-[12.5px] text-ink-3">
+          <div className="space-y-2">
+            <Logo size={20} />
+            <p className="num">
+              Model {meta?.production_model ?? "—"} · data {meta ? `${meta.period.start} – ${meta.period.end}` : "—"} · 0.25° · 15 depths
             </p>
-            <div className="mt-6 flex flex-wrap gap-3">
-              <Button href="/tour" size="lg" icon={<Compass size={17} />}>
-                {tourDone ? "Replay the tour" : "Take the 3-minute tour"}
-              </Button>
-              <Button href="/demo" size="lg" variant="secondary">
-                Presenter demo
-              </Button>
-            </div>
+            <p>Data: NOAA (OISST, altimetry, Blended Seawinds, IBTrACS), NASA SMAP, ESA SMOS, HYCOM, Argo, Met Office EN4.</p>
           </div>
-          <ol className="grid grid-cols-3 gap-2 text-[12px]">
-            {["The problem", "Why it's hard", "Enter OceanSight", "The AI", "Beneath the surface", "Into the column", "Is it right?", "Why it matters", "The whole picture"].map((t, i) => (
-              <li key={t}>
-                <Link href={`/tour?step=${i + 1}`} className="lift panel block p-3 h-full">
-                  <span className="num text-accent">{String(i + 1).padStart(2, "0")}</span>
-                  <span className="block text-ink-2 mt-1">{t}</span>
-                </Link>
-              </li>
-            ))}
-          </ol>
+          <nav aria-label="Footer" className="flex flex-wrap gap-x-5 gap-y-2 md:justify-end md:items-start">
+            <Link href="/map" className="hover:text-ink">
+              Explore
+            </Link>
+            <Link href="/methodology" className="hover:text-ink">
+              Methodology
+            </Link>
+            <Link href="/validation" className="hover:text-ink">
+              Validation
+            </Link>
+            <Link href="/methodology#data" className="hover:text-ink">
+              Data sources
+            </Link>
+            <Link href={stepHref(0)} className="hover:text-ink">
+              Guided Exploration
+            </Link>
+          </nav>
         </div>
-      </section>
-
-      {/* ---------------- CTA + footer ---------------- */}
-      <section className="border-t border-line">
-        <div className="max-w-7xl mx-auto px-5 py-20 text-center">
-          <h2 className="font-display text-3xl md:text-4xl">Explore the ocean beneath the surface.</h2>
-          <p className="text-ink-2 mt-3">Every map, profile and number is a real reconstruction from 2019–2023.</p>
-          <div className="mt-7 flex justify-center gap-3 flex-wrap">
-            <Button href="/map" size="lg" icon={<Waves size={17} />}>
-              Explore the ocean
-            </Button>
-            <Button href="/methodology" size="lg" variant="secondary">
-              Read the methodology
-            </Button>
-          </div>
-        </div>
-        <footer className="border-t border-line">
-          <div className="max-w-7xl mx-auto px-5 py-8 flex flex-col md:flex-row gap-4 md:items-center justify-between text-xs text-ink-3">
-            <div className="flex items-center gap-4 flex-wrap">
-              <Logo size={22} sub={false} />
-              <span>Team CodeCrafters · SIH 2026 · proof of concept, not an operational INCOIS product</span>
-            </div>
-            <div className="flex items-center gap-4 flex-wrap">
-              <span>Data: NOAA · HYCOM · Argo · Met Office EN4 · IBTrACS</span>
-              <a href="https://github.com/saad-46/oceanembed" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:text-ink">
-                <GitBranch size={14} /> Source
-              </a>
-            </div>
-          </div>
-        </footer>
-      </section>
+      </footer>
+      <Suspense fallback={null}>
+        <OnboardingPrompt exploreHref="/map" />
+      </Suspense>
     </div>
   );
 }
