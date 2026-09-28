@@ -1,16 +1,8 @@
 import Link from "next/link";
+import { AlertTriangle, BookOpen, BrainCircuit, CheckCircle2, Database, ShieldCheck, Workflow, XCircle } from "lucide-react";
+import PipelineFlow from "@/components/PipelineFlow";
 
 export const metadata = { title: "Methodology — OceanSight" };
-
-const STEPS = [
-  ["Ingest", "One adapter per source; cached, resumable downloads"],
-  ["Clean", "Unit harmonisation, physical-range flags, de-duplication"],
-  ["Regrid", "All sources → common 0.25° daily grid (bilinear / area-weighted)"],
-  ["Features", "7 surface channels + lat/lon + season; train-years-only normalisation"],
-  ["Models", "Climatology · LightGBM per depth · U-Net (embedding + uncertainty)"],
-  ["Validate", "Held-out years vs independent Argo floats, per depth"],
-  ["Serve", "Precomputed daily grids + derived products via FastAPI"],
-];
 
 const SOURCES = [
   ["SST", "CMEMS OSTIA L4", "NOAA OISST v2.1 (0.25°, daily)"],
@@ -39,33 +31,33 @@ const CANNOT = [
 
 export default function Methodology() {
   return (
-    <article className="px-4 md:px-8 py-8 max-w-5xl w-full mx-auto space-y-10 text-[15px] leading-relaxed">
+    <article className="px-4 md:px-7 py-6 max-w-[1100px] w-full mx-auto space-y-8 text-[15px] leading-relaxed">
       <header className="space-y-2">
-        <h1 className="font-display text-3xl">How OceanSight works — and where its limits are</h1>
+        <div className="eyebrow">Methodology</div>
+        <h2 className="font-display text-2xl md:text-[28px]">How OceanSight works — and where its limits are</h2>
         <p className="text-ink-2">
           OceanSight is our implementation of <strong>SIH26066 “OceanEmbed”</strong> (Ministry of Earth Sciences / INCOIS): reconstruct subsurface ocean temperature at 15
           standard depths (0–1000 m) over the North Indian Ocean (5–30°N, 45–105°E) at 0.25° and daily resolution, from surface satellite observations alone.
         </p>
-        <nav className="flex flex-wrap gap-3 text-sm text-accent" aria-label="On this page">
-          {["pipeline", "data", "models", "validation", "claims", "ps"].map((a) => (
-            <a key={a} href={`#${a}`} className="hover:underline">
-              #{a}
+        <nav className="flex flex-wrap gap-2 pt-1" aria-label="On this page">
+          {[
+            ["pipeline", "Pipeline"],
+            ["data", "Data"],
+            ["models", "Models"],
+            ["validation", "Validation"],
+            ["claims", "Claims & limits"],
+            ["ps", "Problem statement"],
+          ].map(([a, l]) => (
+            <a key={a} href={`#${a}`} className="text-xs rounded-full border border-line px-3 py-1 text-ink-2 hover:text-accent hover:border-accent/50">
+              {l}
             </a>
           ))}
         </nav>
       </header>
 
       <section id="pipeline" className="space-y-3">
-        <h2 className="font-display text-xl">1 · Pipeline</h2>
-        <ol className="grid sm:grid-cols-2 lg:grid-cols-4 gap-2">
-          {STEPS.map(([t, d], i) => (
-            <li key={t} className="border border-line rounded p-3 bg-surface">
-              <div className="text-[11px] num text-ink-3">STEP {i + 1}</div>
-              <div className="font-display text-accent">{t}</div>
-              <div className="text-sm text-ink-2 mt-1">{d}</div>
-            </li>
-          ))}
-        </ol>
+        <h3 className="font-display text-xl flex items-center gap-2"><Workflow size={18} className="text-accent" /> 1 · Pipeline</h3>
+        <PipelineFlow />
         <p className="text-ink-2 text-sm">
           Nothing on screen triggers live model inference: every day of 2019–2023 is reconstructed ahead of time and served from cached Zarr stores, so the demo is
           independent of external services. Metadata, Argo profiles and validation records live in PostgreSQL + PostGIS (spatial indexes for nearest-float queries).
@@ -73,12 +65,12 @@ export default function Methodology() {
       </section>
 
       <section id="data" className="space-y-3">
-        <h2 className="font-display text-xl">2 · Data sources</h2>
+        <h3 className="font-display text-xl flex items-center gap-2"><Database size={18} className="text-accent" /> 2 · Data sources</h3>
         <p className="text-ink-2 text-sm">
           The problem statement allows substituting openly available products with regridding. Copernicus Marine and ERA5 need a (free) account that was not
           available to the automated build, so the current model uses open NOAA/HYCOM equivalents. Both sets are implemented behind the same adapter interface.
         </p>
-        <div className="overflow-x-auto">
+        <div className="panel overflow-x-auto px-4 py-2">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-[11px] uppercase tracking-wider text-ink-3 border-b border-line">
@@ -105,8 +97,8 @@ export default function Methodology() {
       </section>
 
       <section id="models" className="space-y-3">
-        <h2 className="font-display text-xl">3 · Models</h2>
-        <ul className="space-y-2 text-ink-2 list-disc pl-5">
+        <h3 className="font-display text-xl flex items-center gap-2"><BrainCircuit size={18} className="text-accent" /> 3 · Models</h3>
+        <ul className="panel p-4 pl-9 space-y-2 text-ink-2 list-disc">
           <li>
             <strong className="text-ink">Seasonal climatology</strong> — harmonic (annual + semi-annual) fit per cell and depth on the training years. The
             &ldquo;do nothing clever&rdquo; baseline every model must beat.
@@ -132,13 +124,13 @@ export default function Methodology() {
       </section>
 
       <section id="validation" className="space-y-3">
-        <h2 className="font-display text-xl">4 · Validation protocol</h2>
-        <ul className="space-y-2 text-ink-2 list-disc pl-5">
+        <h3 className="font-display text-xl flex items-center gap-2"><ShieldCheck size={18} className="text-accent" /> 4 · Validation protocol</h3>
+        <ul className="panel p-4 pl-9 space-y-2 text-ink-2 list-disc">
           <li>Whole-year split: train 2019–2021, validate 2022 (early stopping only), test 2023 (touched once). Random day splits would leak autocorrelation.</li>
           <li>Normalisation statistics and climatology use training years only.</li>
           <li>Independent check: each held-out Argo profile is compared with the reconstruction for its day at its 0.25° cell, per standard depth (RMSE, bias, r, skill vs climatology).</li>
           <li>
-            <strong className="text-warn">Caveat:</strong> the training target (HYCOM, like GLORYS) assimilates Argo. Held-out floats are independent of our model&apos;s training
+            <AlertTriangle size={14} className="inline text-warn -mt-0.5" aria-hidden /> <strong className="text-warn">Caveat:</strong> the training target (HYCOM, like GLORYS) assimilates Argo. Held-out floats are independent of our model&apos;s training
             but not fully independent of the product it learned from. We also show that target product&apos;s own error against the same floats as a reference ceiling.
           </li>
         </ul>
@@ -148,16 +140,16 @@ export default function Methodology() {
       </section>
 
       <section id="claims" className="grid md:grid-cols-2 gap-4">
-        <div className="border border-good/40 rounded p-4">
-          <h2 className="font-display text-lg text-good mb-2">Claims we make</h2>
+        <div className="panel border-good/40 p-4">
+          <h3 className="font-display text-lg text-good mb-2 flex items-center gap-2"><CheckCircle2 size={17} /> Claims we make</h3>
           <ul className="space-y-1.5 text-sm text-ink-2 list-disc pl-4">
             {CAN.map((c) => (
               <li key={c}>{c}</li>
             ))}
           </ul>
         </div>
-        <div className="border border-bad/40 rounded p-4">
-          <h2 className="font-display text-lg text-bad mb-2">Claims we do not make</h2>
+        <div className="panel border-bad/40 p-4">
+          <h3 className="font-display text-lg text-bad mb-2 flex items-center gap-2"><XCircle size={17} /> Claims we do not make</h3>
           <ul className="space-y-1.5 text-sm text-ink-2 list-disc pl-4">
             {CANNOT.map((c) => (
               <li key={c}>{c}</li>
@@ -167,8 +159,8 @@ export default function Methodology() {
       </section>
 
       <section id="ps" className="space-y-2">
-        <h2 className="font-display text-xl">5 · Official problem statement (summary of the verified record)</h2>
-        <div className="border border-line rounded p-4 bg-surface text-sm text-ink-2 space-y-2">
+        <h3 className="font-display text-xl flex items-center gap-2"><BookOpen size={18} className="text-accent" /> 5 · Official problem statement (summary of the verified record)</h3>
+        <div className="panel p-4 text-sm text-ink-2 space-y-2">
           <p>
             <strong className="text-ink">SIH26066 — OceanEmbed:</strong> Satellite Embedding-Based Deep Learning Framework for Reconstruction of Subsurface Ocean Temperature
             from Surface Satellite Observations. Ministry of Earth Sciences, INCOIS. Category: Software · Theme: Space Technology.
