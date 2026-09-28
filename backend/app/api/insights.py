@@ -1,4 +1,4 @@
-"""AI Insights, cyclone replay and report endpoints (docs/13, docs/12 screens 5 & 7)."""
+"""AI Insights, cyclone replay and report endpoints."""
 from __future__ import annotations
 
 import json
@@ -13,7 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import InterfaceError, OperationalError
 from sqlalchemy.orm import Session, selectinload
 
-from ml.config import LATS, LONS, nearest_cell
+from ml.config import LATS, LONS, STANDARD_DEPTHS, nearest_cell
 
 from app.api.grid import build_profile
 from app.db.models import CycloneTrack
@@ -36,7 +36,7 @@ def embedding_projection(store: GridStore = Depends(get_store)):
 
 @router.get("/explain/importance")
 def feature_importance(store: GridStore = Depends(get_store)):
-    """LightGBM gain importances per depth (explainability, docs/10 section 2)."""
+    """LightGBM gain importances per depth (baseline-model explainability)."""
     p = store.s.oceanembed_data_dir / "models" / "baseline-lightgbm-v1" / "feature_importance.json"
     if not p.exists():
         raise ApiError(503, "importance_unavailable", "Feature importances not available.")
@@ -80,7 +80,7 @@ def cyclones(db: Session = Depends(get_db)):
 @router.get("/cyclones/{track_id}/fuel")
 def cyclone_fuel(track_id: int, lead_days: int = Query(0, ge=0, le=10),
                  db: Session = Depends(get_db), store: GridStore = Depends(get_store)):
-    """Cyclone Fuel Gauge: reconstructed TCHP under each track point (docs/07 #17).
+    """Ocean heat along a cyclone track: reconstructed TCHP under each track point.
 
     ``lead_days`` samples the ocean N days *before* the storm passed (pre-storm fuel),
     avoiding the storm's own cold wake.
@@ -132,9 +132,12 @@ def _f(v, nd=1):
 
 
 @router.get("/report/{day}")
-def report_file(day: date, lat: float, lon: float, format: Literal["pdf", "csv"] = "pdf",
+def report_file(day: date, lat: float, lon: float, format: Literal["pdf", "csv"] = "pdf", depth: float = 100,
                 store: GridStore = Depends(get_store), db: Session = Depends(get_db)):
-    """One-page PDF or CSV report for a point (docs/12 screen 7)."""
+    """Water-column investigation report (PDF) or its numbers (CSV) for one point and day.
+
+    `depth` (a standard depth) sets the reconstructed field shown in the PDF's map inset."""
+    k = store.depth_index(depth)
     try:
         p = build_profile(store, db, day, lat, lon)
     except (OperationalError, InterfaceError):
@@ -144,7 +147,13 @@ def report_file(day: date, lat: float, lon: float, format: Literal["pdf", "csv"]
     if format == "csv":
         return Response(report.profile_csv(p), media_type="text/csv",
                         headers={"Content-Disposition": f'attachment; filename="{fname}.csv"'})
-    return Response(report.profile_pdf(p, summary["summary"], _validation_line(store)), media_type="application/pdf",
+    used = date.fromisoformat(p["date"])
+    field = store.cube(store.production_model, used)["temp"][k]
+    inset = report.map_inset(field, LATS, LONS, p["cell"]["lat"], p["cell"]["lon"], float(STANDARD_DEPTHS[k]))
+    ts = store.times(store.production_model)
+    pdf = report.profile_pdf(p, summary["summary"], _validation_line(store), inset=inset, depth=float(STANDARD_DEPTHS[k]),
+                             period=f"{ts[0].date()}..{ts[-1].date()}")
+    return Response(pdf, media_type="application/pdf",
                     headers={"Content-Disposition": f'attachment; filename="{fname}.pdf"'})
 
 
