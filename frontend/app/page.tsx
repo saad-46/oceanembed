@@ -2,12 +2,15 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import {
+  Compass,
   Activity, ArrowRight, BrainCircuit, Database, FileDown, Gauge, GitBranch, Layers, Satellite, ShieldCheck, Sigma, Tornado, Waves,
 } from "lucide-react";
 import CrossSection from "@/components/landing/CrossSection";
 import { Badge, Button, CountUp, Logo, Reveal, SectionHeader, Skeleton, fmt } from "@/components/ui";
 import type { Headline, Meta, SectionResponse } from "@/lib/api";
+import { readTourStatus } from "@/lib/tour";
 import { useApi } from "@/lib/useApi";
+import { useEffect, useState } from "react";
 
 const ProductPreview = dynamic(() => import("@/components/landing/ProductPreview"), {
   ssr: false,
@@ -35,6 +38,11 @@ const STEPS = [
 
 export default function Landing() {
   const h = useApi<Headline>("/v1/summary/headline").data;
+  const [tourDone, setTourDone] = useState(false);
+  useEffect(() => {
+    const r = requestAnimationFrame(() => setTourDone(readTourStatus() === "completed"));
+    return () => cancelAnimationFrame(r);
+  }, []);
   const meta = useApi<Meta>("/v1/meta").data;
   const sectionQ = useApi<SectionResponse>("/v1/section/2023-05-11?lat=15&lon_min=80&lon_max=97");
   const at = (z: number) => h?.validation?.at_depths.find((d) => d.depth_m === z);
@@ -95,10 +103,16 @@ export default function Landing() {
               <Button href="/map" size="lg" icon={<Waves size={17} />}>
                 Explore the ocean
               </Button>
-              <Button href="#how" variant="secondary" size="lg">
-                How it works
+              <Button href="/tour" variant="secondary" size="lg" icon={<Compass size={17} />}>
+                {tourDone ? "Replay the tour" : "Take the 3-minute tour"}
               </Button>
             </div>
+            <p className="mt-3 text-[12.5px] text-ink-3">
+              New to ocean science? The tour explains everything in plain language.{" "}
+              <Link href="/demo" className="text-accent hover:underline">
+                Presenting to judges? Use the demo mode →
+              </Link>
+            </p>
             <dl className="mt-10 grid grid-cols-3 gap-4 max-w-md">
               {[
                 ["0–1000 m", "15 standard depths"],
@@ -296,6 +310,38 @@ export default function Landing() {
             <p className="mt-4 text-[11.5px] text-ink-3 leading-relaxed">{h?.validation?.caveat}</p>
           </div>
         </Reveal>
+      </section>
+
+      {/* ---------------- guided tour band ---------------- */}
+      <section className="border-t border-line bg-[radial-gradient(ellipse_at_center,rgba(46,197,216,0.10),transparent_65%)]">
+        <div className="max-w-7xl mx-auto px-5 py-20 grid lg:grid-cols-[1.1fr_1fr] gap-10 items-center">
+          <div>
+            <div className="eyebrow">Guided tour · 9 short stages</div>
+            <h2 className="font-display text-3xl md:text-4xl mt-2">Understand OceanSight in three minutes.</h2>
+            <p className="text-ink-2 mt-3 leading-relaxed max-w-xl">
+              An interactive story told by the product itself: the problem, the AI, a live dive through the reconstructed ocean, a real water column, the validation against floats the model never saw, and a
+              real cyclone. No oceanography background needed.
+            </p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Button href="/tour" size="lg" icon={<Compass size={17} />}>
+                {tourDone ? "Replay the tour" : "Take the 3-minute tour"}
+              </Button>
+              <Button href="/demo" size="lg" variant="secondary">
+                Presenter demo
+              </Button>
+            </div>
+          </div>
+          <ol className="grid grid-cols-3 gap-2 text-[12px]">
+            {["The problem", "Why it's hard", "Enter OceanSight", "The AI", "Beneath the surface", "Into the column", "Is it right?", "Why it matters", "The whole picture"].map((t, i) => (
+              <li key={t}>
+                <Link href={`/tour?step=${i + 1}`} className="lift panel block p-3 h-full">
+                  <span className="num text-accent">{String(i + 1).padStart(2, "0")}</span>
+                  <span className="block text-ink-2 mt-1">{t}</span>
+                </Link>
+              </li>
+            ))}
+          </ol>
+        </div>
       </section>
 
       {/* ---------------- CTA + footer ---------------- */}
