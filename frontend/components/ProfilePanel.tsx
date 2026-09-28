@@ -3,7 +3,9 @@ import { useState } from "react";
 import { API_URL, friendlyError, post, type ProfileResponse } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
 import ProfileChart, { type SeriesSpec } from "./ProfileChart";
-import { DataBadge, ErrorState, Notice, Skeleton, Toggle, fmt } from "./ui";
+import { DataBadge, ErrorState, KindBadge, LoadingState, Notice, Toggle, fmt } from "./ui";
+import { RAMPS } from "@/lib/colormap";
+import { Crosshair, X } from "lucide-react";
 
 const C = {
   model: "#3987e5",
@@ -31,7 +33,26 @@ function Chip({ label, value, unit, hint }: { label: string; value: number | nul
   );
 }
 
-export default function ProfilePanel({ date, lat, lon, onClose }: { date: string; lat: number | null; lon: number | null; onClose?: () => void }) {
+function ThermalColumn({ depths, temps }: { depths: number[]; temps: (number | null)[] }) {
+  const vals = temps.filter((t): t is number => t !== null);
+  if (!vals.length) return null;
+  const lo = Math.min(...vals), hi = Math.max(...vals);
+  return (
+    <div className="flex flex-col w-11 shrink-0 rounded-md overflow-hidden border border-line" aria-label="Temperature by depth colour column">
+      {depths.map((z, k) => {
+        const t = temps[k];
+        const [r, g, b] = t === null ? [20, 30, 45] : RAMPS.thermal((t - lo) / (hi - lo || 1));
+        return (
+          <div key={z} className="flex-1 min-h-[16px] flex items-center justify-center text-[9px] num" style={{ background: `rgb(${r | 0},${g | 0},${b | 0})`, color: t !== null && (t - lo) / (hi - lo || 1) > 0.55 ? "#0a0e14" : "#e8eef6" }} title={`${z} m: ${t === null ? "no data" : t.toFixed(2) + " °C"}`}>
+            {t === null ? "–" : t.toFixed(0)}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+export default function ProfilePanel({ date, lat, lon, onClose, wide = false }: { date: string; lat: number | null; lon: number | null; onClose?: () => void; wide?: boolean }) {
   const { data, error, loading } = useProfile(date, lat, lon);
   const [show, setShow] = useState({ clim: true, argo: true, lgbm: false, nosss: false, target: false });
   const pointKey = `${date}|${lat}|${lon}`;
@@ -85,37 +106,59 @@ export default function ProfilePanel({ date, lat, lon, onClose }: { date: string
 
   return (
     <div className="h-full flex flex-col min-h-0">
-      <div className="flex items-start justify-between px-4 pt-3 pb-2 border-b border-line gap-2">
-        <div className="min-w-0">
-          <div className="font-display text-sm text-ink-2 uppercase tracking-wide">Temperature profile</div>
-          <div className="num text-ink text-sm mt-0.5">
-            {lat.toFixed(2)}°N {lon.toFixed(2)}°E · {data?.date ?? date}
+      <div className="flex items-start justify-between px-4 pt-3.5 pb-3 border-b border-line gap-2">
+        <div className="min-w-0 flex gap-3 items-start">
+          <span className="w-9 h-9 rounded-lg bg-accent/[0.1] text-accent flex items-center justify-center shrink-0">
+            <Crosshair size={17} aria-hidden />
+          </span>
+          <div>
+            <div className="eyebrow">Water-column profile · 0–1000 m</div>
+            <div className="num text-ink text-[15px] mt-0.5">
+              {lat.toFixed(2)}°N {lon.toFixed(2)}°E <span className="text-ink-3">·</span> {data?.date ?? date}
+            </div>
           </div>
         </div>
         {onClose && (
-          <button onClick={onClose} aria-label="Close profile panel" className="text-ink-2 hover:text-ink text-lg leading-none px-1">
-            ×
+          <button onClick={onClose} aria-label="Close profile panel" className="p-1.5 rounded-md text-ink-2 hover:text-ink hover:bg-white/[0.05]">
+            <X size={17} />
           </button>
         )}
       </div>
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
-        {error && <ErrorState message={error} />}
-        {loading && !data && (
-          <>
-            <Skeleton className="h-[340px] w-full" />
-            <div className="grid grid-cols-4 gap-2">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-12" />)}</div>
-          </>
-        )}
+        {error && <ErrorState message={error} action="Pick an ocean cell inside 5–30°N, 45–105°E, or a date in 2019–2023." />}
+        {loading && !data && <LoadingState label="Reconstructing subsurface profile…" className="h-[380px]" />}
         {data && !error && (
           <>
-            <div className="flex flex-wrap gap-2 items-center">
+            <div className="flex flex-wrap gap-1.5 items-center">
               <DataBadge label={data.data_label} fallback={data.__fallback} />
-              <span className="text-[11px] text-ink-3 num">model {data.model_version}</span>
+              <KindBadge kind="reconstructed" />
+              {data.nearest_argo_float && <KindBadge kind="measured" />}
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                ["Surface", data.temperature_c[0], "°C"],
+                ["100 m", data.temperature_c[7], "°C"],
+                ["σ at 100 m", data.uncertainty_c?.[7] ?? null, "°C"],
+              ].map(([k, v, u]) => (
+                <div key={k as string} className="rounded-lg border border-line bg-white/[0.02] px-2.5 py-2">
+                  <div className="text-[10px] uppercase tracking-wider text-ink-3">{k}</div>
+                  <div className="num text-lg text-ink">
+                    {(k as string).startsWith("σ") ? "±" : ""}
+                    {fmt(v as number | null, 2)} <span className="text-[11px] text-ink-3">{u}</span>
+                  </div>
+                </div>
+              ))}
             </div>
             {data.notice && <Notice>{data.notice}</Notice>}
-            <div className={loading ? "opacity-60 transition-opacity" : ""}>
-              <ProfileChart depths={data.depths_m} main={{ key: "model", label: "OceanSight reconstruction", color: C.model, values: data.temperature_c }} band={band} others={others} />
+            <div className={`flex gap-3 items-stretch ${loading ? "opacity-60 transition-opacity" : ""}`}>
+              <div className="flex-1 min-w-0">
+                <ProfileChart depths={data.depths_m} main={{ key: "model", label: "OceanSight reconstruction", color: C.model, values: data.temperature_c }} band={band} others={others} height={wide ? 440 : 360} />
+              </div>
+              <div className="hidden sm:flex flex-col pt-9 pb-6">
+                <ThermalColumn depths={data.depths_m} temps={data.temperature_c} />
+              </div>
             </div>
+            <div className="text-[10px] uppercase tracking-wider text-ink-3 flex items-center gap-2">Derived products <KindBadge kind="derived" /></div>
             <div className="grid grid-cols-4 gap-2">
               <Chip label="TCHP" value={data.derived.tchp_kj_cm2} unit="kJ/cm²" hint="Tropical cyclone heat potential: heat content above the 26°C isotherm" />
               <Chip label="MLD" value={data.derived.mld_m} unit="m" hint="Mixed-layer depth (0.5°C below the 10 m temperature)" />

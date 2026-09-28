@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Mono, Inter, Space_Grotesk } from "next/font/google";
-import TopNav from "@/components/TopNav";
 import "./globals.css";
 
 const inter = Inter({ variable: "--font-inter", subsets: ["latin"] });
@@ -16,10 +15,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${inter.variable} ${space.variable} ${mono.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col bg-bg text-ink">
-        <TopNav />
-        <main className="flex-1 flex flex-col min-h-0">{children}</main>
-      </body>
+      <body className="min-h-full flex flex-col bg-bg text-ink">{children}</body>
     </html>
   );
 }
