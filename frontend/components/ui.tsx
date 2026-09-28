@@ -98,21 +98,53 @@ export function Notice({ children, tone = "warn" }: { children: ReactNode; tone?
   );
 }
 
-export function DataBadge({ label = "cached", fallback }: { label?: string; fallback?: boolean }) {
-  if (fallback)
-    return (
-      <span className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wider border border-warn/50 text-warn rounded-full px-2.5 py-0.5 bg-bg/70">
-        <WifiOff size={10} /> Offline fallback · bundled snapshot
-      </span>
-    );
+/**
+ * Shown only when a view is served from the bundled offline copy (the API was unreachable).
+ * Normal data needs no badge: the status bar already states the data period and model.
+ */
+export function DataBadge({ fallback }: { label?: string; fallback?: boolean }) {
+  if (!fallback) return null;
   return (
     <span
-      title="Precomputed reconstruction from real historical satellite observations (not live, not simulated)"
-      className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wider border border-line-2 text-ink-2 rounded-full px-2.5 py-0.5 bg-bg/70"
+      title="The OceanSight service could not be reached, so this view shows a saved copy of the same reconstruction."
+      className="inline-flex items-center gap-1.5 text-[10.5px] border border-warn/50 text-warn rounded-full px-2.5 py-0.5 bg-bg/70"
     >
-      <span className="w-1.5 h-1.5 rounded-full bg-good" aria-hidden />
-      {label} · real satellite observations 2019–2023
+      <WifiOff size={10} aria-hidden /> Offline copy
     </span>
+  );
+}
+
+const PROV = {
+  measured: { dot: "bg-good", label: "Measured" },
+  reconstructed: { dot: "bg-accent", label: "Reconstructed" },
+  derived: { dot: "bg-ink-2", label: "Derived" },
+  estimated: { dot: "bg-warn", label: "Estimated" },
+  baseline: { dot: "bg-warn", label: "Baseline" },
+} as const;
+
+/** Compact provenance line: "● Reconstructed · OceanSight U-Net". */
+export function Provenance({ kind, source, className = "" }: { kind: DataKind; source?: ReactNode; className?: string }) {
+  const p = PROV[kind];
+  return (
+    <span className={`inline-flex items-center gap-1.5 text-[11.5px] text-ink-2 ${className}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${p.dot}`} aria-hidden />
+      <span className="text-ink">{p.label}</span>
+      {source && <span className="text-ink-3">· {source}</span>}
+    </span>
+  );
+}
+
+/** Consistent page header: group › title, one-line description, optional actions. */
+export function PageHeader({ group, title, description, actions }: { group: string; title: ReactNode; description?: ReactNode; actions?: ReactNode }) {
+  return (
+    <header className="flex flex-wrap items-end justify-between gap-3">
+      <div className="min-w-0">
+        <div className="eyebrow">{group}</div>
+        <h1 className="font-display text-[22px] md:text-2xl text-ink mt-1 leading-tight">{title}</h1>
+        {description && <p className="text-[13.5px] text-ink-2 mt-1.5 max-w-3xl leading-relaxed">{description}</p>}
+      </div>
+      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+    </header>
   );
 }
 
@@ -169,7 +201,7 @@ export function Logo({ size = 26, withText = true, sub = true }: { size?: number
           <span className="font-display font-semibold text-[17px] tracking-tight text-ink">
             Ocean<span className="text-accent">Sight</span>
           </span>
-          {sub && <span className="num text-[9.5px] text-ink-3 mt-1 tracking-wide">SIH26066 · OceanEmbed</span>}
+          {sub && <span className="text-[10px] text-ink-3 mt-1 tracking-wide">Subsurface Ocean Intelligence</span>}
         </span>
       )}
     </span>
@@ -180,8 +212,8 @@ type BtnProps = { children: ReactNode; href?: string; onClick?: () => void; vari
 export function Button({ children, href, onClick, variant = "primary", size = "md", className = "", icon, external, disabled, ariaLabel }: BtnProps) {
   const sizes = { sm: "text-xs px-3 py-1.5", md: "text-sm px-4 py-2", lg: "text-[15px] px-5 py-2.5" };
   const variants = {
-    primary: "bg-accent text-[#04121c] font-semibold hover:brightness-110 shadow-[0_6px_24px_rgba(46,197,216,0.25)]",
-    secondary: "border border-line-2 text-ink hover:border-accent/60 hover:bg-accent/[0.06] bg-bg/40 backdrop-blur",
+    primary: "bg-accent text-[#04121c] font-semibold hover:brightness-110",
+    secondary: "border border-line-2 text-ink hover:border-accent/60 hover:bg-accent/[0.06] bg-bg/40",
     ghost: "text-ink-2 hover:text-ink hover:bg-white/[0.04]",
   };
   const cls = `inline-flex items-center justify-center gap-2 rounded-lg transition-all duration-200 ${sizes[size]} ${variants[variant]} ${disabled ? "opacity-50 pointer-events-none" : ""} ${className}`;
