@@ -1,5 +1,6 @@
 "use client";
 import dynamic from "next/dynamic";
+import { useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import ColorLegend from "@/components/Legend";
@@ -37,7 +38,8 @@ export default function AnalysisScreen() {
   const [corner, setCorner] = useState<{ lat: number; lon: number } | null>(null);
   const [tsProduct, setTsProduct] = useState<"tchp" | "mld" | "d26" | "d20">("tchp");
   const [lead, setLead] = useState(2);
-  const [mode, setMode] = useState<"region" | "cyclone">("region");
+  const sp = useSearchParams();
+  const [mode, setMode] = useState<"region" | "cyclone">(sp.get("mode") === "cyclone" ? "cyclone" : "region");
   const [pick, setPick] = useState<number | null>(null);
   const [stepState, setStepState] = useState<{ key: string; step: number } | null>(null);
 
