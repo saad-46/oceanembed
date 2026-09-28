@@ -126,10 +126,12 @@ export default function MapScreen() {
   const isProduct = PRODUCT_VARS.includes(v);
 
   const panelOpen = panel ?? true;
+  const wide = panel !== false && typeof window !== "undefined" && window.innerWidth >= 768;
   return (
     <div className="relative flex-1 min-h-[520px] overflow-hidden">
       <OceanMap
         mapRef={mapRef}
+        padLeft={panelOpen && wide ? 312 : 0}
         raster={raster}
         argo={showArgo ? argo : null}
         track={activeTrack?.spec ?? null}

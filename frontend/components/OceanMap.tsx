@@ -53,6 +53,7 @@ export default function OceanMap({
   fitDomain = true,
   mapRef,
   minimal = false,
+  padLeft = 0,
 }: {
   raster?: RasterSpec | null;
   argo?: ArgoMarker[] | null;
@@ -65,10 +66,15 @@ export default function OceanMap({
   fitDomain?: boolean;
   mapRef?: React.MutableRefObject<MLMap | null>;
   minimal?: boolean;
+  /** extra left padding (px) when framing the domain, e.g. for a floating control panel */
+  padLeft?: number;
 }) {
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<MLMap | null>(null);
   const overlay = useRef<MapboxOverlay | null>(null);
+  const touched = useRef(false);
+  const padRef = useRef(padLeft);
+  const fitPad = () => ({ top: 12, bottom: 12, right: 12, left: 12 + padRef.current });
   const canvasCache = useRef<{ key: string; canvas: HTMLCanvasElement } | null>(null);
   const handlers = useRef({ onClick, onHover, onArgoClick });
   useEffect(() => {
@@ -81,7 +87,7 @@ export default function OceanMap({
       container: el.current,
       style: STYLE,
       bounds: DOMAIN_BOUNDS,
-      fitBoundsOptions: { padding: 12 },
+      fitBoundsOptions: { padding: fitPad() },
       maxBounds: [
         [20, -15],
         [130, 45],
@@ -113,7 +119,14 @@ export default function OceanMap({
     map.current = m;
     overlay.current = ov;
     if (mapRef) mapRef.current = m;
-    const ro = new ResizeObserver(() => m.resize());
+    // keep the whole domain framed while the layout settles, until the user pans/zooms themselves
+    m.on("movestart", (e: { originalEvent?: unknown }) => {
+      if (e.originalEvent) touched.current = true;
+    });
+    const ro = new ResizeObserver(() => {
+      m.resize();
+      if (!touched.current) m.fitBounds(DOMAIN_BOUNDS, { padding: fitPad(), duration: 0 });
+    });
     ro.observe(el.current);
     return () => {
       ro.disconnect();
@@ -125,8 +138,15 @@ export default function OceanMap({
   }, []);
 
   useEffect(() => {
-    if (fitDomain && map.current) map.current.fitBounds(DOMAIN_BOUNDS, { padding: 12, duration: 0 });
+    if (fitDomain && map.current) map.current.fitBounds(DOMAIN_BOUNDS, { padding: fitPad(), duration: 0 });
+     
   }, [fitDomain]);
+
+  useEffect(() => {
+    padRef.current = padLeft;
+    if (map.current && !touched.current) map.current.fitBounds(DOMAIN_BOUNDS, { padding: fitPad(), duration: 300 });
+     
+  }, [padLeft]);
 
   useEffect(() => {
     const ov = overlay.current;

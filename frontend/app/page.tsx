@@ -46,7 +46,7 @@ export default function Landing() {
     { value: h?.validation?.n_independent_profiles, label: "held-out Argo profiles (2023)" },
     { value: h?.target_days, label: "3-D training-target days" },
     { value: h?.n_models_compared, label: "models compared side by side" },
-    { value: 44, label: "automated tests in CI" },
+    { value: 46, label: "automated tests in CI" },
   ];
 
   return (

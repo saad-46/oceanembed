@@ -47,7 +47,8 @@ def main():
     gets = ["/v1/meta", "/v1/summary/headline", "/v1/regions", "/v1/cyclones", "/v1/validation/grid", "/v1/validation/en4",
             "/v1/embedding/projection", "/v1/explain/importance",
             f"/v1/argo/markers?date={DEMO_DATE}&window_days=3",
-            f"/v1/profile/{DEMO_DATE}?lat=15.000&lon=88.000", "/v1/profile/2023-06-06?lat=15.000&lon=66.000"]
+            f"/v1/profile/{DEMO_DATE}?lat=15.000&lon=88.000", "/v1/profile/2023-06-06?lat=15.000&lon=66.000",
+            f"/v1/section/{DEMO_DATE}?lat=15&lon_min=80&lon_max=97"]
     for split in ("test", "val"):
         gets += [f"/v1/validation/summary?split={split}", f"/v1/validation/scatter?split={split}&max_points=3000",
                  f"/v1/validation/profiles?split={split}&sort=rmse_desc&limit=15&offset=0"]
@@ -56,6 +57,7 @@ def main():
         gets += [f"/v1/grid/{d}/product?product={v}" for v in ("tchp", "mld", "d20", "d26")]
     gets += [f"/v1/grid/{DEMO_DATE}?depth={z}&variable={v}" for z in (0, 100) for v in ("anomaly", "uncertainty")]
     posts = [("/v1/region/stats", {"date": DEMO_DATE, "bbox": BOB}),
+             ("/v1/region/stats", {"date": DEMO_DATE, "bbox": {"min_lat": 5, "max_lat": 25, "min_lon": 50, "max_lon": 77}}),
              ("/v1/region/timeseries", {"bbox": BOB, "product": "tchp", "stride_days": 5}),
              ("/v1/assistant/query", {"lat": 15, "lon": 88, "date": DEMO_DATE})]
     tracks = requests.get(f"{api}/v1/cyclones", timeout=60).json()["tracks"]
