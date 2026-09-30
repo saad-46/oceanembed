@@ -291,7 +291,9 @@ def set_team_oval(slide):
 
 def is_template_part(sh) -> bool:
     """Template furniture on content slides: placeholders, team oval, SIH logo, blue footer bar."""
-    if sh.is_placeholder or sh.name.startswith("Oval"):
+    if sh.is_placeholder:
+        return True
+    if sh.name.startswith("Oval") and sh.has_text_frame and (TEAM_NAME in sh.text_frame.text or "Team" in sh.text_frame.text):
         return True
     x, y, w = sh.left / 914400, sh.top / 914400, sh.width / 914400
     if sh.shape_type == 13 and x > 10.0 and y < 0.2:      # SIH logo, top right
@@ -414,7 +416,7 @@ def slide2(s, shots, rebuilt):
         icon(s, ic, x + (bw - 0.22) / 2, y0 + 0.05, 0.22, WHITE if core else TEAL)
         text(s, x, y0 + 0.28, bw, 0.18, [P(R(t, 8.5, True, WHITE if core else NAVY), align=PP_ALIGN.CENTER)],
              anchor=MSO_ANCHOR.MIDDLE, margin=0.01)
-        text(s, x, y0 + 0.44, bw, 0.3, lines(sub, 8, WHITE if core else TEXT),
+        text(s, x, y0 + 0.44, bw, 0.3, lines(sub, 8.5, WHITE if core else TEXT),
              anchor=MSO_ANCHOR.MIDDLE, margin=0.01)
         if i < n - 1:
             chevron(s, x + bw + (gap - 0.09) / 2, y0 + sh / 2 - 0.09, 0.09, 0.18)
@@ -432,7 +434,7 @@ def slide2(s, shots, rebuilt):
     box(s, 0.3, top, 12.73, bandh, fill=NAVY, shape=MSO_SHAPE.ROUNDED_RECTANGLE, radius=0.12)
     badge(s, "sparkles", 0.5, top + 0.1, 0.34, bg=TEAL)
     text(s, 0.94, top + 0.08, 11.9, 0.38, [P(
-        R("INNOVATION AND UNIQUENESS OF THE SOLUTION", 14, True, WHITE),
+        R("INNOVATION AND UNIQUENESS OF THE SOLUTION", 15, True, WHITE),
         R("   —   why OceanSight is different", 11, False, AQUA))], anchor=MSO_ANCHOR.MIDDLE, margin=0.01)
     cards = [
         ("badge-check", "01", "Validated beyond training data",
@@ -442,24 +444,24 @@ def slide2(s, shots, rebuilt):
         ("crosshair", "02", "Calibrated to the real ocean",
          "Every profile carries an error bar calibrated on 2022 floats that holds on 2023 — analysts can see when not to trust a value.",
          "70%", "of Argo values within ±1σ (ideal 68%)"),
-        ("tornado", "03", "Reconstruction → decisions",
+        ("gauge", "03", "Reconstruction → decisions",
          "Daily cyclone heat potential, mixed-layer and isotherm depths at 0.25°, replayed on real IBTrACS cyclone tracks.",
          "TCHP · MLD", "D20 · D26 — every day, 2019–2023"),
     ]
     cg = 0.18
     cw = (12.33 - 2 * cg) / 3
-    cy, ch = top + 0.52, 1.46
+    cy, ch = top + 0.52, 1.5
     for i, (ic, num, title, body, metric, mlabel) in enumerate(cards):
         x = 0.5 + i * (cw + cg)
         card(s, x, cy, cw, ch, fill=WHITE, line=None, radius=0.1)
         badge(s, ic, x + 0.14, cy + 0.1, 0.44, bg=TEAL_LIGHT, fg=TEAL, round_=True)
         text(s, x + 0.68, cy + 0.08, cw - 0.8, 0.2, [P(R(f"USP {num}", 9, True, TEAL))], anchor=MSO_ANCHOR.MIDDLE, margin=0.01)
-        text(s, x + 0.68, cy + 0.27, cw - 0.8, 0.28, [P(R(title, 12.5, True, NAVY))], anchor=MSO_ANCHOR.MIDDLE, margin=0.01)
-        text(s, x + 0.14, cy + 0.58, cw - 0.28, 0.46, [P(R(body, 9, False, TEXT), line_spacing=1.0)], margin=0.01)
-        box(s, x + 0.1, cy + ch - 0.38, cw - 0.2, 0.3, fill=TEAL_LIGHT, shape=MSO_SHAPE.ROUNDED_RECTANGLE, radius=0.07)
-        text(s, x + 0.2, cy + ch - 0.38, cw - 0.4, 0.3, [P(R(metric + "  ", 15, True, TEAL), R(mlabel, 9, False, MUTED))],
+        text(s, x + 0.68, cy + 0.26, cw - 0.8, 0.3, [P(R(title, 13.5, True, NAVY))], anchor=MSO_ANCHOR.MIDDLE, margin=0.01)
+        text(s, x + 0.14, cy + 0.56, cw - 0.28, 0.46, [P(R(body, 9, False, TEXT), line_spacing=1.0)], margin=0.01)
+        box(s, x + 0.1, cy + ch - 0.42, cw - 0.2, 0.34, fill=TEAL_LIGHT, shape=MSO_SHAPE.ROUNDED_RECTANGLE, radius=0.08)
+        text(s, x + 0.16, cy + ch - 0.42, cw - 0.32, 0.34, [P(R(metric + "  ", 18, True, TEAL), R(mlabel, 9, False, MUTED))],
              anchor=MSO_ANCHOR.MIDDLE, margin=0.01)
-    text(s, 0.5, top + bandh - 0.34, 12.33, 0.28, [P(
+    text(s, 0.5, top + bandh - 0.32, 12.33, 0.28, [P(
         R("Satellite surface fields  →  validated, uncertainty-aware 3-D ocean temperature  →  INCOIS decision products",
           11, True, ICE, italic=True),
         align=PP_ALIGN.CENTER)], anchor=MSO_ANCHOR.MIDDLE, margin=0.01)
@@ -499,21 +501,24 @@ def slide3(s, rebuilt):
         ("Serve", "Zarr + PostGIS +\nFastAPI → GIS app"),
     ]
     n, gap = len(stages), 0.14
-    bw = (RW - gap * (n - 1)) / n
+    core_w = 1.45
+    other_w = (RW - gap * (n - 1) - core_w) / (n - 1)
     y0, sh = 1.7, 1.06
+    x = RX
     for i, (t, sub) in enumerate(stages):
-        x = RX + i * (bw + gap)
         core = i == 3
+        bw = core_w if core else other_w
         card(s, x, y0, bw, sh, fill=TEAL if core else WHITE, line=TEAL if core else LINE, radius=0.08)
         box(s, x + (bw - 0.28) / 2, y0 + 0.08, 0.28, 0.28, fill=WHITE if core else NAVY, shape=MSO_SHAPE.OVAL)
         text(s, x + (bw - 0.28) / 2, y0 + 0.08, 0.28, 0.28, [P(R(str(i + 1), 10, True, TEAL if core else WHITE),
                                                             align=PP_ALIGN.CENTER)], anchor=MSO_ANCHOR.MIDDLE, margin=0)
         text(s, x, y0 + 0.4, bw, 0.2, [P(R(t, 9.5, True, WHITE if core else NAVY), align=PP_ALIGN.CENTER)],
              anchor=MSO_ANCHOR.MIDDLE, margin=0.01)
-        text(s, x, y0 + 0.6, bw, 0.42, lines(sub, 8, WHITE if core else TEXT),
-             anchor=MSO_ANCHOR.MIDDLE, margin=0)
+        text(s, x, y0 + 0.6, bw, 0.42, lines(sub, 8.5, WHITE if core else TEXT),
+             anchor=MSO_ANCHOR.MIDDLE, margin=0.03)
         if i < n - 1:
             chevron(s, x + bw + (gap - 0.08) / 2, y0 + sh / 2 - 0.09, 0.08, 0.18)
+        x += bw + gap
     # Year split timeline
     ty = 2.9
     icon(s, "calendar-range", RX, ty + 0.03, 0.22, TEAL)
@@ -610,7 +615,7 @@ def slide4(s, rebuilt):
     for tag, col, body in (("IMPLEMENTED", GREEN, "pipeline · models · validation · API · dashboard · Docker"),
                            ("PLANNED", AMBER, "hosted deployment · re-run on Copernicus/GLORYS with credentials")):
         box(s, X, sy + 0.02, 1.02, 0.2, fill=col, shape=MSO_SHAPE.ROUNDED_RECTANGLE, radius=0.1)
-        text(s, X, sy + 0.02, 1.02, 0.2, [P(R(tag, 7.5, True, WHITE), align=PP_ALIGN.CENTER)], anchor=MSO_ANCHOR.MIDDLE, margin=0)
+        text(s, X, sy + 0.02, 1.02, 0.2, [P(R(tag, 8, True, WHITE), align=PP_ALIGN.CENTER)], anchor=MSO_ANCHOR.MIDDLE, margin=0)
         text(s, X + 1.1, sy - 0.02, LW - 1.1, 0.4, [P(R(body, 8.5))], margin=0.01)
         sy += 0.42
     # Right: challenges -> strategies
@@ -649,7 +654,7 @@ def slide5(s, shots, rebuilt):
     clear_content_boxes(s, rebuilt)
     X, LW = 0.35, 6.75
     section_label(s, X, 1.30, LW, "Potential impact on the target audience", ic="users")
-    users = [("waves", "Ocean analysts &\nforecasters", "INCOIS-style"), ("tornado", "Cyclone\nforecasters", "heat available to storms"),
+    users = [("waves", "Ocean analysts &\nforecasters", "INCOIS-style"), ("cloud-lightning", "Cyclone\nforecasters", "heat available to storms"),
              ("fish", "Fisheries-advisory\nanalysts", "mixed layer & thermocline"), ("microscope", "Ocean\nresearchers", "daily 3-D record")]
     ug = 0.15
     uw = (LW - 3 * ug) / 4
