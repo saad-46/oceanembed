@@ -4,19 +4,24 @@ import { useEffect, useState, type ReactNode } from "react";
 import { AlertCircle, CheckCircle2, Download, FileJson, FileSpreadsheet, FileText, Loader2, ShieldCheck, Tornado } from "lucide-react";
 import LocationPicker from "@/components/LocationPicker";
 import { Button, PageHeader, Provenance } from "@/components/ui";
-import { API_URL, type CycloneTrack, type Meta } from "@/lib/api";
+import { API_URL, fallbackKey, liveApiEnabled, type CycloneTrack, type Meta } from "@/lib/api";
 import { DEFAULT_DATE, DEFAULT_POINT, STANDARD_DEPTHS } from "@/lib/dates";
 import { useApi } from "@/lib/useApi";
 
 type ExportState = { s: "idle" } | { s: "busy" } | { s: "done"; bytes: number; at: string; url?: string } | { s: "error"; msg: string };
 const kb = (n: number) => (n > 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
 
-async function fetchFile(url: string): Promise<Blob> {
+/** Live API first; if it is unreachable, the saved reference copy under /fallback (same keys as lib/api.ts). */
+async function fetchFile(path: string): Promise<Blob> {
   let r: Response;
   try {
-    r = await fetch(url);
+    if (!liveApiEnabled()) throw new Error("live API not configured");
+    r = await fetch(`${API_URL}${path}`);
   } catch {
-    throw new Error("The OceanSight service could not be reached. Check your connection and try again.");
+    const ext = path.match(/format=(pdf|csv)/)?.[1] ?? "json";
+    const fb = await fetch(`/fallback/${fallbackKey(path)}.${ext}`).catch(() => null);
+    if (fb?.ok) return fb.blob();
+    throw new Error("Offline copies are saved only for the reference investigation (15°N 88°E, 2023-05-11). Start the OceanSight service to generate files for other locations and dates.");
   }
   if (!r.ok) {
     let msg = `The report could not be generated (HTTP ${r.status}).`;
@@ -116,7 +121,7 @@ export default function ReportsScreen() {
     }
   };
 
-  const pdfUrl = `${API_URL}/v1/report/${q}&depth=${depth}&format=pdf`;
+  const pdfUrl = `/v1/report/${q}&depth=${depth}&format=pdf`;
   const contents: [string, "reconstructed" | "estimated" | "baseline" | "derived" | "measured"][] = [
     ["Temperature profile, 0–1000 m", "reconstructed"],
     [`Map of the field at ${depth} m around the location`, "reconstructed"],
@@ -209,19 +214,19 @@ export default function ReportsScreen() {
         <ul className="divide-y divide-line">
           <ExportRow icon={<FileSpreadsheet size={16} />} title="Profile values (CSV)" detail={`Temperature, ±σ, climatology and Argo by depth · ${date} · ${lat.toFixed(2)}°N ${lon.toFixed(2)}°E`}>
             <StateLine st={st("csv")} idle="" />
-            <Button size="sm" variant="secondary" onClick={() => run("csv", `${API_URL}/v1/report/${q}&format=csv`, `oceansight_profile_${tag}.csv`)} disabled={st("csv").s === "busy"} icon={<Download size={13} />}>
+            <Button size="sm" variant="secondary" onClick={() => run("csv", `/v1/report/${q}&format=csv`, `oceansight_profile_${tag}.csv`)} disabled={st("csv").s === "busy"} icon={<Download size={13} />}>
               CSV
             </Button>
           </ExportRow>
           <ExportRow icon={<ShieldCheck size={16} />} title="Validation metrics (JSON)" detail="Per-depth RMSE, bias, correlation and skill against held-out 2023 Argo; uncertainty calibration">
             <StateLine st={st("val", false)} idle="" />
-            <Button size="sm" variant="secondary" onClick={() => run("val", `${API_URL}/v1/validation/summary?split=test`, "oceansight_validation_2023.json", { keyed: false })} disabled={st("val", false).s === "busy"} icon={<Download size={13} />}>
+            <Button size="sm" variant="secondary" onClick={() => run("val", `/v1/validation/summary?split=test`, "oceansight_validation_2023.json", { keyed: false })} disabled={st("val", false).s === "busy"} icon={<Download size={13} />}>
               JSON
             </Button>
           </ExportRow>
           <ExportRow icon={<Tornado size={16} />} title="Cyclone Mocha track and ocean heat (JSON)" detail="Observed positions and winds (IBTrACS) with reconstructed SST and derived TCHP / D26 along the track">
             <StateLine st={st("fuel", false)} idle="" />
-            <Button size="sm" variant="secondary" onClick={() => mocha && run("fuel", `${API_URL}/v1/cyclones/${mocha.id}/fuel?lead_days=2`, "oceansight_mocha_track.json", { keyed: false })} disabled={!mocha || st("fuel", false).s === "busy"} icon={<Download size={13} />}>
+            <Button size="sm" variant="secondary" onClick={() => mocha && run("fuel", `/v1/cyclones/${mocha.id}/fuel?lead_days=2`, "oceansight_mocha_track.json", { keyed: false })} disabled={!mocha || st("fuel", false).s === "busy"} icon={<Download size={13} />}>
               JSON
             </Button>
           </ExportRow>

@@ -5,7 +5,6 @@ import { ReactNode, Suspense, useState } from "react";
 import { BarChart3, BookOpen, FileText, History, Map as MapIcon, Menu, ScanLine, ShieldCheck, Sparkles, Waves, X } from "lucide-react";
 import GuideLayer from "@/components/guide/GuideLayer";
 import HelpMenu from "@/components/guide/HelpMenu";
-import OnboardingPrompt from "@/components/guide/OnboardingPrompt";
 import type { Meta } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
 import { Logo, StatusDot } from "./ui";
@@ -157,7 +156,6 @@ export default function AppShell({ children }: { children: ReactNode }) {
         </main>
         <Suspense fallback={null}>
           <GuideLayer />
-          <OnboardingPrompt />
         </Suspense>
       </div>
     </div>

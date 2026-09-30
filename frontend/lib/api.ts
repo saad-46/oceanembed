@@ -10,11 +10,23 @@
  */
 export const API_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8100").replace(/\/$/, "");
 
+/**
+ * Whether to try the live API at all. A deployed page with no configured API goes straight to the saved
+ * copies instead of probing the visitor's own machine (localhost:8100).
+ */
+export function liveApiEnabled(): boolean {
+  if (process.env.NEXT_PUBLIC_API_URL || typeof window === "undefined") return true;
+  return ["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname);
+}
+
 export class ApiError extends Error {
   constructor(public status: number, public code: string, public detail: string) {
     super(detail);
   }
 }
+
+/** Message for a request with no live backend and no saved copy (ErrorState shows offline wording for it). */
+export const OFFLINE_NO_COPY = "Offline copy not available for this selection.";
 
 export type Fetched<T> = T & { __fallback?: boolean };
 
@@ -47,6 +59,7 @@ async function request<T>(path: string, init?: RequestInit & { json?: unknown },
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   let res: Response;
   try {
+    if (!liveApiEnabled()) throw new Error("live API not configured");
     res = await fetch(`${API_URL}${path}`, {
       ...init,
       method: init?.json !== undefined ? "POST" : init?.method || "GET",
@@ -58,7 +71,7 @@ async function request<T>(path: string, init?: RequestInit & { json?: unknown },
     clearTimeout(timer);
     const fb = await tryFallback<T>(path, init?.json);
     if (fb) return fb;
-    throw new ApiError(0, "backend_unreachable", "The OceanSight backend is unreachable and no bundled snapshot exists for this view.");
+    throw new ApiError(0, "backend_unreachable", OFFLINE_NO_COPY);
   }
   clearTimeout(timer);
   if (!res.ok) {

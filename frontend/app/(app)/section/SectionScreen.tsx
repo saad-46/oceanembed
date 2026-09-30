@@ -10,13 +10,13 @@ import { Button, DataBadge, ErrorState, LoadingState, PageHeader, Provenance, Se
 import type { SectionAnyResponse } from "@/lib/api";
 import { addDays, clampDate } from "@/lib/dates";
 import { DOMAIN, PERIOD, ZMAX_OPTIONS, parseSectionParams, sectionApiPath, sectionHref, sectionMapHref, timelineHref, traceIsotherm, viewState, type SectionParams } from "@/lib/ocean";
-import { useApi } from "@/lib/useApi";
+import { useApi, useOffline } from "@/lib/useApi";
 import { useGrid } from "@/lib/useGrid";
 
 const OceanMap = dynamic(() => import("@/components/OceanMap"), { ssr: false, loading: () => <Skeleton className="absolute inset-0" /> });
 
-const PRESETS: { label: string; p: Omit<SectionParams, "date" | "variable" | "zmax"> }[] = [
-  { label: "Bay of Bengal · 15°N", p: { dir: "lon", at: 15, from: 80, to: 97 } },
+const PRESETS: { label: string; p: Omit<SectionParams, "date" | "variable" | "zmax">; saved?: boolean }[] = [
+  { label: "Bay of Bengal · 15°N", p: { dir: "lon", at: 15, from: 80, to: 97 }, saved: true },
   { label: "Arabian Sea · 15°N", p: { dir: "lon", at: 15, from: 52, to: 75 } },
   { label: "BoB meridian · 88°E", p: { dir: "lat", at: 88, from: 5, to: 22 } },
   { label: "Arabian Sea meridian · 65°E", p: { dir: "lat", at: 65, from: 5, to: 25 } },
@@ -28,6 +28,7 @@ const VAR_STYLE: Record<SectionParams["variable"], { ramp: "thermal" | "divergin
 };
 
 export default function SectionScreen() {
+  const offline = useOffline();
   const sp = useSearchParams();
   const router = useRouter();
   const p = parseSectionParams(sp);
@@ -238,13 +239,16 @@ export default function SectionScreen() {
               {PRESETS.map((x) => (
                 <button
                   key={x.label}
+                  disabled={offline && !x.saved}
+                  title={offline && !x.saved ? "Saved offline copies cover the reference cases only; start the OceanSight service for this example." : undefined}
                   onClick={() => {
                     setDraft({ at: x.p.at, from: x.p.from, to: x.p.to });
                     set(x.p);
                   }}
-                  className="text-left text-[12.5px] text-ink-2 hover:text-ink rounded px-1.5 py-1 hover:bg-white/[0.03]"
+                  className="text-left text-[12.5px] text-ink-2 hover:text-ink rounded px-1.5 py-1 hover:bg-white/[0.03] disabled:opacity-40 disabled:hover:bg-transparent disabled:cursor-not-allowed"
                 >
                   {x.label}
+                  {offline && !x.saved && <span className="text-ink-3"> — needs live service</span>}
                 </button>
               ))}
             </div>

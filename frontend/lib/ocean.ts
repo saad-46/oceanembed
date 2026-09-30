@@ -4,7 +4,7 @@
  * cyclone passages come straight from IBTrACS track points.
  */
 import type { CycloneTrack } from "./api";
-import { addDays, clampDate } from "./dates";
+import { addDays, clampDate, DEFAULT_DATE } from "./dates";
 
 export const PERIOD = { start: "2019-01-01", end: "2023-12-31" };
 export const DOMAIN = { latMin: 5, latMax: 30, lonMin: 45, lonMax: 105 };
@@ -94,7 +94,9 @@ export function parseTimelineParams(sp: { get(k: string): string | null }): Time
   start = clampDate(start, PERIOD.start, PERIOD.end);
   end = clampDate(end, PERIOD.start, PERIOD.end);
   if (start > end) [start, end] = [end, start];
-  const date = focus && focus >= start && focus <= end ? focus : start;
+  // no day asked for: open on the reference day (pre-Cyclone Mocha) when the default range contains it
+  const fallbackDay = !sp.get("start") && !sp.get("end") && DEFAULT_DATE >= start && DEFAULT_DATE <= end ? DEFAULT_DATE : start;
+  const date = focus && focus >= start && focus <= end ? focus : fallbackDay;
   const zm = Number(sp.get("zmax"));
   return { lat, lon, start, end, date, view: sp.get("view") === "anomaly" ? "anomaly" : "temp", zmax: (ZMAX_OPTIONS as readonly number[]).includes(zm) ? zm : 500 };
 }

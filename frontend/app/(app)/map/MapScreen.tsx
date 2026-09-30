@@ -13,7 +13,7 @@ import type { RampName } from "@/lib/colormap";
 import { addDays, clampDate, daysBetween, DEFAULT_DATE, STANDARD_DEPTHS } from "@/lib/dates";
 import type { TermKey } from "@/lib/glossary";
 import { sectionFromMap, timelineHref } from "@/lib/ocean";
-import { useApi } from "@/lib/useApi";
+import { useApi, useOffline } from "@/lib/useApi";
 import { PRODUCT_VARS, sampleGrid, useGrid, type LayerVar } from "@/lib/useGrid";
 
 const OceanMap = dynamic(() => import("@/components/OceanMap"), { ssr: false, loading: () => <Skeleton className="absolute inset-0" /> });
@@ -28,7 +28,7 @@ const VARS: { value: LayerVar; label: string; ramp: RampName; units: string; tit
   { value: "d20", label: "D20", ramp: "thermal", units: "m", title: "Depth of 20 °C", kind: "derived", source: "from reconstructed temperature", term: "d20" },
 ];
 const PLACES = [
-  { label: "Bay of Bengal · May 2023", date: "2023-05-11", lat: 15.0, lon: 88.0 },
+  { label: "Bay of Bengal · May 2023", date: "2023-05-11", lat: 15.0, lon: 88.0, saved: true },
   { label: "Arabian Sea · June 2023", date: "2023-06-06", lat: 15.0, lon: 66.0 },
   { label: "Andaman Sea · Aug 2021", date: "2021-08-01", lat: 11.0, lon: 95.0 },
 ];
@@ -49,6 +49,7 @@ function Group({ title, children, open = true, guide, extra }: { title: string; 
 }
 
 export default function MapScreen() {
+  const offline = useOffline();
   const sp = useSearchParams();
   const router = useRouter();
   const meta = useApi<Meta>("/v1/meta").data;
@@ -228,8 +229,9 @@ export default function MapScreen() {
         </form>
         <div className="mt-2.5 space-y-1">
           {PLACES.map((p) => (
-            <button key={p.label} onClick={() => setParams({ date: p.date, lat: p.lat.toFixed(3), lon: p.lon.toFixed(3) })} className="block w-full text-left text-[12.5px] text-ink-2 hover:text-ink rounded px-1.5 py-1 hover:bg-white/[0.03]">
+            <button key={p.label} disabled={offline && !("saved" in p)} title={offline && !("saved" in p) ? "Saved offline copies cover the reference cases only; start the OceanSight service for this example." : undefined} onClick={() => setParams({ date: p.date, lat: p.lat.toFixed(3), lon: p.lon.toFixed(3) })} className="block w-full text-left text-[12.5px] text-ink-2 hover:text-ink rounded px-1.5 py-1 hover:bg-white/[0.03] disabled:opacity-40 disabled:hover:bg-transparent disabled:cursor-not-allowed">
               {p.label}
+              {offline && !("saved" in p) && <span className="text-ink-3"> — needs live service</span>}
             </button>
           ))}
         </div>

@@ -11,11 +11,11 @@ import { Button, DataBadge, ErrorState, LoadingState, PageHeader, Provenance, Se
 import type { CycloneTrack, TimelineResponse } from "@/lib/api";
 import { PERIOD, ZMAX_OPTIONS, cyclonePassages, mapStateHref, parseTimelineParams, sectionFromMap, timelineHref, viewState, type TimelineParams } from "@/lib/ocean";
 import { addDays } from "@/lib/dates";
-import { useApi } from "@/lib/useApi";
+import { useApi, useOffline } from "@/lib/useApi";
 
 
 const PRESETS = [
-  { label: "Bay of Bengal · 2023", lat: 15, lon: 88, start: "2023-01-01", end: "2023-12-31", date: "2023-05-11" },
+  { label: "Bay of Bengal · 2023", lat: 15, lon: 88, start: "2023-01-01", end: "2023-12-31", date: "2023-05-11", saved: true },
   { label: "Arabian Sea · 2023", lat: 15, lon: 66, start: "2023-01-01", end: "2023-12-31", date: "2023-06-06" },
   { label: "Central BoB · 2019–2023", lat: 15, lon: 88, start: "2019-01-01", end: "2023-12-31", date: "2021-05-20" },
   { label: "Southern Arabian Sea · 2022", lat: 10, lon: 60, start: "2022-01-01", end: "2022-12-31", date: "2022-07-15" },
@@ -39,6 +39,7 @@ function useReducedMotion() {
 }
 
 export default function TimelineScreen() {
+  const offline = useOffline();
   const sp = useSearchParams();
   const router = useRouter();
   const p = parseTimelineParams(sp);
@@ -162,8 +163,9 @@ export default function TimelineScreen() {
           >
             <option value="">Choose…</option>
             {PRESETS.map((x) => (
-              <option key={x.label} value={x.label}>
+              <option key={x.label} value={x.label} disabled={offline && !("saved" in x)}>
                 {x.label}
+                {offline && !("saved" in x) ? " — needs live service" : ""}
               </option>
             ))}
           </select>

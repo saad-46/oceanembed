@@ -34,3 +34,8 @@ export function useApi<T>(path: string | null, body?: unknown) {
   };
   return { data: st.data, error: settled ? st.error : null, loading: key !== null && !settled, settled, retry };
 }
+
+/** True when the backend is unreachable, i.e. only the saved reference copies (/fallback) are available. */
+export function useOffline(): boolean {
+  return !!useApi<unknown>("/health").error;
+}

@@ -46,7 +46,7 @@ describe("cyclone passages come straight from IBTrACS points", () => {
 
 describe("timeline URL state (location & date selection, map synchronisation)", () => {
   it("defaults to the Bay of Bengal in 2023", () => {
-    expect(parseTimelineParams(qs({}))).toMatchObject({ lat: 15, lon: 88, start: "2023-01-01", end: "2023-12-31", view: "temp", zmax: 500 });
+    expect(parseTimelineParams(qs({}))).toMatchObject({ lat: 15, lon: 88, start: "2023-01-01", end: "2023-12-31", date: "2023-05-11", view: "temp", zmax: 500 });
   });
   it("centres one year on a date arriving from the map/profile", () => {
     const p = parseTimelineParams(qs({ lat: "12.5", lon: "70", date: "2021-06-15" }));

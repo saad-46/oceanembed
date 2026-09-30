@@ -4,10 +4,11 @@ import LocationPicker from "@/components/LocationPicker";
 import ProfilePanel from "@/components/ProfilePanel";
 import { PageHeader } from "@/components/ui";
 import { DEFAULT_DATE, DEFAULT_POINT } from "@/lib/dates";
+import { useOffline } from "@/lib/useApi";
 
 const EXAMPLES = [
-  { label: "Bay of Bengal · 11 May 2023", date: "2023-05-11", lat: 15, lon: 88 },
-  { label: "Arabian Sea · 6 Jun 2023", date: "2023-06-06", lat: 15, lon: 66 },
+  { label: "Bay of Bengal · 11 May 2023", date: "2023-05-11", lat: 15, lon: 88, saved: true },
+  { label: "Arabian Sea · 6 Jun 2023", date: "2023-06-06", lat: 15, lon: 66, saved: true },
   { label: "Western Arabian Sea · Jan 2022", date: "2022-01-15", lat: 10, lon: 60 },
   { label: "Andaman Sea · Aug 2021", date: "2021-08-01", lat: 11, lon: 95 },
 ];
@@ -15,6 +16,7 @@ const EXAMPLES = [
 export default function ProfilesScreen() {
   const sp = useSearchParams();
   const router = useRouter();
+  const offline = useOffline();
   const date = sp.get("date") || DEFAULT_DATE;
   const lat = Number(sp.get("lat") ?? DEFAULT_POINT.lat);
   const lon = Number(sp.get("lon") ?? DEFAULT_POINT.lon);
@@ -41,8 +43,9 @@ export default function ProfilesScreen() {
           >
             <option value="">Choose…</option>
             {EXAMPLES.map((x) => (
-              <option key={x.label} value={x.label}>
+              <option key={x.label} value={x.label} disabled={offline && !x.saved}>
                 {x.label}
+                {offline && !x.saved ? " — needs live service" : ""}
               </option>
             ))}
           </select>

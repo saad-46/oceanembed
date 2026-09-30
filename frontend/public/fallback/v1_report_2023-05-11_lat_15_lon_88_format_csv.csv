@@ -1,0 +1,24 @@
+# OceanSight reconstructed temperature profile (Subsurface Ocean Intelligence)
+"# date=2023-05-11 lat=15.0 lon=88.0 grid_cell=(15.125,88.125) model=cnn-unet-v1 data_label=cached"
+# provenance: temperature_c/uncertainty_c = reconstructed; climatology_c = model baseline; argo = measured
+depth_m,temperature_c,uncertainty_c,climatology_c,argo_2902766_c
+0.0,31.28,0.53,30.45,29.09
+5.0,30.73,0.56,30.05,29.03
+10.0,30.4,0.65,29.89,28.97
+20.0,29.89,0.88,29.51,
+30.0,29.36,0.97,29.15,
+50.0,27.59,1.03,28.18,28.58
+75.0,24.92,1.33,26.45,25.16
+100.0,21.64,1.44,24.24,20.88
+125.0,18.56,1.36,21.32,17.22
+150.0,16.53,1.24,18.57,14.99
+200.0,13.25,1.11,14.6,12.75
+300.0,11.29,0.57,11.64,11.07
+500.0,9.6,0.32,9.79,9.38
+700.0,8.15,0.29,8.37,7.86
+1000.0,6.4,0.24,6.55,6.16
+
+# derived mld_m,20.0
+# derived d20_m,113.3
+# derived d26_m,64.9
+# derived tchp_kj_cm2,76.6

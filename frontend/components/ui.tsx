@@ -1,6 +1,7 @@
 "use client";
 import Explain from "@/components/Explain";
 import type { TermKey } from "@/lib/glossary";
+import { OFFLINE_NO_COPY } from "@/lib/api";
 /**
  * OceanSight UI primitives. Existing exports (Card, StatTile, Skeleton, ErrorState, Notice, DataBadge,
  * Toggle, Segmented, fmt) keep their signatures; new design-system pieces are added below them.
@@ -71,10 +72,17 @@ export function LoadingState({ label, className = "h-48" }: { label: string; cla
  * Calm error block. `message` is the what; optional `why` and `action` explain cause and remedy.
  */
 export function ErrorState({ message, why, action, onRetry, offline }: { message: string; why?: string; action?: string; onRetry?: () => void; offline?: boolean }) {
-  const Icon = offline ? WifiOff : AlertTriangle;
+  // Backend not running and no saved copy: say so, instead of the screen's "no data" reason.
+  const noCopy = message === OFFLINE_NO_COPY;
+  if (noCopy) {
+    why = "The OceanSight service is not running here, and offline copies are saved only for the reference locations and dates.";
+    action = "Return to the reference case (Bay of Bengal, 15°N 88°E, 11 May 2023), or start the OceanSight service to explore additional locations and dates.";
+    onRetry = undefined;
+  }
+  const Icon = offline || noCopy ? WifiOff : AlertTriangle;
   return (
-    <div role="alert" className="border border-bad/35 bg-bad/[0.06] rounded-[var(--radius)] px-3.5 py-3 flex items-start gap-3 text-sm">
-      <Icon size={16} className="text-bad mt-0.5 shrink-0" aria-hidden />
+    <div role="alert" className={`border ${noCopy ? "border-warn/40 bg-warn/[0.07]" : "border-bad/35 bg-bad/[0.06]"} rounded-[var(--radius)] px-3.5 py-3 flex items-start gap-3 text-sm`}>
+      <Icon size={16} className={`${noCopy ? "text-warn" : "text-bad"} mt-0.5 shrink-0`} aria-hidden />
       <div className="flex-1 min-w-0 space-y-0.5">
         <div className="text-ink">{message}</div>
         {why && <div className="text-xs text-ink-2">Why: {why}</div>}

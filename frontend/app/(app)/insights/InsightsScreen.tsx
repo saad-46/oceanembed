@@ -6,6 +6,7 @@ import { BrainCircuit, CalendarDays, MessageSquareText, Orbit, Sparkles } from "
 import InsightCards from "@/components/InsightCards";
 import { Card, DataBadge, ErrorState, LoadingState, PageHeader, Segmented } from "@/components/ui";
 import { friendlyError, get, post } from "@/lib/api";
+import { useOffline } from "@/lib/useApi";
 import { DEFAULT_DATE, DEFAULT_POINT, STANDARD_DEPTHS } from "@/lib/dates";
 
 interface EmbPoint { date: string; region: string; month: number; season: string; x: number; y: number }
@@ -14,6 +15,7 @@ const SEASONS = ["NE monsoon (DJF)", "Pre-monsoon (MAM)", "SW monsoon (JJAS)", "
 const FEATURE_LABEL: Record<string, string> = { sst: "SST", sss: "SSS", sla: "Sea-level anomaly", ucur: "Current U", vcur: "Current V", uwind: "Wind U", vwind: "Wind V", lat: "Latitude", lon: "Longitude", doy_sin: "Season (sin)", doy_cos: "Season (cos)" };
 
 export default function InsightsScreen() {
+  const offline = useOffline();
   const router = useRouter();
   const [emb, setEmb] = useState<Emb | null>(null);
   const [embErr, setEmbErr] = useState<string | null>(null);
@@ -36,6 +38,7 @@ export default function InsightsScreen() {
   const ask = async () => {
     setAsking(true);
     setAnsErr(null);
+    setAns(null);
     try {
       setAns(await post<{ summary: string; source: string }>("/v1/assistant/query", q));
     } catch (e) {
@@ -181,12 +184,13 @@ export default function InsightsScreen() {
               {asking ? "Computing from the reconstruction…" : "What's the heat potential here?"}
             </button>
             {[
-              { lat: 15, lon: 88, date: "2023-05-11", l: "Pre-Mocha BoB" },
+              { lat: 15, lon: 88, date: "2023-05-11", l: "Pre-Mocha BoB", saved: true },
               { lat: 15, lon: 66, date: "2023-06-06", l: "Biparjoy, Arabian Sea" },
               { lat: 10, lon: 60, date: "2022-01-15", l: "Winter, W. Arabian Sea" },
             ].map((ex) => (
-              <button key={ex.l} onClick={() => setQ({ lat: ex.lat, lon: ex.lon, date: ex.date })} className="text-xs border border-line rounded-full px-3 py-1 text-ink-2 hover:text-ink hover:border-line-2">
+              <button key={ex.l} disabled={offline && !("saved" in ex)} title={offline && !("saved" in ex) ? "Saved offline copies cover the reference cases only; start the OceanSight service for this example." : undefined} onClick={() => setQ({ lat: ex.lat, lon: ex.lon, date: ex.date })} className="text-xs border border-line rounded-full px-3 py-1 text-ink-2 hover:text-ink hover:border-line-2 disabled:opacity-40 disabled:cursor-not-allowed">
                 {ex.l}
+                {offline && !("saved" in ex) && <span className="text-ink-3"> — needs live service</span>}
               </button>
             ))}
           </div>
