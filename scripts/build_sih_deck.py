@@ -682,12 +682,6 @@ def slide5(s, shots, rebuilt):
         badge(s, ic, x + 0.14, y + 0.12, 0.38, bg=TEAL_LIGHT, fg=TEAL)
         text(s, x + 0.62, y + 0.12, tw - 0.74, 0.38, [P(R(t, 10.5, True, NAVY))], anchor=MSO_ANCHOR.MIDDLE, margin=0.01)
         text(s, x + 0.14, y + 0.56, tw - 0.28, th - 0.6, [P(R(body, 9.3))], margin=0.01)
-    # Key outcome bar
-    box(s, X, 6.1, LW, 0.7, fill=NAVY, shape=MSO_SHAPE.ROUNDED_RECTANGLE, radius=0.1)
-    badge(s, "target", X + 0.16, 6.1 + 0.15, 0.4, bg=TEAL)
-    text(s, X + 0.68, 6.1, LW - 0.8, 0.7, [P(R("KEY OUTCOME", 9, True, AQUA)),
-                                          P(R("full-basin subsurface view · daily · 0–1000 m · with measured confidence", 11.5, True, WHITE))],
-         anchor=MSO_ANCHOR.MIDDLE, margin=0.01)
     # Right: prototype screenshot (cyclone fuel gauge)
     PX, PW = 7.4, 5.6
     section_label(s, PX, 1.30, PW, "Working prototype", "real event, held-out year", ic="monitor")
@@ -695,25 +689,31 @@ def slide5(s, shots, rebuilt):
     _, _, ha = picture(s, shots / "fuel.png", PX, 1.7, w=half, crop=(0.40, 0.30, 0.67, 0.79))
     _, _, hb = picture(s, shots / "fuel.png", PX + half + 0.12, 1.7, w=half, crop=(0.68, 0.065, 1.0, 0.67))
     ph = max(ha, hb)
-    capy = 1.7 + ph + 0.12
-    card(s, PX, capy, PW, 6.1 - 0.14 - capy, fill=PANEL, line=LINE, radius=0.1)
-    text(s, PX + 0.14, capy, PW - 0.28, 6.1 - 0.14 - capy, [P(
+    ko_y, ko_h = 5.28, 0.7          # key outcome bottom aligns with the benefit tiles (5.98)
+    capy = 1.7 + ph + 0.06
+    text(s, PX, capy, PW, ko_y - 0.06 - capy, [P(
         R("Cyclone Fuel Gauge — ", 9.5, True, NAVY),
         R("reconstructed TCHP along Cyclone Mocha's real IBTrACS track (May 2023, ocean state 2 days before passage): "
           "52.7–102 kJ/cm² over the ocean, above the 50 kJ/cm² level commonly linked to intensification. "
           "Prototype output, not an operational forecast.", 9.5, False, MUTED))], anchor=MSO_ANCHOR.MIDDLE, margin=0.01)
-    chips = [("mouse-pointer-click", "Click any cell", "full 0–1000 m profile + σ"), ("map-pin", "Argo overlay", "nearest independent float"),
-             ("file-down", "Export", "PDF / CSV report per point")]
-    cg = 0.12
-    cw = (PW - 2 * cg) / 3
-    for i, (ic, t, sub) in enumerate(chips):
-        x = PX + i * (cw + cg)
-        card(s, x, 6.1, cw, 0.7, fill=TEAL_LIGHT, line=TEAL, radius=0.1, line_w=1.25)
-        tw_ = text_w(t, 10, True)
-        gx = x + (cw - (0.22 + 0.06 + tw_)) / 2
-        icon(s, ic, gx, 6.1 + 0.12, 0.22, TEAL)
-        text(s, gx + 0.28, 6.1 + 0.1, tw_ + 0.2, 0.26, [P(R(t, 10, True, TEAL))], anchor=MSO_ANCHOR.MIDDLE, margin=0)
-        text(s, x, 6.1 + 0.38, cw, 0.24, [P(R(sub, 8.8, False, TEXT), align=PP_ALIGN.CENTER)], anchor=MSO_ANCHOR.MIDDLE, margin=0.01)
+    # Key outcome bar
+    box(s, PX, ko_y, PW, ko_h, fill=NAVY, shape=MSO_SHAPE.ROUNDED_RECTANGLE, radius=0.1)
+    badge(s, "target", PX + 0.16, ko_y + (ko_h - 0.4) / 2, 0.4, bg=TEAL)
+    text(s, PX + 0.68, ko_y, PW - 0.8, ko_h, [P(R("KEY OUTCOME", 9, True, AQUA))] +
+         lines("full-basin subsurface view · daily ·\n0–1000 m · with measured confidence", 11, WHITE, True, PP_ALIGN.LEFT),
+         anchor=MSO_ANCHOR.MIDDLE, margin=0.01)
+    # Bottom row: what an analyst can do in the prototype (full width, equal cards)
+    actions = [("mouse-pointer-click", "CLICK ANY CELL", "Full 0–1000 m temperature profile + uncertainty"),
+               ("map-pin", "ARGO OVERLAY", "Compare with the nearest independent Argo float"),
+               ("file-down", "EXPORT", "Generate PDF / CSV report for the selected point")]
+    ay, ah, ag = 6.1, 0.72, 0.2
+    aw = (12.65 - 2 * ag) / 3
+    for i, (ic, t, sub) in enumerate(actions):
+        x = X + i * (aw + ag)
+        card(s, x, ay, aw, ah, fill=SKY, line=NAVY, radius=0.1, line_w=1.25)
+        badge(s, ic, x + 0.16, ay + (ah - 0.42) / 2, 0.42, bg=TEAL)
+        text(s, x + 0.72, ay + 0.08, aw - 0.86, 0.28, [P(R(t, 11.5, True, TEAL))], anchor=MSO_ANCHOR.MIDDLE, margin=0.01)
+        text(s, x + 0.72, ay + 0.38, aw - 0.86, 0.26, [P(R(sub, 10, False, TEXT))], anchor=MSO_ANCHOR.MIDDLE, margin=0.01)
 
 
 def slide6(s, rebuilt):
