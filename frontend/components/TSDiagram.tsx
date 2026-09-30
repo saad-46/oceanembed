@@ -133,7 +133,11 @@ export default function TSDiagram({ series, isopycnals, showIsopycnals, height =
           {shown && <circle cx={x(shown.p.salinity_psu)} cy={y(shown.p.potential_temperature_c)} r={7} fill="none" stroke="#2ec5d8" strokeWidth={2} />}
         </svg>
         {shown && (
-          <div className="pointer-events-none absolute right-3 top-3 glass px-2.5 py-1.5 text-[11.5px] text-ink min-w-[170px]" role="status" aria-live="polite">
+          <div
+            className={`pointer-events-none absolute glass px-2.5 py-1.5 text-[11.5px] text-ink min-w-[170px] ${x(shown.p.salinity_psu) > M.l + pw / 2 ? "left-14" : "right-3"} ${y(shown.p.potential_temperature_c) < M.t + ph / 2 ? "bottom-12" : "top-3"}`}
+            role="status"
+            aria-live="polite"
+          >
             <div className="text-ink-2 mb-0.5">{shown.s.label}</div>
             {(
               [

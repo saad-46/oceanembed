@@ -235,17 +235,11 @@ export default function OceanMap({
       }
     }
     if (vectors && vectors.length) {
-      layers.push(
-        new PathLayer({
-          id: "wind",
-          data: arrowPaths(vectors),
-          getPath: (d: [number, number][]) => d,
-          getColor: [240, 232, 170, 210],
-          widthMinPixels: 1.3,
-          capRounded: true,
-          jointRounded: true,
-        }),
-      );
+      // dark halo under a light stroke: readable over both ends of any colour ramp
+      const paths = arrowPaths(vectors);
+      for (const [id, color, w] of [["wind-halo", [6, 12, 22, 190], 3.4], ["wind", [248, 246, 232, 240], 1.4]] as const) {
+        layers.push(new PathLayer({ id, data: paths, getPath: (d: [number, number][]) => d, getColor: [...color] as [number, number, number, number], widthMinPixels: w, capRounded: true, jointRounded: true }));
+      }
     }
     if (argo && argo.length) {
       layers.push(

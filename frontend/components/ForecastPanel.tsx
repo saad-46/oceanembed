@@ -50,7 +50,7 @@ export default function ForecastPanel({ lat, lon, date }: { lat: number; lon: nu
           </dl>
           {f.notice && <p className="text-[12px] text-warn mt-1">{f.notice}</p>}
           <div className="overflow-x-auto mt-3 -mx-4 px-4">
-            <table className="w-full min-w-[620px] text-[12.5px]">
+            <table className="w-full min-w-[620px] text-[12.5px] whitespace-nowrap">
               <caption className="sr-only">Short-horizon temperature estimate by depth with ±1 sd</caption>
               <thead>
                 <tr className="text-left text-[10.5px] uppercase tracking-wider text-ink-3 border-b border-line">

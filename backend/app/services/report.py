@@ -85,7 +85,8 @@ def extra_records(p: dict, extras: dict) -> list[dict]:
         out.append({"variable": "thermocline_depth", "value": th["depth_m"], "unit": "m", "classification": "derived",
                     "source": "gradient of the reconstructed profile", "quality": th["quality"],
                     "note": f"layer {th['depth_range_m'][0]:g}-{th['depth_range_m'][1]:g} m" if th["depth_range_m"] else th["quality_reasons"][0] if th["quality_reasons"] else None})
-        out.append({"variable": "thermocline_max_gradient", "value": th["strength_per_m"], "unit": "degC/m", "classification": "derived",
+        out.append({"variable": "thermocline_max_gradient", "value": None if th["strength_per_m"] is None else round(th["strength_per_m"], 3),
+                    "unit": "degC/m", "classification": "derived",
                     "source": "gradient of the reconstructed profile", "quality": th["quality"], "note": "-dT/dz"})
         ob = st.get("observed")
         if ob:
@@ -111,6 +112,13 @@ def extra_records(p: dict, extras: dict) -> list[dict]:
         if v is not None:
             out.append({"variable": name, "value": v, "unit": unit, "classification": "satellite", "source": "satellite model input"})
     return out
+
+
+PDF_NAMES = {"thermocline_depth": "Thermocline depth", "thermocline_max_gradient": "Max. temperature gradient",
+             "observed_thermocline_depth": "Thermocline (measured profile)", "halocline_depth": "Halocline depth",
+             "mixed_layer_depth_density": "Density mixed layer", "barrier_layer_thickness": "Barrier layer thickness",
+             "argo_salinity_shallowest": "Salinity, shallowest bin", "sea_surface_salinity": "Sea-surface salinity",
+             "sea_level_anomaly": "Sea-level anomaly", "wind_speed_10m": "Wind speed at 10 m"}
 
 
 def investigation_json(p: dict, extras: dict) -> dict:
@@ -308,7 +316,8 @@ def profile_pdf(p: dict, summary: str, validation_line: str, *, inset: Drawing |
         for r in rows_x:
             v = "—" if r["value"] is None else f"{r['value']:g} {r['unit']}"
             src = r["source"] + (f" · {r['quality']}" if r.get("quality") else "") + (f" · {r['note']}" if r.get("note") else "")
-            xt.append([r["variable"].replace("_", " "), v, LABEL[r["classification"]], Paragraph(src, small)])
+            xt.append([PDF_NAMES.get(r["variable"], r["variable"].replace("_", " ")), v.replace("degC", "°C"), LABEL[r["classification"]],
+                       Paragraph(src, small)])
         xtab = Table(xt, colWidths=[44 * mm, 26 * mm, 24 * mm, 80 * mm])
         xtab.setStyle(TableStyle([("FONT", (0, 0), (-1, -1), "Helvetica", 7.5), ("FONT", (0, 0), (-1, 0), "Helvetica-Bold", 7),
                                   ("VALIGN", (0, 0), (-1, -1), "TOP"), ("LINEBELOW", (0, 0), (-1, 0), 0.5, GREY)]))
