@@ -11,6 +11,7 @@ from ml.config import LAT_MAX, LAT_MIN, LON_MAX, LON_MIN, REGIONS, RES, STANDARD
 
 from app.db.session import get_engine
 from app.errors import ApiError
+from app.services.catalog import layer_status, optional_sources
 from app.services.store import GridStore, get_store
 
 from app.api.validation import CAVEAT as VALIDATION_CAVEAT  # noqa: E402
@@ -57,6 +58,9 @@ def meta(store: GridStore = Depends(get_store)):
         "input_sources": sources,
         "target_source": {k.removeprefix("prov_"): v for k, v in tgt.items() if k.startswith("prov_")},
         "validation_source": "Argo GDAC profiles via argopy (QC flags 1/2)",
+        # which map layers / analyses this deployment can actually serve (never a layer that pretends to work)
+        "layers": layer_status(store),
+        "optional_sources": optional_sources(store),
         "data_label": "cached",
         "data_label_legend": {"cached": "Precomputed reconstruction from real historical satellite observations",
                               "live": "Freshly computed on request (not used in this build)",

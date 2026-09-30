@@ -93,6 +93,48 @@ class GridStore:
         p = self.s.processed_dir / "climatology.zarr"
         return xr.open_zarr(p)["coef"].values if p.exists() else None
 
+    # ---------- surface inputs, observations and optional stores (read-only, precomputed)
+    @cached_property
+    def inputs(self) -> xr.Dataset | None:
+        """Harmonised satellite surface fields on the model grid (ml.pipeline.clean), when deployed."""
+        p = self.s.processed_dir / "inputs.zarr"
+        return xr.open_zarr(p) if p.exists() else None
+
+    @cached_property
+    def salinity3d(self) -> xr.Dataset | None:
+        """Optional GLORYS12V1 salinity/potential temperature on the standard grid (reanalysis)."""
+        p = self.s.processed_dir / "salinity.zarr"
+        return xr.open_zarr(p) if p.exists() else None
+
+    @cached_property
+    def argo_table(self) -> pd.DataFrame | None:
+        """Argo profiles as built by the pipeline; used when the database is not reachable."""
+        p = self.s.processed_dir / "argo_profiles.parquet"
+        if not p.exists():
+            return None
+        df = pd.read_parquet(p)
+        df["profile_date"] = pd.to_datetime(df["profile_date"])
+        return df.reset_index(drop=True)
+
+    def processed_json(self, name: str):
+        p = self.s.processed_dir / name
+        return json.loads(p.read_text()) if p.exists() else None
+
+    def surface(self, d: date, var: str) -> np.ndarray:
+        """One day of a harmonised surface input (lat, lon); land is NaN."""
+        ds = self.inputs
+        if ds is None or var not in ds:
+            raise data_unavailable(f"surface field '{var}' is not deployed with this service")
+
+        def load():
+            t = pd.Timestamp(d)
+            if t not in pd.DatetimeIndex(ds.time.values):
+                raise date_out_of_range(f"no surface data for {d}")
+            a = ds[var].sel(time=t).values.astype(np.float32)
+            mask = ds["ocean_mask"].values if "ocean_mask" in ds else self.mask3d[0]
+            return np.where(mask, a, np.nan).astype(np.float32)
+        return self.cache.get_or(("surface", var, d), load)
+
     @cached_property
     def target(self) -> xr.Dataset | None:
         p = self.s.processed_dir / "target.zarr"

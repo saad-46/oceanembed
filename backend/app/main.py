@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 from fastapi.middleware.gzip import GZipMiddleware  # noqa: E402
 
 from app import errors  # noqa: E402
-from app.api import core, grid, insights, validation  # noqa: E402
+from app.api import analysis, core, datasets, grid, insights, validation  # noqa: E402
 from app.config import get_settings  # noqa: E402
 
 
@@ -58,7 +58,7 @@ def create_app() -> FastAPI:
                                    "ms": round((time.perf_counter() - t0) * 1000, 1)})
         return resp
 
-    for r in (core.router, grid.router, validation.router, insights.router):
+    for r in (core.router, grid.router, validation.router, insights.router, analysis.router, datasets.router):
         app.include_router(r)
     return app
 

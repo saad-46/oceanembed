@@ -51,7 +51,15 @@ def main():
             f"/v1/section/{DEMO_DATE}?lat=15&lon_min=80&lon_max=97",
             # interactive section + timeline defaults (frontend lib/ocean.ts builds these exact paths)
             f"/v1/section/{DEMO_DATE}?variable=temp&orientation=zonal&lat=15&lon_min=80&lon_max=97",
-            "/v1/timeline?lat=15.000&lon=88.000&start=2023-01-01&end=2023-12-31"]
+            "/v1/timeline?lat=15.000&lon=88.000&start=2023-01-01&end=2023-12-31",
+            # analysis & data workspaces (frontend lib/analysis.ts builds these exact paths)
+            f"/v1/stratification?lat=15.000&lon=88.000&date={DEMO_DATE}&max_depth=500",
+            f"/v1/ts-profile?lat=15.000&lon=88.000&date={DEMO_DATE}",
+            f"/v1/forecast?lat=15.000&lon=88.000&date={DEMO_DATE}&method=trend",
+            f"/v1/volume/sample?date={DEMO_DATE}&min_lat=5&max_lat=22&min_lon=80&max_lon=100&min_depth=0&max_depth=500&variable=temp",
+            "/v1/data-quality", "/v1/provenance",
+            f"/v1/surface/{DEMO_DATE}?variable=sla", f"/v1/surface/{DEMO_DATE}?variable=wind_speed",
+            f"/v1/salinity/{DEMO_DATE}?depth=0", f"/v1/wind/{DEMO_DATE}/vectors?stride=8"]
     for split in ("test", "val"):
         gets += [f"/v1/validation/summary?split={split}", f"/v1/validation/scatter?split={split}&max_points=3000",
                  f"/v1/validation/profiles?split={split}&sort=rmse_desc&limit=15&offset=0"]

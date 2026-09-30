@@ -30,9 +30,13 @@ THERMAL = ["#04142e", "#172a73", "#3c3b9c", "#6b479d", "#99558f", "#c96578", "#e
 
 PROVENANCE = (
     "<b>Measured</b> — direct observation (Argo floats). <b>Reconstructed</b> — OceanSight model output "
-    "(temperature, uncertainty). <b>Derived</b> — calculated from the reconstructed column (MLD, D20, D26, TCHP). "
-    "<b>Estimated</b> — inferred quantity with additional uncertainty (calibrated ±1 sd)."
+    "(temperature, uncertainty). <b>Derived</b> — calculated from reconstructed or measured values (MLD, D20, D26, TCHP, "
+    "thermocline, halocline). <b>Estimated</b> — inferred quantity with additional uncertainty (calibrated ±1 sd). "
+    "<b>Satellite</b> — satellite-derived surface observation product. <b>Reanalysis</b> — data-assimilative ocean model "
+    "analysis. No forecast values are included in this report."
 )
+LABEL = {"measured": "Measured", "reconstructed": "Reconstructed", "derived": "Derived", "estimated": "Estimated",
+         "satellite": "Satellite", "reanalysis": "Reanalysis", "baseline": "Baseline", "forecast": "Forecast"}
 METHOD = (
     "Temperature at 15 standard depths (0–1000 m) is reconstructed on a 0.25° daily grid from satellite surface "
     "observations (sea-surface temperature, salinity, sea level, geostrophic currents, winds) by a U-Net trained on "
@@ -46,7 +50,7 @@ CAVEAT = (
 )
 
 
-def profile_csv(p: dict) -> bytes:
+def profile_csv(p: dict, extras: dict | None = None) -> bytes:
     buf = io.StringIO()
     w = csv.writer(buf)
     w.writerow(["# OceanSight reconstructed temperature profile (Subsurface Ocean Intelligence)"])
@@ -66,7 +70,84 @@ def profile_csv(p: dict) -> bytes:
     w.writerow([])
     for k, v in p["derived"].items():
         w.writerow([f"# derived {k}", "" if v is None else v])
+    for r in extra_records(p, extras or {}):
+        w.writerow([f"# {r['classification']} {r['variable']}", "" if r["value"] is None else r["value"], r["unit"],
+                    r.get("note") or ""])
     return buf.getvalue().encode()
+
+
+def extra_records(p: dict, extras: dict) -> list[dict]:
+    """Single-value investigation results beyond the profile table, each with its classification."""
+    out = []
+    st = extras.get("stratification")
+    if st:
+        th = st["reconstructed"]["thermocline"]
+        out.append({"variable": "thermocline_depth", "value": th["depth_m"], "unit": "m", "classification": "derived",
+                    "source": "gradient of the reconstructed profile", "quality": th["quality"],
+                    "note": f"layer {th['depth_range_m'][0]:g}-{th['depth_range_m'][1]:g} m" if th["depth_range_m"] else th["quality_reasons"][0] if th["quality_reasons"] else None})
+        out.append({"variable": "thermocline_max_gradient", "value": th["strength_per_m"], "unit": "degC/m", "classification": "derived",
+                    "source": "gradient of the reconstructed profile", "quality": th["quality"], "note": "-dT/dz"})
+        ob = st.get("observed")
+        if ob:
+            src = f"Argo {ob['argo']['platform_number']} ({ob['argo']['distance_km']} km, {ob['argo']['profile_date'][:10]})"
+            if ob.get("thermocline"):
+                out.append({"variable": "observed_thermocline_depth", "value": ob["thermocline"]["depth_m"], "unit": "m",
+                            "classification": "derived", "source": src, "quality": ob["thermocline"]["quality"], "note": "from measured temperature"})
+            if ob.get("halocline"):
+                out.append({"variable": "halocline_depth", "value": ob["halocline"]["depth_m"], "unit": "m", "classification": "derived",
+                            "source": src, "quality": ob["halocline"]["quality"], "note": "from measured salinity"})
+            ml = ob.get("mixed_layers") or {}
+            for k, name in (("mld_density_m", "mixed_layer_depth_density"), ("barrier_layer_thickness_m", "barrier_layer_thickness")):
+                if ml.get(k) is not None:
+                    out.append({"variable": name, "value": ml[k], "unit": "m", "classification": "derived", "source": src,
+                                "note": "TEOS-10, de Boyer Montegut (2004) thresholds"})
+            sal = [x for x in (ob.get("salinity_psu") or []) if x is not None]
+            if sal:
+                out.append({"variable": "argo_salinity_shallowest", "value": sal[0], "unit": "PSU", "classification": "measured",
+                            "source": src, "note": f"{ob['bin_m']:g} m bin average"})
+    for k, (name, unit) in {"sss": ("sea_surface_salinity", "PSU"), "sla": ("sea_level_anomaly", "cm"),
+                            "wind_speed": ("wind_speed_10m", "m/s")}.items():
+        v = (extras.get("surface") or {}).get(k)
+        if v is not None:
+            out.append({"variable": name, "value": v, "unit": unit, "classification": "satellite", "source": "satellite model input"})
+    return out
+
+
+def investigation_json(p: dict, extras: dict) -> dict:
+    """Machine-readable investigation: one record per value, each with classification and source."""
+    model = p["model_version"]
+    recs = []
+    unc = p.get("uncertainty_c") or [None] * len(p["depths_m"])
+    argo = p.get("nearest_argo_float")
+    for k, z in enumerate(p["depths_m"]):
+        t, c = p["temperature_c"][k], p["baseline_climatology_c"][k]
+        recs.append({"variable": "temperature", "value": t, "unit": "degC", "depth_m": z, "date": p["date"],
+                     "classification": "reconstructed", "source": "OceanSight U-Net", "model_version": model,
+                     "uncertainty": unc[k], "uncertainty_meaning": "calibrated 1 standard deviation"})
+        recs.append({"variable": "climatology", "value": c, "unit": "degC", "depth_m": z, "date": p["date"],
+                     "classification": "baseline", "source": "harmonic seasonal climatology"})
+        if t is not None and c is not None:
+            recs.append({"variable": "temperature_anomaly", "value": round(t - c, 2), "unit": "degC", "depth_m": z, "date": p["date"],
+                         "classification": "derived", "source": "reconstruction minus climatology", "model_version": model})
+        if argo and argo["temperature_c_std_depths"][k] is not None:
+            recs.append({"variable": "temperature", "value": argo["temperature_c_std_depths"][k], "unit": "degC", "depth_m": z,
+                         "date": argo["profile_date"][:10], "classification": "measured",
+                         "source": f"Argo {argo['platform_number']} cycle {argo['cycle_number']}", "distance_km": argo["distance_km"]})
+    for key, unit in (("mld_m", "m"), ("d20_m", "m"), ("d26_m", "m"), ("tchp_kj_cm2", "kJ/cm2")):
+        recs.append({"variable": key.rsplit("_", 1)[0] if key != "tchp_kj_cm2" else "tchp", "value": p["derived"].get(key),
+                     "unit": unit, "date": p["date"], "classification": "derived", "source": "computed from the reconstructed column",
+                     "model_version": model})
+    for r in extra_records(p, extras):
+        recs.append({**r, "date": p["date"]})
+    return {"product": "OceanSight", "kind": "investigation",
+            "investigation_point": {"lat": p["lat"], "lon": p["lon"], "grid_cell": p["cell"], "date": p["date"],
+                                    "requested_date": p["requested_date"], "map_depth_m": extras.get("depth")},
+            "model_version": model, "data_label": p["data_label"], "nearest_observation": argo and {
+                k: argo[k] for k in ("platform_number", "cycle_number", "profile_date", "lat", "lon", "distance_km", "independent")},
+            "data_quality": extras.get("quality"), "records": recs,
+            "classifications": {k: v for k, v in LABEL.items() if k != "forecast"},
+            "provenance": "GET /v1/provenance lists the source, processing and lineage of every variable.",
+            "generated_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}
 
 
 def _ramp(t: float) -> colors.Color:
@@ -167,7 +248,7 @@ def _kv_table(rows: list[list[str]], widths) -> Table:
 
 
 def profile_pdf(p: dict, summary: str, validation_line: str, *, inset: Drawing | None = None, depth: float | None = None,
-                period: str | None = None) -> bytes:
+                period: str | None = None, extras: dict | None = None) -> bytes:
     buf = io.BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=18 * mm, rightMargin=18 * mm, topMargin=14 * mm,
                             bottomMargin=14 * mm, title=f"OceanSight water-column report {p['date']}", author="OceanSight")
@@ -221,6 +302,20 @@ def profile_pdf(p: dict, summary: str, validation_line: str, *, inset: Drawing |
     tt = Table(rows, colWidths=[174 * mm / ncol] * ncol)
     tt.setStyle(TableStyle([("FONT", (0, 0), (-1, -1), "Helvetica", 7.5), ("FONT", (0, 0), (-1, 0), "Helvetica-Bold", 7),
                             ("ALIGN", (1, 0), (-1, -1), "RIGHT"), ("LINEBELOW", (0, 0), (-1, 0), 0.5, GREY)]))
+    rows_x = extra_records(p, extras or {})
+    if rows_x:
+        xt = [["Quantity", "Value", "Type", "Source / quality"]]
+        for r in rows_x:
+            v = "—" if r["value"] is None else f"{r['value']:g} {r['unit']}"
+            src = r["source"] + (f" · {r['quality']}" if r.get("quality") else "") + (f" · {r['note']}" if r.get("note") else "")
+            xt.append([r["variable"].replace("_", " "), v, LABEL[r["classification"]], Paragraph(src, small)])
+        xtab = Table(xt, colWidths=[44 * mm, 26 * mm, 24 * mm, 80 * mm])
+        xtab.setStyle(TableStyle([("FONT", (0, 0), (-1, -1), "Helvetica", 7.5), ("FONT", (0, 0), (-1, 0), "Helvetica-Bold", 7),
+                                  ("VALIGN", (0, 0), (-1, -1), "TOP"), ("LINEBELOW", (0, 0), (-1, 0), 0.5, GREY)]))
+        story += [Paragraph("Stratification, salinity and surface conditions", h2), xtab]
+    q = (extras or {}).get("quality")
+    if q:
+        story += [Paragraph("Data quality: " + " · ".join(f"{d['name']} — {d['status'] or 'n/a'}" for d in q), small)]
     story += [Paragraph("Values at the standard depths", h2), tt,
               Paragraph("Method, provenance and validation", h2), Paragraph(METHOD, small), Spacer(1, 1.5 * mm),
               Paragraph(PROVENANCE, small), Spacer(1, 1.5 * mm), Paragraph(validation_line, small),

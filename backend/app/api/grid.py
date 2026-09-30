@@ -48,6 +48,7 @@ def grid(day: date, depth: float = 0, variable: Literal["temp", "uncertainty", "
     finite = values[np.isfinite(values)]
     return {
         "date": str(used), "requested_date": str(day), "depth_m": float(STANDARD_DEPTHS[k]), "variable": variable,
+        "classification": {"temp": "reconstructed", "uncertainty": "estimated", "anomaly": "derived"}[variable],
         "units": "°C", "grid": {"lat": LATS.tolist(), "lon": LONS.tolist(), "values": grid_to_lists(values)},
         "stats": {"min": round(float(finite.min()), 2), "max": round(float(finite.max()), 2),
                   "mean": round(float(finite.mean()), 2)} if finite.size else None,
@@ -63,11 +64,15 @@ def product_grid(day: date, product: Literal["tchp", "mld", "d20", "d26", "sss"]
     var, units = PRODUCTS[product]
     values = store.product_grid(used, var)
     finite = values[np.isfinite(values)]
+    meta = _meta(store, store.production_model, notice)
+    if product == "sss":  # the SSS layer is the satellite model input, not a reconstruction
+        meta["source"] = "satellite_input"
     return {"date": str(used), "requested_date": str(day), "product": product, "units": units,
-            "grid": {"lat": LATS.tolist(), "lon": LONS.tolist(), "values": grid_to_lists(values, 1)},
+            "classification": "satellite" if product == "sss" else "derived",
+            "grid": {"lat": LATS.tolist(), "lon": LONS.tolist(), "values": grid_to_lists(values, 1 if product != "sss" else 2)},
             "stats": {"min": round(float(finite.min()), 1), "max": round(float(finite.max()), 1),
                       "mean": round(float(finite.mean()), 1)} if finite.size else None,
-            **_meta(store, store.production_model, notice)}
+            **meta}
 
 
 def _products_dict(profile: np.ndarray) -> dict:

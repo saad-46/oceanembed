@@ -21,6 +21,19 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     max_region_cells: int = 24000  # whole domain is allowed; guard exists for future larger grids
     grid_cache_days: int = 48
+    max_3d_points: int = 20000  # hard cap on /v1/volume/sample (browser point-cloud budget)
+    # Optional data-source credentials. The API never downloads with them (precompute only); it only
+    # reports *whether* they are configured, never their values.
+    copernicusmarine_service_username: str = ""
+    copernicusmarine_service_password: str = ""
+    copernicus_marine_username: str = ""
+    copernicus_marine_password: str = ""
+    cds_api_key: str = ""
+
+    @property
+    def copernicus_configured(self) -> bool:
+        return bool((self.copernicusmarine_service_username or self.copernicus_marine_username)
+                    and (self.copernicusmarine_service_password or self.copernicus_marine_password))
 
     @property
     def cors_list(self) -> list[str]:

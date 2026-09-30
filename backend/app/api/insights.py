@@ -132,29 +132,69 @@ def _f(v, nd=1):
 
 
 @router.get("/report/{day}")
-def report_file(day: date, lat: float, lon: float, format: Literal["pdf", "csv"] = "pdf", depth: float = 100,
+def report_file(day: date, lat: float, lon: float, format: Literal["pdf", "csv", "json"] = "pdf", depth: float = 100,
+                sections: str = Query("stratification,surface,quality",
+                                      description="Optional sections, comma-separated: stratification, surface, quality"),
                 store: GridStore = Depends(get_store), db: Session = Depends(get_db)):
-    """Water-column investigation report (PDF) or its numbers (CSV) for one point and day.
+    """Water-column investigation report (PDF), its numbers (CSV) or a provenance-rich JSON export.
 
-    `depth` (a standard depth) sets the reconstructed field shown in the PDF's map inset."""
+    `depth` (a standard depth) sets the reconstructed field shown in the PDF's map inset. Optional sections
+    are included only when their data are available; a missing optional source never fails the report."""
     k = store.depth_index(depth)
     try:
         p = build_profile(store, db, day, lat, lon)
     except (OperationalError, InterfaceError):
+        db = None
         p = build_profile(store, None, day, lat, lon)
-    summary = assistant.summarise(p)
+    extras = _report_extras(store, db, p, {s.strip() for s in sections.split(",") if s.strip()})
+    extras["depth"] = float(STANDARD_DEPTHS[k])
     fname = f"oceansight_profile_{p['date']}_{lat:.2f}N_{lon:.2f}E"
+    if format == "json":
+        return report.investigation_json(p, extras)
+    summary = assistant.summarise(p)
     if format == "csv":
-        return Response(report.profile_csv(p), media_type="text/csv",
+        return Response(report.profile_csv(p, extras), media_type="text/csv",
                         headers={"Content-Disposition": f'attachment; filename="{fname}.csv"'})
     used = date.fromisoformat(p["date"])
     field = store.cube(store.production_model, used)["temp"][k]
     inset = report.map_inset(field, LATS, LONS, p["cell"]["lat"], p["cell"]["lon"], float(STANDARD_DEPTHS[k]))
     ts = store.times(store.production_model)
     pdf = report.profile_pdf(p, summary["summary"], _validation_line(store), inset=inset, depth=float(STANDARD_DEPTHS[k]),
-                             period=f"{ts[0].date()}..{ts[-1].date()}")
+                             period=f"{ts[0].date()}..{ts[-1].date()}", extras=extras)
     return Response(pdf, media_type="application/pdf",
                     headers={"Content-Disposition": f'attachment; filename="{fname}.pdf"'})
+
+
+def _report_extras(store: GridStore, db, p: dict, sections: set[str]) -> dict:
+    """Optional report sections; each is skipped (never fatal) when its data are unavailable."""
+    from app.api.analysis import stratification
+    from app.services.catalog import data_quality, layer_status
+
+    out: dict = {}
+    used = date.fromisoformat(p["date"])
+    i, j = nearest_cell(p["lat"], p["lon"])
+    if "stratification" in sections:
+        try:
+            out["stratification"] = stratification(lat=p["lat"], lon=p["lon"], day=used, max_depth=500.0, radius_km=100.0,
+                                                   window_days=3, store=store, db=db)
+        except (ApiError, OperationalError, InterfaceError):
+            pass
+    if "surface" in sections:
+        layers, surf = layer_status(store), {}
+        try:
+            if layers["sss"]["status"] == "available":
+                surf["sss"] = _f(store.product_grid(used, "sss")[i, j], 2)
+            if layers["sla"]["status"] == "available":
+                surf["sla"] = _f(store.surface(used, "sla")[i, j] * 100.0, 1)
+            if layers["wind"]["status"] == "available":
+                surf["wind_speed"] = _f(np.hypot(store.surface(used, "uwind")[i, j], store.surface(used, "vwind")[i, j]), 1)
+        except ApiError:
+            pass
+        out["surface"] = surf
+    if "quality" in sections:
+        out["quality"] = [{"name": d["name"], "status": d["status"], "classification": d["classification"]}
+                          for d in data_quality(store)["datasets"]]
+    return out
 
 
 def _validation_line(store: GridStore) -> str:
