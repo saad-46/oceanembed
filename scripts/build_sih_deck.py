@@ -57,6 +57,7 @@ TEAM_ID = "135494"
 
 ICON_DIR: Path | None = None       # set in main(): <shots>/icons
 LUCIDE_DIR: Path | None = None     # optional source SVGs
+LINKS: dict[str, str] = {}         # demo / drive / live URLs for the slide 5 link cards (set in main)
 TMP = Path(tempfile.mkdtemp(prefix="sih_deck_"))
 
 
@@ -660,13 +661,13 @@ def slide5(s, shots, rebuilt):
     uw = (LW - 3 * ug) / 4
     for i, (ic, u, sub) in enumerate(users):
         x = X + i * (uw + ug)
-        card(s, x, 1.7, uw, 1.04, fill=NAVY, line=None, radius=0.1)
-        icon(s, ic, x + (uw - 0.28) / 2, 1.78, 0.28, AQUA)
-        text(s, x, 2.08, uw, 0.62, lines(u, 10, WHITE, True) + [P(R(sub, 8.5, False, ICE), align=PP_ALIGN.CENTER)],
+        card(s, x, 1.66, uw, 0.92, fill=NAVY, line=None, radius=0.1)
+        icon(s, ic, x + (uw - 0.26) / 2, 1.72, 0.26, AQUA)
+        text(s, x, 2.0, uw, 0.56, lines(u, 10, WHITE, True) + [P(R(sub, 8.5, False, ICE), align=PP_ALIGN.CENTER)],
              anchor=MSO_ANCHOR.MIDDLE, margin=0.02)
-    text(s, X, 2.8, LW, 0.26, [P(R("Decision support — not a replacement for operational ocean models", 9.5, True, TEAL, italic=True))],
+    text(s, X, 2.62, LW, 0.26, [P(R("Decision support — not a replacement for operational ocean models", 9.5, True, TEAL, italic=True))],
          margin=0.01)
-    section_label(s, X, 3.14, LW, "Benefits of the solution", "social · economic · environmental · operational", ic="heart-handshake")
+    section_label(s, X, 2.96, LW, "Benefits of the solution", "social · economic · environmental · operational", ic="heart-handshake")
     tiles = [
         ("users", "SOCIAL", "Basin-wide cyclone heat potential (TCHP) and mixed-layer maps for every day and every 0.25° cell of the domain."),
         ("indian-rupee", "ECONOMIC", "Built only on free satellite data; the model trains on a CPU; products are precomputed, so viewing needs no heavy compute."),
@@ -674,46 +675,56 @@ def slide5(s, shots, rebuilt):
         ("activity", "OPERATIONAL", "Each profile ships with a calibrated error bar and the nearest independent Argo float — trust is visible, not assumed."),
     ]
     tg = 0.15
-    tw, th = (LW - tg) / 2, 1.16
+    tw, th, ty = (LW - tg) / 2, 1.0, 3.32
     for i, (ic, t, body) in enumerate(tiles):
         x = X + (i % 2) * (tw + tg)
-        y = 3.54 + (i // 2) * (th + 0.12)
+        y = ty + (i // 2) * (th + 0.1)
         card(s, x, y, tw, th, fill=WHITE, line=SKY_LINE, radius=0.1, line_w=1.25)
-        badge(s, ic, x + 0.14, y + 0.12, 0.38, bg=TEAL_LIGHT, fg=TEAL)
-        text(s, x + 0.62, y + 0.12, tw - 0.74, 0.38, [P(R(t, 10.5, True, NAVY))], anchor=MSO_ANCHOR.MIDDLE, margin=0.01)
-        text(s, x + 0.14, y + 0.56, tw - 0.28, th - 0.6, [P(R(body, 9.3))], margin=0.01)
-    # Right: prototype screenshot (cyclone fuel gauge)
+        badge(s, ic, x + 0.14, y + 0.08, 0.32, bg=TEAL_LIGHT, fg=TEAL)
+        text(s, x + 0.56, y + 0.08, tw - 0.68, 0.32, [P(R(t, 10.5, True, NAVY))], anchor=MSO_ANCHOR.MIDDLE, margin=0.01)
+        text(s, x + 0.14, y + 0.44, tw - 0.28, th - 0.5, [P(R(body, 9.3))], margin=0.01)
+    top_end = ty + 2 * th + 0.1       # 5.42: both columns end here
+    # Right: prototype screenshot (cyclone fuel gauge), same two views reframed to the column
     PX, PW = 7.4, 5.6
     section_label(s, PX, 1.30, PW, "Working prototype", "real event, held-out year", ic="monitor")
-    half = (PW - 0.12) / 2
-    _, _, ha = picture(s, shots / "fuel.png", PX, 1.7, w=half, crop=(0.40, 0.30, 0.67, 0.79))
-    _, _, hb = picture(s, shots / "fuel.png", PX + half + 0.12, 1.7, w=half, crop=(0.68, 0.065, 1.0, 0.67))
-    ph = max(ha, hb)
-    ko_y, ko_h = 5.28, 0.7          # key outcome bottom aligns with the benefit tiles (5.98)
-    capy = 1.7 + ph + 0.06
-    text(s, PX, capy, PW, ko_y - 0.06 - capy, [P(
+    ih = 2.48
+    _, wb, _ = picture(s, shots / "fuel.png", PX + PW - 2.351, 1.66, h=ih, crop=(0.68, 0.065, 1.0, 0.665))
+    picture(s, shots / "fuel.png", PX, 1.66, w=PW - 0.12 - 2.351, h=ih, crop=(0.361, 0.335, 0.67, 0.77))
+    ko_h = 0.62
+    ko_y = top_end - ko_h
+    capy = 1.66 + ih + 0.04
+    text(s, PX, capy, PW, ko_y - 0.04 - capy, [P(
         R("Cyclone Fuel Gauge — ", 9.5, True, NAVY),
         R("reconstructed TCHP along Cyclone Mocha's real IBTrACS track (May 2023, ocean state 2 days before passage): "
           "52.7–102 kJ/cm² over the ocean, above the 50 kJ/cm² level commonly linked to intensification. "
           "Prototype output, not an operational forecast.", 9.5, False, MUTED))], anchor=MSO_ANCHOR.MIDDLE, margin=0.01)
     # Key outcome bar
     box(s, PX, ko_y, PW, ko_h, fill=NAVY, shape=MSO_SHAPE.ROUNDED_RECTANGLE, radius=0.1)
-    badge(s, "target", PX + 0.16, ko_y + (ko_h - 0.4) / 2, 0.4, bg=TEAL)
-    text(s, PX + 0.68, ko_y, PW - 0.8, ko_h, [P(R("KEY OUTCOME", 9, True, AQUA))] +
+    badge(s, "target", PX + 0.16, ko_y + (ko_h - 0.38) / 2, 0.38, bg=TEAL)
+    text(s, PX + 0.66, ko_y, PW - 0.78, ko_h, [P(R("KEY OUTCOME", 9, True, AQUA))] +
          lines("full-basin subsurface view · daily ·\n0–1000 m · with measured confidence", 11, WHITE, True, PP_ALIGN.LEFT),
          anchor=MSO_ANCHOR.MIDDLE, margin=0.01)
-    # Bottom row: what an analyst can do in the prototype (full width, equal cards)
-    actions = [("mouse-pointer-click", "CLICK ANY CELL", "Full 0–1000 m temperature profile + uncertainty"),
-               ("map-pin", "ARGO OVERLAY", "Compare with the nearest independent Argo float"),
-               ("file-down", "EXPORT", "Generate PDF / CSV report for the selected point")]
-    ay, ah, ag = 6.1, 0.72, 0.2
+    # Two rows of three equal cards: prototype functionality, then demo / live links
+    actions = [("mouse-pointer-click", "CLICK ANY CELL", "Full 0–1000 m temperature profile + uncertainty", None),
+               ("map-pin", "ARGO OVERLAY", "Compare with the nearest independent Argo float", None),
+               ("file-down", "EXPORT", "Generate PDF / CSV report for the selected point", None)]
+    links = [("video", "DEMO VIDEO", "Watch the complete OceanSight demonstration", LINKS.get("demo")),
+             ("folder-open", "VIEW DEMO VIDEO (DRIVE)", "Access the OceanSight demonstration video", LINKS.get("drive")),
+             ("globe", "TRY OCEANSIGHT LIVE", "Access the deployed OceanSight application", LINKS.get("live"))]
+    ah, ag = 0.6, 0.2
     aw = (12.65 - 2 * ag) / 3
-    for i, (ic, t, sub) in enumerate(actions):
-        x = X + i * (aw + ag)
-        card(s, x, ay, aw, ah, fill=SKY, line=NAVY, radius=0.1, line_w=1.25)
-        badge(s, ic, x + 0.16, ay + (ah - 0.42) / 2, 0.42, bg=TEAL)
-        text(s, x + 0.72, ay + 0.08, aw - 0.86, 0.28, [P(R(t, 11.5, True, TEAL))], anchor=MSO_ANCHOR.MIDDLE, margin=0.01)
-        text(s, x + 0.72, ay + 0.38, aw - 0.86, 0.26, [P(R(sub, 10, False, TEXT))], anchor=MSO_ANCHOR.MIDDLE, margin=0.01)
+    for row, (items, y, fill, bg, hc) in enumerate(((actions, top_end + 0.12, SKY, TEAL, TEAL),
+                                                    (links, top_end + 0.12 + ah + 0.1, AMBER_LIGHT, BLUE, BLUE))):
+        for i, (ic, t, sub, url) in enumerate(items):
+            x = X + i * (aw + ag)
+            c = card(s, x, y, aw, ah, fill=fill, line=NAVY, radius=0.1, line_w=1.25)
+            if url:
+                c.click_action.hyperlink.address = url
+            badge(s, ic, x + 0.14, y + (ah - 0.38) / 2, 0.38, bg=bg)
+            head = text(s, x + 0.66, y + 0.06, aw - 0.8, 0.25, [P(R(t, 11, True, hc, link=url))], anchor=MSO_ANCHOR.MIDDLE, margin=0.01)
+            if url:
+                head.text_frame.paragraphs[0].runs[0].font.underline = True
+            text(s, x + 0.66, y + 0.31, aw - 0.8, 0.23, [P(R(sub, 10, False, TEXT))], anchor=MSO_ANCHOR.MIDDLE, margin=0.01)
 
 
 def slide6(s, rebuilt):
@@ -789,7 +800,11 @@ def main():
     ap.add_argument("--shots", required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--lucide", help="lucide-static/icons directory (only needed to render missing icons)")
+    ap.add_argument("--demo-url", help="demo video URL (slide 5 DEMO VIDEO card)")
+    ap.add_argument("--drive-url", help="Google Drive demo video URL (slide 5 VIEW DEMO VIDEO card)")
+    ap.add_argument("--live-url", help="deployed application URL (slide 5 TRY OCEANSIGHT LIVE card)")
     a = ap.parse_args()
+    LINKS.update({k: v for k, v in (("demo", a.demo_url), ("drive", a.drive_url), ("live", a.live_url)) if v})
     shots = Path(a.shots)
     ICON_DIR = shots / "icons"
     LUCIDE_DIR = Path(a.lucide) if a.lucide else None
