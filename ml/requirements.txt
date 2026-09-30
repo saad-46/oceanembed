@@ -10,6 +10,7 @@ netCDF4>=1.7
 h5netcdf>=1.3
 requests>=2.31
 scikit-learn>=1.4
+gsw>=3.6  # TEOS-10 (ml/science/seawater.py)
 lightgbm>=4.3
 # torch 2.5.1 CPU: newer Windows wheels need the VS2022 17.x runtime (see docs/DECISIONS.md D-009)
 # pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cpu

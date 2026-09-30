@@ -14,5 +14,6 @@ xarray>=2024.6,<2026.9  # 2026.9 passes zarr_format= to zarr.open_group, which z
 zarr>=2.18,<3
 numcodecs>=0.12
 reportlab>=4.2
+gsw>=3.6  # TEOS-10 seawater properties (T-S diagram, density, halocline views)
 httpx>=0.27
 anthropic>=0.60  # optional NL assistant (templated fallback without it)
