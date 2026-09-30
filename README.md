@@ -23,8 +23,9 @@ D20/D26) → FastAPI + PostGIS → an interactive map application.
 | `ml/models/` | climatology, LightGBM baseline, U-Net (bottleneck = satellite embedding, uncertainty head), training |
 | `ml/evaluation/` | per-depth metrics, independent Argo validation, derived products (TCHP/MLD/D20/D26) |
 | `ml/inference/` | batch precompute of daily grids, products, region series, embeddings |
-| `backend/` | FastAPI (22 endpoints), PostGIS schema (Alembic), seed loader, PDF/CSV reports |
-| `frontend/` | Next.js + MapLibre + deck.gl + Recharts, 8 screens, offline basemap + fallback |
+| `ml/science/` | stratification (thermocline/halocline), TEOS-10 seawater properties, short-horizon estimate, 3-D sampling |
+| `backend/` | FastAPI (30+ endpoints, Pydantic schemas), PostGIS schema (Alembic), seed loader, PDF/CSV/JSON reports |
+| `frontend/` | Next.js + MapLibre + deck.gl + Recharts: map, 3-D, profile, timeline, section, stratification, T-S, events, data quality, lineage, evidence, reports, methodology; offline basemap + fallback |
 | `docs/` | the master specification (read `docs/23_MASTER_BUILD_SPEC.md` first) + decision log |
 | `tests/`, `backend/tests/` | pipeline, physics, ML, API-contract and PostGIS tests |
 | `AUTONOMOUS_BUILD_STATUS.md` | live build status / resume point |
@@ -41,6 +42,7 @@ D20/D26) → FastAPI + PostGIS → an interactive map application.
 | Target | HYCOM GOFS 3.1 analysis (1/12°) | GLORYS12V1 (1/12°) |
 | Validation | Argo GDAC via `argopy` (QC 1/2) | INCOIS LAS gridded Argo (not reachable) |
 | Tracks | NOAA IBTrACS v04r01 | — |
+| Subsurface salinity (optional, not a model input) | — | GLORYS12V1 via Copernicus Marine (`build_dataset salinity`) |
 
 Study period 2019-01-01 → 2023-12-31 (limited by satellite SSS and the open HYCOM analysis).
 Whole-year split: **train 2019–2021, validate 2022, test 2023** (held out; contains Cyclones Mocha and Biparjoy).
@@ -63,6 +65,7 @@ cp .env.example .env                                            # optional crede
 .venv/Scripts/python -m ml.pipeline.build_dataset argo
 .venv/Scripts/python -m ml.pipeline.build_dataset cyclones
 .venv/Scripts/python -m ml.pipeline.build_dataset assemble
+.venv/Scripts/python -m ml.pipeline.build_dataset salinity --stride 3   # optional: needs Copernicus Marine credentials
 
 # 3. Train + validate + precompute (~2 h on a laptop CPU)
 bash scripts/run_ml.sh 35 25
@@ -105,10 +108,17 @@ Tests: `pytest -q` (repo root; PostGIS tests auto-skip without the DB) · `cd fr
 `GET /v1/profile/{date}?lat=&lon=` · `POST /v1/region/stats` · `POST /v1/region/timeseries` ·
 `GET /v1/validation/summary|grid|profiles|scatter` · `GET /v1/argo/markers?date=` · `GET /v1/argo/{id}` ·
 `GET /v1/embedding/projection` · `GET /v1/explain/importance` · `POST /v1/assistant/query` ·
-`GET /v1/cyclones` · `GET /v1/cyclones/{id}/fuel?lead_days=` · `GET /v1/report/{date}?lat=&lon=&format=pdf|csv`
+`GET /v1/cyclones` · `GET /v1/cyclones/{id}/fuel?lead_days=` · `GET /v1/report/{date}?lat=&lon=&format=pdf|csv|json&sections=` ·
+`GET /v1/section/{date}` · `GET /v1/timeline` · `GET /v1/validation/en4` ·
+**analysis & data:** `GET /v1/stratification` · `GET /v1/ts-profile` · `GET /v1/forecast` · `GET /v1/volume/sample` ·
+`GET /v1/surface/{date}?variable=sla|wind_speed|sss` · `GET /v1/wind/{date}/vectors` · `GET /v1/salinity/{date}?depth=` ·
+`GET /v1/data-quality` · `GET /v1/provenance`
 
 Errors are typed JSON `{"error": code, "detail": ...}` (`invalid_depth`, `out_of_domain`, `on_land`,
-`date_out_of_range`, `database_unavailable`, …). Every data response carries `data_label: "cached"`
+`date_out_of_range`, `database_unavailable`, `insufficient_forecast_history`, `optional_dataset_unavailable`, …).
+Every analysis payload carries a provenance classification (measured · satellite · reanalysis · reconstructed ·
+derived · estimated · forecast · baseline). Feature matrix: [`OCEANSIGHT_FEATURES.md`](OCEANSIGHT_FEATURES.md);
+methods: [`docs/SCIENTIFIC_METHODS.md`](docs/SCIENTIFIC_METHODS.md); data quality: [`docs/DATA_QUALITY.md`](docs/DATA_QUALITY.md). Every data response carries `data_label: "cached"`
 (precomputed from real observations) and a `notice` when the nearest available day was substituted.
 
 ## Deployment

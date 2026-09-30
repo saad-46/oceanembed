@@ -42,3 +42,19 @@ No Kubernetes, no message queue, no dedicated model-serving framework — the en
 ## Repository layout
 
 See `docs/09_DATA_PIPELINE.md` §2 for the full annotated tree (`frontend/`, `backend/`, `ml/`, `scripts/`, `docs/`, `tests/`, `docker/`).
+
+## Analysis & data layer (as built)
+
+```
+ml/science/            numpy + gsw, no I/O: stratification.py · seawater.py (TEOS-10) · forecast.py · volume.py
+ml/qc_rules.py         QC constants shared by the pipeline and the Data Quality API
+backend/app/api/       analysis.py (stratification, ts-profile, forecast, volume) · datasets.py (surface, wind, salinity,
+                       data-quality, provenance) — handlers validate, fetch, assemble; science stays in ml/science
+backend/app/schemas.py Pydantic response models + the provenance classification vocabulary
+backend/app/services/  catalog.py (lineage, layer availability, data-quality statistics) · observations.py (nearest
+                       native Argo profile: PostGIS, falling back to processed/argo_profiles.parquet)
+```
+
+Optional datasets are precomputed offline (`processed/inputs.zarr` for SLA/wind, `processed/salinity.zarr` for
+GLORYS salinity when credentials exist) and reported per layer in `/v1/meta` as available / not_configured /
+not_precomputed; the API never downloads during a request.

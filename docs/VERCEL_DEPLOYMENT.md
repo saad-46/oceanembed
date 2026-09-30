@@ -107,3 +107,13 @@ backend is cold-starting.
 cd backend && uvicorn app.main:app --port 8100          # API on http://localhost:8100
 cd frontend && cp .env.example .env.local && npm run dev # web on http://localhost:3100
 ```
+
+
+## Data bundle for the analysis layers
+
+`scripts/make_deploy_bundle.py` now also copies `processed/inputs.zarr` (only `sla`, `uwind`, `vwind`, `ocean_mask`)
+for the sea-level and wind layers, `processed/argo_qc.json` for the Data Quality workspace and, when it exists,
+`processed/salinity.zarr` (optional GLORYS salinity). Layers whose data are absent are reported as unavailable in
+`/v1/meta` and shown disabled with the reason; nothing else is affected. After deploying, refresh the offline copies:
+`python scripts/snapshot_fallback.py --api https://<backend>` (it includes the stratification, T-S, forecast, 3-D,
+data-quality and provenance reference requests).

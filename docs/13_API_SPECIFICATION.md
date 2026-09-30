@@ -91,3 +91,29 @@ Returns the landing-page headline stats (overall RMSE at a representative depth,
 ---
 
 **Design notes**: every endpoint is a plain GET/POST returning JSON (or a file for the report endpoint) — no WebSockets, no GraphQL, matching the "no over-engineering" principle in `08_SYSTEM_ARCHITECTURE.md`. All endpoints read from **precomputed** cached data (see `09_DATA_PIPELINE.md`); none trigger a live model inference call during the demo, which is what makes the offline/demo-fallback strategy in `16_SECURITY_AND_PRODUCTION.md` trivial to guarantee.
+
+---
+
+## As-built addendum — analysis & data endpoints
+
+All return JSON validated by Pydantic response models (`backend/app/schemas.py`), carry a `provenance` block
+(`classification` ∈ measured · satellite · reanalysis · reconstructed · derived · estimated · forecast · baseline,
+`source`, `lineage_id` → a row of `/v1/provenance`) and use the typed error format `{"error", "detail"}`.
+
+| Endpoint | Parameters | Returns | Typed errors |
+|---|---|---|---|
+| `GET /v1/stratification` | `lat, lon, date, max_depth=500 (100–1000), radius_km=100, window_days=3` | reconstructed thermocline + gradient profile + MLD/D20/D26; nearest measured profile (5 m bins) with thermocline, halocline, density MLD / barrier layer, QC counts; optional reanalysis salinity; source statuses; diagnostic definitions | `on_land`, `out_of_domain`, `date_out_of_range`, `invalid_request` |
+| `GET /v1/ts-profile` | `lat, lon, date, radius_km, window_days` | T-S points (depth, T, S, θ, σ0) of the nearest Argo profile and optional reanalysis, σ0 isopycnals, axis definitions | as above |
+| `GET /v1/forecast` | `lat, lon, date, method=trend\|persistence, window=7` | T+1/T+2 estimates, ±1 sd, hindcast RMSE (method and persistence), verification reconstruction when inside the record, method label, limitations | `insufficient_forecast_history` (422) |
+| `GET /v1/volume/sample` | `date, min_lat, max_lat, min_lon, max_lon, min_depth, max_depth, variable=temp\|anomaly\|uncertainty, max_points≤20000, stride` | flat arrays lat/lon/depth/value, stride used, point budget | `invalid_request`, `invalid_depth`, `uncertainty_unavailable` |
+| `GET /v1/surface/{date}` | `variable=sla\|wind_speed\|sss` | grid (SLA in cm, wind m/s, SSS PSU) | `optional_dataset_unavailable` (503, with `availability`) |
+| `GET /v1/wind/{date}/vectors` | `stride=8 (4–20)` | u, v, speed, direction-from | `optional_dataset_unavailable` |
+| `GET /v1/salinity/{date}` | `depth` (standard depth) | satellite SSS at 0 m; GLORYS reanalysis below when precomputed | `optional_dataset_unavailable` (`availability`: `not_configured` / `not_precomputed`), `invalid_depth` |
+| `GET /v1/data-quality` | — | dataset inventory with status, input QC table, Argo coverage statistics, QC rules, thresholds, files used | — |
+| `GET /v1/provenance` | — | classification legend, lineage rows (source, dataset, resolution, coverage, processing, role, availability, lineage steps, where shown), optional-source status | — |
+| `GET /v1/report/{date}` (extended) | `format=pdf\|csv\|json`, `sections=stratification,surface,quality` | JSON: one record per value with unit, depth, date, classification, source, model version, uncertainty | as before |
+
+`GET /v1/meta` additionally returns `layers` (per-layer `status` ∈ available · not_configured · not_precomputed ·
+unavailable · database, with `detail`) and `optional_sources` (credential *configuration status only*). Grid and product
+responses gain a `classification` field (additive). Unexpected server errors are returned as
+`{"error": "internal_error"}` with CORS headers.

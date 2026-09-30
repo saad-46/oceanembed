@@ -1,3 +1,6 @@
+> **Update (2026-09-30):** the advanced analysis upgrade (stratification, salinity/halocline, T-S, data quality, lineage,
+> SLA/wind, short-horizon estimate, 3-D, investigation point) is documented in [`OCEANSIGHT_FEATURES.md`](OCEANSIGHT_FEATURES.md).
+
 # OceanSight — Feature Inventory & Gap Analysis
 
 Audit date: 2026-09-29 · first audited after `d1f3432`; **updated after the Timeline / Section pass** (see §8).

@@ -17,7 +17,7 @@ Method (one core routine, used for temperature and salinity alike):
    is the vertical-resolution bound on that depth. Nothing is interpolated below the data's
    own resolution.
 
-Quality flags (thresholds are the constants below, documented in docs/METHODS_STRATIFICATION.md):
+Quality flags (thresholds are the constants below, documented in docs/SCIENTIFIC_METHODS.md):
 
 * ``insufficient`` - fewer than ``min_levels`` valid levels in range, no candidate layers, or the
   strongest gradient is below ``min_strength`` (no well-defined gradient maximum). Depth is null.

@@ -36,6 +36,8 @@ DEFINITION OF DONE (docs/23 §18):
 - [x] docs synced (as-built addenda)                     - [ ] human rehearsal of Q&A / demo (team task)
 
 NEXT TASK (optional improvements, in priority order):
+0. Rebuild the deploy bundle (scripts/make_deploy_bundle.py now includes SLA/wind inputs) and regenerate offline
+   snapshots (scripts/snapshot_fallback.py covers the new views); re-run `build_dataset argo` to record argo_qc.json
 1. Deploy when accounts exist (docs/18 addendum): `scripts/make_deploy_bundle.py`, docker images
 2. With Copernicus/CDS credentials: re-run pipeline on GLORYS/OSTIA/DUACS/ERA5 and ARMOR3D baseline
 3. Model: denser target sampling (stride 1-2), longer training; revisit ensemble on a fresh split
@@ -49,7 +51,13 @@ KNOWN BUGS / LIMITATIONS:
 - Embedded browser panes without a PDF plugin show a blank inline PDF preview (download/new-tab links work)
 - First request after API start is slow (~4 s: store + DB pool warm-up); subsequent requests fast
 - Salinity ablation shows no measurable effect (reported honestly; docs/24 #8)
-TEST STATUS: 57/57 pytest; 68/68 vitest; frontend lint/typecheck/build clean; CI (GitHub Actions) green.
+ADVANCED ANALYSIS UPGRADE (2026-09-30): stratification (thermocline/halocline), T-S (TEOS-10), salinity / SLA / wind
+layers, data quality + lineage workspaces, T+1/T+2 statistical estimate, 3-D point cloud, investigation point,
+uncertainty presentation, report sections + JSON export, advanced guide track — see OCEANSIGHT_FEATURES.md.
+Browser-verified against a SIMULATED QA store (the real data bundle is not in the repository); re-verify on real data.
+Fixed in passing: shapely missing from backend requirements (cyclone endpoints 500 in the API image); unexpected 500s
+now keep CORS headers.
+TEST STATUS: 116 pytest (incl. PostGIS); 97 vitest; frontend lint/typecheck/build clean.
 GIT: branch main, pushed to origin (github.com/saad-46/oceanembed)
 
 ENVIRONMENT REQUIREMENTS:
