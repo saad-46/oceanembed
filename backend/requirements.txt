@@ -6,6 +6,7 @@ pydantic-settings>=2.3
 sqlalchemy>=2.0
 psycopg[binary]>=3.1
 geoalchemy2>=0.15
+shapely>=2.0  # geoalchemy2.shape.to_shape (cyclone tracks, fuel gauge)
 alembic>=1.13
 numpy>=1.26
 pandas>=2.2

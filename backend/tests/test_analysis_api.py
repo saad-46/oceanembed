@@ -250,3 +250,15 @@ def test_report_csv_and_pdf_include_optional_sections(client):
     pdf = client.get(f"/v1/report/{D}", params={"lat": 15, "lon": 88, "format": "pdf"})
     assert pdf.status_code == 200 and pdf.content[:4] == b"%PDF" and len(pdf.content) > len(
         client.get(f"/v1/report/{D}", params={"lat": 15, "lon": 88, "format": "pdf", "sections": ""}).content)
+
+
+def test_unexpected_errors_are_typed_and_carry_cors_headers(client, monkeypatch):
+    from app.services import catalog
+
+    def boom(_store):
+        raise RuntimeError("simulated failure")
+    monkeypatch.setattr(catalog, "data_quality", boom)
+    r = client.get("/v1/data-quality", headers={"Origin": "http://localhost:3100"})
+    assert r.status_code == 500 and r.json() == {"error": "internal_error", "detail": "Unexpected server error."}
+    assert r.headers.get("access-control-allow-origin") == "http://localhost:3100"
+    assert "simulated failure" not in r.text
