@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://oceanembed:oceanembed@localhost:5433/oceanembed"
     oceanembed_data_dir: Path = REPO_ROOT / "ml" / "data"
     cors_origins: str = "http://localhost:3100,http://127.0.0.1:3100"
+    # Optional, for per-deploy preview hosts (e.g. r"https://oceanembed-[a-z0-9-]+\.vercel\.app"); empty = exact origins only.
+    cors_origin_regex: str = ""
     model_version: str = ""  # empty -> the registry's production model
     llm_api_key: str = ""
     llm_model: str = "claude-opus-5-5"

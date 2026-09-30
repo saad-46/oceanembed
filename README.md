@@ -113,7 +113,8 @@ Errors are typed JSON `{"error": code, "detail": ...}` (`invalid_depth`, `out_of
 
 ## Deployment
 
-See [`docs/18_DEPLOYMENT.md`](docs/18_DEPLOYMENT.md). Container images: `docker/backend.Dockerfile`
+Vercel (frontend) + separately hosted API: [`docs/VERCEL_DEPLOYMENT.md`](docs/VERCEL_DEPLOYMENT.md).
+See also [`docs/18_DEPLOYMENT.md`](docs/18_DEPLOYMENT.md). Container images: `docker/backend.Dockerfile`
 (context: repo root; mount or bake the data bundle from `scripts/make_deploy_bundle.py`) and
 `docker/frontend.Dockerfile` (context: `frontend/`, build arg `NEXT_PUBLIC_API_URL`).
 `docker compose -f docker/docker-compose.yml --profile full up --build` runs db + api + web locally.
