@@ -7,8 +7,27 @@
  * requests. Key format: path+query with every char outside [A-Za-z0-9._-] replaced by "_",
  * e.g. `/v1/grid/2023-05-11?depth=100` -> `v1_grid_2023-05-11_depth_100`. POST bodies are
  * appended as `__` + sorted "key_value" pairs of the flattened JSON body.
+ *
+ * Base URL: `NEXT_PUBLIC_API_URL` (inlined at build time). The localhost default applies to
+ * `next dev` only; a production build without the variable has no API (`API_CONFIGURED` false):
+ * data requests go straight to the bundled snapshots, and anything else fails with a clear
+ * `api_not_configured` error instead of calling localhost from the visitor's browser.
  */
-export const API_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8100").replace(/\/$/, "");
+const DEV_API_URL = "http://localhost:8100";
+
+export const API_URL = (process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === "production" ? "" : DEV_API_URL)).trim().replace(/\/+$/, "");
+export const API_CONFIGURED = API_URL !== "";
+
+const NOT_CONFIGURED = "This deployment is not connected to the OceanSight API (NEXT_PUBLIC_API_URL is not set), so only saved copies of the reference views are available.";
+
+if (!API_CONFIGURED && typeof window !== "undefined") {
+  console.error("[OceanSight] NEXT_PUBLIC_API_URL is not set for this production build. Set it to the deployed FastAPI URL and redeploy.");
+}
+
+/** Absolute backend URL for links and downloads, or null when this build has no API configured. */
+export function apiUrl(path: string): string | null {
+  return API_CONFIGURED ? `${API_URL}${path}` : null;
+}
 
 export class ApiError extends Error {
   constructor(public status: number, public code: string, public detail: string) {
@@ -43,6 +62,11 @@ async function tryFallback<T>(path: string, body?: unknown): Promise<Fetched<T> 
 }
 
 async function request<T>(path: string, init?: RequestInit & { json?: unknown }, timeoutMs = 20000): Promise<Fetched<T>> {
+  if (!API_CONFIGURED) {
+    const fb = await tryFallback<T>(path, init?.json);
+    if (fb) return fb;
+    throw new ApiError(0, "api_not_configured", NOT_CONFIGURED);
+  }
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   let res: Response;
@@ -97,6 +121,7 @@ export function friendlyError(e: unknown): string {
     case "no_ocean_cells":
       return "The selected box contains no ocean cells.";
     case "backend_unreachable":
+    case "api_not_configured":
       return e.detail;
     default:
       return e.detail || "Unexpected error.";

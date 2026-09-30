@@ -45,7 +45,8 @@ def create_app() -> FastAPI:
                               "(0–1000 m, 0.25°, daily, 2019–2023) from satellite surface observations, with uncertainty, "
                               "derived products and independent validation. All endpoints serve precomputed reconstructions.")
     app.add_middleware(GZipMiddleware, minimum_size=1024)
-    app.add_middleware(CORSMiddleware, allow_origins=s.cors_list, allow_methods=["GET", "POST"], allow_headers=["*"])
+    app.add_middleware(CORSMiddleware, allow_origins=s.cors_list, allow_origin_regex=s.cors_origin_regex or None,
+                       allow_methods=["GET", "POST"], allow_headers=["*"])
     errors.install(app)
     log = logging.getLogger("oceanembed.access")
 

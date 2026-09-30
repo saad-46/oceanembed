@@ -5,7 +5,7 @@ import { sectionFromMap, timelineHref } from "@/lib/ocean";
 import Explain from "@/components/Explain";
 import type { TermKey } from "@/lib/glossary";
 import { useState } from "react";
-import { API_URL, friendlyError, post, type ProfileResponse } from "@/lib/api";
+import { apiUrl, friendlyError, post, type ProfileResponse } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
 import ProfileChart, { type SeriesSpec } from "./ProfileChart";
 import { DataBadge, ErrorState, LoadingState, Notice, Provenance, Toggle, fmt } from "./ui";
@@ -122,6 +122,7 @@ export default function ProfilePanel({
       : null;
   const argo = data?.nearest_argo_float;
   const shown = data?.date ?? date;
+  const csvHref = apiUrl(`/v1/report/${shown}?lat=${lat}&lon=${lon}&format=csv`);
   const k100 = data ? data.depths_m.indexOf(100) : -1;
   const link = "inline-flex items-center gap-1.5 text-[12.5px] rounded-md border border-line px-2.5 py-1.5 text-ink-2 hover:text-ink hover:border-line-2";
 
@@ -251,10 +252,14 @@ export default function ProfilePanel({
                 <button onClick={summarise} disabled={summLoading} className="text-accent hover:underline disabled:opacity-50">
                   {summLoading ? "Summarising the computed values…" : "Summarise in plain language"}
                 </button>
-                <span className="text-ink-3">·</span>
-                <a className="text-ink-3 hover:text-ink" href={`${API_URL}/v1/report/${shown}?lat=${lat}&lon=${lon}&format=csv`}>
-                  Download CSV
-                </a>
+                {csvHref && (
+                  <>
+                    <span className="text-ink-3">·</span>
+                    <a className="text-ink-3 hover:text-ink" href={csvHref}>
+                      Download CSV
+                    </a>
+                  </>
+                )}
               </div>
               {summary && (
                 <div className="text-[13px] text-ink bg-white/[0.03] border border-line rounded-md px-3 py-2" aria-live="polite">

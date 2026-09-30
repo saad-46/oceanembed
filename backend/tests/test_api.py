@@ -277,3 +277,29 @@ def test_summary_compares_with_climatology_instead_of_asserting_typicality():
     assert "1.5°C warmer than the pre-monsoon seasonal climatology" in s and "typical" not in s
     p["temperature_c"][0] = 29.1
     assert "close to the pre-monsoon seasonal climatology" in template_summary(p)
+
+
+def test_cors_exact_origins_and_optional_preview_regex(monkeypatch):
+    from fastapi.testclient import TestClient
+
+    from app.config import get_settings
+    from app.main import create_app
+
+    def allowed(origin: str) -> str | None:
+        with TestClient(create_app()) as c:
+            r = c.options("/health", headers={"Origin": origin, "Access-Control-Request-Method": "GET"})
+        return r.headers.get("access-control-allow-origin")
+
+    monkeypatch.setenv("CORS_ORIGINS", "https://oceanembed.vercel.app")
+    monkeypatch.delenv("CORS_ORIGIN_REGEX", raising=False)
+    get_settings.cache_clear()
+    try:
+        assert allowed("https://oceanembed.vercel.app") == "https://oceanembed.vercel.app"
+        assert allowed("https://oceanembed-git-x-team.vercel.app") is None  # no wildcard by default
+        assert allowed("https://evil.example") is None
+        monkeypatch.setenv("CORS_ORIGIN_REGEX", r"https://oceanembed-[a-z0-9-]+\.vercel\.app")
+        get_settings.cache_clear()
+        assert allowed("https://oceanembed-git-x-team.vercel.app") == "https://oceanembed-git-x-team.vercel.app"
+        assert allowed("https://oceanembed-x.vercel.app.evil.example") is None
+    finally:
+        get_settings.cache_clear()
