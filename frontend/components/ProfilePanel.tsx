@@ -1,6 +1,9 @@
 "use client";
 import Link from "next/link";
-import { FileText, History, Map as MapIcon, ScanLine } from "lucide-react";
+import { Droplets, FileText, History, Layers, Map as MapIcon, ScanLine } from "lucide-react";
+import InvestigationPoint from "./InvestigationPoint";
+import UncertaintyPanel from "./UncertaintyPanel";
+import { stratificationHref, tsHref } from "@/lib/analysis";
 import { sectionFromMap, timelineHref } from "@/lib/ocean";
 import Explain from "@/components/Explain";
 import type { TermKey } from "@/lib/glossary";
@@ -8,7 +11,7 @@ import { useState } from "react";
 import { apiUrl, friendlyError, post, type ProfileResponse } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
 import ProfileChart, { type SeriesSpec } from "./ProfileChart";
-import { DataBadge, ErrorState, LoadingState, Notice, Provenance, Toggle, fmt } from "./ui";
+import { DataBadge, ErrorState, LoadingState, Notice, Provenance, Toggle, fmt, type DataKind } from "./ui";
 import { RAMPS } from "@/lib/colormap";
 import { X } from "lucide-react";
 
@@ -67,6 +70,7 @@ export default function ProfilePanel({
   wide = false,
   context = "map",
   depth = 100,
+  layerValue,
 }: {
   date: string;
   lat: number | null;
@@ -77,6 +81,8 @@ export default function ProfilePanel({
   context?: "map" | "profiles" | "timeline";
   /** Map depth for the report's map inset. */
   depth?: number;
+  /** The map layer's value at this cell (the map's click readout). */
+  layerValue?: { title: string; value: number | null; units: string; digits: number; where: string; date: string; kind: DataKind; source: string; lineage: string };
 }) {
   const { data, error, loading } = useProfile(date, lat, lon);
   const [show, setShow] = useState({ clim: true, argo: true, lgbm: false, nosss: false, target: false });
@@ -123,7 +129,6 @@ export default function ProfilePanel({
   const argo = data?.nearest_argo_float;
   const shown = data?.date ?? date;
   const csvHref = apiUrl(`/v1/report/${shown}?lat=${lat}&lon=${lon}&format=csv`);
-  const k100 = data ? data.depths_m.indexOf(100) : -1;
   const link = "inline-flex items-center gap-1.5 text-[12.5px] rounded-md border border-line px-2.5 py-1.5 text-ink-2 hover:text-ink hover:border-line-2";
 
   return (
@@ -151,6 +156,20 @@ export default function ProfilePanel({
               <DataBadge fallback={data.__fallback} />
             </div>
             {data.notice && <Notice>{data.notice}</Notice>}
+            {layerValue && (
+              <section aria-label="Map layer value at this point" className="rounded-md border border-line bg-white/[0.02] px-3 py-2">
+                <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+                  <span className="text-[12px] text-ink-2">{layerValue.title}</span>
+                  <span className="num text-[16px] text-ink">
+                    {layerValue.value === null ? "no data" : `${layerValue.value.toFixed(layerValue.digits)} ${layerValue.units}`}
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center gap-x-2 text-[11.5px] text-ink-3">
+                  <span className="num">{layerValue.where}</span>·<span className="num">{layerValue.date}</span>·
+                  <Provenance kind={layerValue.kind} source={layerValue.source} lineage={layerValue.lineage} />
+                </div>
+              </section>
+            )}
 
             <div className={`flex gap-3 items-stretch ${loading ? "opacity-60 transition-opacity" : ""}`}>
               <div className="flex-1 min-w-0">
@@ -177,31 +196,7 @@ export default function ProfilePanel({
               </details>
             </fieldset>
 
-            <section aria-label="Key values">
-              <div className="text-[10.5px] uppercase tracking-[0.12em] text-ink-3 mb-1.5">Temperature &amp; uncertainty</div>
-              <dl className="grid grid-cols-3 gap-2">
-                {(
-                  [
-                    ["Surface", data.temperature_c[0], "°C", false],
-                    ["100 m", k100 >= 0 ? data.temperature_c[k100] : null, "°C", false],
-                    ["±σ at 100 m", k100 >= 0 ? data.uncertainty_c?.[k100] ?? null : null, "°C", true],
-                  ] as const
-                ).map(([k, v, u, sig]) => (
-                  <div key={k}>
-                    <dt className="text-[11px] text-ink-3 flex items-center gap-0.5">
-                      {k} {sig && <Explain term="uncertainty" />}
-                    </dt>
-                    <dd className="num text-[17px] text-ink">
-                      {sig && v !== null ? "±" : ""}
-                      {fmt(v, 2)} <span className="text-[11px] text-ink-3">{v === null ? "" : u}</span>
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-              <div className="mt-1.5">
-                <Provenance kind="estimated" source="±σ calibrated against 2022 Argo; shaded on the chart" />
-              </div>
-            </section>
+            <UncertaintyPanel depths={data.depths_m} temps={data.temperature_c} sigmas={data.uncertainty_c} initialDepth={depth} />
 
             <section aria-label="Derived structure">
               <div className="text-[10.5px] uppercase tracking-[0.12em] text-ink-3 mb-1.5">Derived structure</div>
@@ -229,7 +224,11 @@ export default function ProfilePanel({
               )}
             </section>
 
-            <section aria-label="Actions" className="border-t border-line pt-3 space-y-2">
+            <div className="border-t border-line pt-3">
+              <InvestigationPoint compact lat={lat} lon={lon} date={shown} depth={depth} exclude={["profile", "timeline", "section", "stratification", "ts", "report"]} />
+            </div>
+
+            <section aria-label="Actions" className="space-y-2">
               <div className="flex gap-1.5 flex-wrap">
                 {context !== "timeline" && (
                   <Link className={link} href={timelineHref({ lat, lon, date: shown })}>
@@ -238,6 +237,12 @@ export default function ProfilePanel({
                 )}
                 <Link className={link} href={sectionFromMap(shown, lat, lon)}>
                   <ScanLine size={13} aria-hidden /> Section here
+                </Link>
+                <Link className={link} href={stratificationHref({ lat, lon, date: shown })}>
+                  <Layers size={13} aria-hidden /> Stratification
+                </Link>
+                <Link className={link} href={tsHref({ lat, lon, date: shown })}>
+                  <Droplets size={13} aria-hidden /> T-S
                 </Link>
                 {context !== "map" && (
                   <Link className={link} href={`/map?date=${shown}&depth=${depth}&var=temp&lat=${lat.toFixed(3)}&lon=${lon.toFixed(3)}`}>

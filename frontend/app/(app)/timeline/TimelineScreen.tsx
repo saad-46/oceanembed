@@ -3,6 +3,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { MapPin, Pause, Play, ScanLine, Tornado } from "lucide-react";
 import DepthChart, { type ChartLine } from "@/components/DepthChart";
+import ForecastPanel from "@/components/ForecastPanel";
 import Explain from "@/components/Explain";
 import ColorLegend from "@/components/Legend";
 import ProfilePanel from "@/components/ProfilePanel";
@@ -326,6 +327,7 @@ export default function TimelineScreen() {
           </section>
         </div>
       )}
+      {tl && state === "ready" && !playing && <ForecastPanel lat={p.lat} lon={p.lon} date={selDate} />}
     </div>
   );
 }

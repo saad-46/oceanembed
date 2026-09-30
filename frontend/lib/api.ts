@@ -120,6 +120,10 @@ export function friendlyError(e: unknown): string {
       return "Region too large — try a smaller area.";
     case "no_ocean_cells":
       return "The selected box contains no ocean cells.";
+    case "insufficient_forecast_history":
+      return `A short-horizon estimate needs more reconstructed history before this day. ${e.detail}`;
+    case "optional_dataset_unavailable":
+      return e.detail;
     case "backend_unreachable":
     case "api_not_configured":
       return e.detail;
@@ -142,14 +146,37 @@ export interface Meta {
   input_sources: Record<string, Record<string, string>>;
   target_source: Record<string, string>;
   data_label: string;
+  /** Which layers / analyses this deployment can serve (absent on older API versions). */
+  layers?: Record<LayerKey, LayerAvailability>;
+  optional_sources?: Record<string, { status: string; enables: string; variables: string }>;
+}
+
+export type LayerKey = "temp" | "anomaly" | "uncertainty" | "tchp" | "mld" | "d20" | "d26" | "sss" | "sla" | "wind" | "salinity_subsurface" | "argo_salinity";
+export interface LayerAvailability {
+  status: "available" | "unavailable" | "not_configured" | "not_precomputed" | "database";
+  detail: string;
+}
+
+/** Provenance classification used consistently across OceanSight (backend app/schemas.py). */
+export type Classification = "measured" | "satellite" | "reanalysis" | "reconstructed" | "derived" | "estimated" | "forecast" | "baseline";
+export interface ProvenanceInfo {
+  classification: Classification;
+  source: string;
+  dataset?: string | null;
+  model_version?: string | null;
+  method?: string | null;
+  note?: string | null;
+  lineage_id?: string | null;
 }
 
 export interface GridResponse {
   date: string;
   requested_date: string;
-  depth_m?: number;
+  depth_m?: number | null;
   variable?: string;
   product?: string;
+  classification?: Classification;
+  provenance?: ProvenanceInfo;
   units: string;
   grid: { lat: number[]; lon: number[]; values: (number | null)[][] };
   stats: { min: number; max: number; mean: number } | null;
@@ -368,4 +395,253 @@ export interface TimelineResponse {
   model_version: string;
   data_label: string;
   notice: string | null;
+}
+
+// ---------------------------------------------------------------- analysis & data workspaces
+export type Quality = "good" | "limited" | "insufficient";
+
+export interface GradientLayer {
+  top_m: number;
+  bottom_m: number;
+  depth_m: number;
+  gradient: number;
+}
+
+export interface GradientPeak {
+  variable: string;
+  depth_m: number | null;
+  depth_range_m: [number, number] | null;
+  gradient_per_m: number | null;
+  strength_per_m: number | null;
+  quality: Quality;
+  quality_reasons: string[];
+  n_levels_used: number;
+  analysis_range_m: [number, number];
+  gradient_profile: GradientLayer[];
+  method: string;
+  sense?: string | null;
+}
+
+export interface ArgoRef {
+  id: number | null;
+  platform_number: string;
+  cycle_number: number;
+  profile_date: string;
+  lat: number;
+  lon: number;
+  distance_km: number;
+  date_offset_days: number;
+  split: string;
+  independent: boolean;
+  data_mode?: string | null;
+}
+
+export interface MixedLayers {
+  mld_density_m: number | null;
+  isothermal_layer_depth_m: number | null;
+  barrier_layer_thickness_m: number | null;
+  method: string;
+}
+
+export interface SourceStatus {
+  status: "available" | "none_nearby" | "no_salinity" | "lookup_unavailable" | "not_configured" | "not_precomputed" | "no_data";
+  detail: string;
+}
+
+export interface StratificationResponse {
+  date: string;
+  requested_date: string;
+  lat: number;
+  lon: number;
+  cell: { lat: number; lon: number };
+  max_depth_m: number;
+  notice: string | null;
+  reconstructed: {
+    depths_m: number[];
+    temperature_c: (number | null)[];
+    uncertainty_c: (number | null)[] | null;
+    thermocline: GradientPeak;
+    mld_m: number | null;
+    d20_m: number | null;
+    d26_m: number | null;
+    provenance: ProvenanceInfo;
+  };
+  observed: {
+    argo: ArgoRef;
+    bin_m: number;
+    depths_m: number[];
+    temperature_c: (number | null)[];
+    salinity_psu: (number | null)[] | null;
+    thermocline: GradientPeak | null;
+    halocline: GradientPeak | null;
+    mixed_layers: MixedLayers | null;
+    qc: Record<string, { n_input: number; n_failed_range: number; n_failed_spike: number }>;
+    provenance: ProvenanceInfo;
+  } | null;
+  observed_status: SourceStatus;
+  reanalysis_salinity: {
+    date: string;
+    depths_m: number[];
+    salinity_psu: (number | null)[];
+    potential_temperature_c: (number | null)[];
+    halocline: GradientPeak;
+    provenance: ProvenanceInfo;
+  } | null;
+  reanalysis_status: SourceStatus;
+  diagnostics: Record<string, string>;
+}
+
+export interface TSPoint {
+  depth_m: number;
+  temperature_c: number;
+  salinity_psu: number;
+  potential_temperature_c: number;
+  sigma0_kg_m3: number;
+}
+
+export interface TSSeries {
+  label: string;
+  date: string;
+  points: TSPoint[];
+  argo?: ArgoRef | null;
+  mixed_layers?: MixedLayers | null;
+  provenance: ProvenanceInfo;
+}
+
+export interface TSProfileResponse {
+  date: string;
+  lat: number;
+  lon: number;
+  observed: TSSeries | null;
+  observed_status: SourceStatus;
+  reanalysis: TSSeries | null;
+  reanalysis_status: SourceStatus;
+  isopycnals: { sigma0: number; points: [number, number][] }[];
+  axes: Record<string, string>;
+  reconstructed_note: string;
+  method: string;
+}
+
+export interface ForecastHorizon {
+  horizon_days: number;
+  target_date: string;
+  temperature_c: (number | null)[];
+  uncertainty_c: (number | null)[];
+  method_rmse_c: (number | null)[];
+  persistence_c: (number | null)[];
+  persistence_rmse_c: (number | null)[];
+  n_hindcast_pairs: number;
+  verification_c: (number | null)[] | null;
+}
+
+export interface ForecastResponse {
+  issue_date: string;
+  requested_date: string;
+  lat: number;
+  lon: number;
+  cell: { lat: number; lon: number };
+  depths_m: number[];
+  method: "trend" | "persistence";
+  method_label: string;
+  window_days: number;
+  input_period: { start: string; end: string; n_days: number };
+  hindcast_days: number;
+  issue_temperature_c: (number | null)[];
+  reconstruction_uncertainty_c: (number | null)[] | null;
+  horizons: ForecastHorizon[];
+  limitations: string[];
+  notice: string | null;
+  provenance: ProvenanceInfo;
+}
+
+export interface VolumeSampleResponse {
+  date: string;
+  requested_date: string;
+  variable: "temp" | "anomaly" | "uncertainty";
+  units: string;
+  bbox: BBox;
+  depths_m: number[];
+  stride: number;
+  max_points: number;
+  n_points: number;
+  lat: number[];
+  lon: number[];
+  depth: number[];
+  value: number[];
+  stats: { min: number; max: number; mean: number } | null;
+  notice: string | null;
+  provenance: ProvenanceInfo;
+}
+
+export interface WindVectorsResponse {
+  date: string;
+  stride: number;
+  vectors: { lat: number; lon: number; u_ms: number; v_ms: number; speed_ms: number; direction_from_deg: number }[];
+  direction_convention: string;
+  notice: string | null;
+  provenance: ProvenanceInfo;
+}
+
+export interface DataQualityResponse {
+  datasets: { id: string; name: string; classification: Classification; status: Quality | null; status_reason: string; metrics: Record<string, unknown> }[];
+  inputs: {
+    variable: string;
+    source: string | null;
+    n_ocean_values: number | null;
+    missing_before_fill: number | null;
+    missing_before_fill_pct: number | null;
+    filled_temporal: number | null;
+    filled_spatial: number | null;
+    filled_pct: number | null;
+    invalid_flagged: number | null;
+    duplicate_times: number | null;
+    days_absent_in_source: number | null;
+    valid_range: (number | null)[];
+    status: Quality;
+    status_reason: string;
+  }[];
+  argo: null | {
+    n_profiles: number | null;
+    detail_available: boolean;
+    note?: string;
+    split_counts?: Record<string, number>;
+    data_mode_counts?: Record<string, number>;
+    temporal?: { first: string | null; last: string | null; per_month: { month: string; n: number }[] };
+    spatial?: { ocean_boxes_1deg: number; boxes_with_profiles: number; coverage_pct: number | null; test_year_coverage_pct: number | null };
+    depth?: { per_standard_depth: { depth_m: number; n_valid: number; coverage_pct: number | null; status: Quality | null }[]; profiles_reaching_500m_pct: number | null; profiles_reaching_1000m_pct: number | null };
+    salinity?: { profiles_with_salinity: number; profiles_with_salinity_pct: number | null; valid_salinity_levels_pct: number | null; note: string };
+    independent_profiles?: number;
+    independent_status?: Quality | null;
+    qc_record: Record<string, unknown> | null;
+    rejected_note?: string | null;
+  };
+  thresholds: Record<string, { meaning: string; good_max?: number; limited_max?: number; good_min?: number; limited_min?: number }>;
+  qc_rules: { step: string; rule: string; applies_to: string }[];
+  files: string[];
+}
+
+export interface LineageRow {
+  id: string;
+  variable: string;
+  classification: Classification;
+  provider: string;
+  dataset: string;
+  url: string;
+  native_resolution: string;
+  recorded: boolean;
+  resolution: string;
+  temporal_coverage: string;
+  depth_coverage: string;
+  processing: string[] | string;
+  role: string;
+  availability: { status: string; detail: string };
+  lineage: { stage: string; detail: string }[];
+  shown_in: string[];
+}
+
+export interface LineageResponse {
+  classifications: Record<Classification, string>;
+  variables: LineageRow[];
+  optional_sources: Record<string, Record<string, string>>;
+  model_version: string | null;
 }

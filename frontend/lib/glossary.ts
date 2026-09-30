@@ -76,6 +76,66 @@ export const GLOSSARY = {
     simple: "How something changes over time. Here: how warm or cold each depth is, day after day, at one place.",
     technical: "Daily reconstructed temperature at one grid cell for the chosen period (subsampled to at most 400 days for long ranges), shown as a depth–time section with derived MLD/D20/D26.",
   },
+  vertical_gradient: {
+    title: "Vertical temperature gradient (dT/dz)",
+    simple: "How quickly the water gets colder as you go down. The steepest cooling marks the thermocline.",
+    technical: "Temperature difference between two consecutive valid levels divided by their separation (°C per m, depth positive downward), assigned to the layer mid-depth. Negative values mean cooling with depth.",
+  },
+  thermocline_depth: {
+    title: "Thermocline depth (gradient maximum)",
+    simple: "The depth where temperature drops fastest — the boundary between the warm upper ocean and the cold deep ocean.",
+    technical: "Mid-depth of the layer with the most negative dT/dz below the mixed layer and within the analysis range. On the reconstruction the layer is bounded by standard depths, so its bounds are reported as the resolution. Quality: good / limited / insufficient (weak, coarse, edge-of-range or ambiguous maxima are flagged). Different from D20, which is an isotherm proxy.",
+  },
+  halocline: {
+    title: "Halocline",
+    simple: "The depth where salinity changes fastest. In the Bay of Bengal, fresh river and rain water floats on top of saltier water, making a sharp halocline near the surface.",
+    technical: "Mid-depth of the layer with the largest |dS/dz| of a measured Argo (or reanalysis) salinity profile, after Argo range and spike tests and 5 m bin averaging. OceanSight does not reconstruct salinity.",
+  },
+  salinity: {
+    title: "Salinity",
+    simple: "How salty the sea water is, in practical salinity units (roughly grams of salt per kilogram of water).",
+    technical: "Practical salinity (PSS-78). At the surface: satellite SMAP/SMOS sea-surface salinity (a model input). Below the surface: measured Argo profiles, or the optional GLORYS12V1 reanalysis when configured. Never reconstructed by OceanSight.",
+  },
+  ts_diagram: {
+    title: "Temperature–salinity (T-S) diagram",
+    simple: "A chart of temperature against salinity for every depth in a profile. Water masses with a common origin plot as recognisable curves.",
+    technical: "Potential temperature θ (0 dbar) against practical salinity, points coloured by depth, with σ0 isopycnals computed with TEOS-10. It reveals water-mass structure through the joint T-S relationship; interpretation of specific water masses needs regional context.",
+  },
+  sigma0: {
+    title: "Potential density anomaly (σ0)",
+    simple: "How dense the water would be if brought to the surface, minus 1000 kg/m³. Denser water sits below lighter water in a stable ocean.",
+    technical: "σ0 = ρ(SA, CT, p = 0) − 1000 kg/m³ from TEOS-10 (gsw): Absolute Salinity from practical salinity and position, Conservative Temperature from in-situ temperature and pressure.",
+  },
+  density_mld: {
+    title: "Density mixed layer and barrier layer",
+    simple: "The mixed layer defined by density instead of temperature. When fresh water caps the surface, it can be much shallower than the warm layer, leaving a 'barrier layer' in between.",
+    technical: "de Boyer Montégut et al. (2004): MLD where σ0 exceeds its 10 m value by 0.03 kg/m³; isothermal layer depth where T departs from its 10 m value by 0.2 °C; barrier-layer thickness = ILD − MLD when positive. From measured Argo T and S.",
+  },
+  sla: {
+    title: "Sea-level anomaly (SLA)",
+    simple: "How much higher or lower the sea surface is than its long-term average. Warm eddies and thick warm layers tend to stand higher.",
+    technical: "Satellite altimetry SLA (NOAA blended product, a model input), relative to the provider's reference mean sea surface; regridded to 0.25° and gap-filled. Shown in cm.",
+  },
+  wind: {
+    title: "10 m wind",
+    simple: "Wind speed 10 m above the sea surface, as seen by satellites. It is air moving over the ocean, not an ocean current.",
+    technical: "NOAA NCEI Blended Seawinds daily u/v (a model input). Speed is the magnitude of the daily-mean vector, which can be lower than the daily mean of instantaneous speeds. Arrows point where the wind blows to.",
+  },
+  short_horizon: {
+    title: "Short-horizon estimate (T+1, T+2)",
+    simple: "A cautious guess of the next one or two days, made by extending the recent reconstructed values. It is not a weather-style forecast model.",
+    technical: "Least-squares trend over the last 7 reconstructed days (or persistence) at one cell, using only days up to the issue date. Its error is estimated by re-running the method over the previous 60 days at the same cell, combined in quadrature with the calibrated reconstruction σ.",
+  },
+  classification: {
+    title: "Data classification",
+    simple: "Every value in OceanSight is labelled by how it was obtained — measured, satellite, reanalysis, reconstructed, derived, estimated, forecast or baseline — so they are never confused.",
+    technical: "Measured: in-situ observation. Satellite: satellite-derived product. Reanalysis: data-assimilative model analysis or objective analysis. Reconstructed: OceanSight model output. Derived: deterministic calculation. Estimated: statistical estimate with assumptions. Forecast: extrapolation beyond the issue date. Baseline: reference climatology.",
+  },
+  investigation_point: {
+    title: "Investigation point",
+    simple: "The place and day you chose to study. It is a coordinate on the OceanSight grid, not a physical station.",
+    technical: "The selected latitude/longitude is served from the 0.25° grid cell containing it. Nearby measured Argo profiles (within 100 km and ±3 days) are listed separately with their distance and date offset.",
+  },
 } satisfies Record<string, Term>;
 
 export type TermKey = keyof typeof GLOSSARY;

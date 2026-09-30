@@ -20,6 +20,29 @@ export interface RasterSpec {
   ramp: RampName;
   key: string;
 }
+export interface VectorSpec {
+  lat: number;
+  lon: number;
+  u_ms: number;
+  v_ms: number;
+  speed_ms: number;
+}
+
+/** Arrow shaft + two head strokes per vector, pointing where the wind blows to; 1 m/s = 0.1°. */
+export function arrowPaths(vectors: VectorSpec[], degPerMs = 0.1): [number, number][][] {
+  const out: [number, number][][] = [];
+  for (const w of vectors) {
+    if (!(w.speed_ms > 0)) continue;
+    const L = w.speed_ms * degPerMs;
+    const ux = w.u_ms / w.speed_ms, uy = w.v_ms / w.speed_ms;
+    const x0 = w.lon - (ux * L) / 2, y0 = w.lat - (uy * L) / 2, x1 = w.lon + (ux * L) / 2, y1 = w.lat + (uy * L) / 2;
+    const h = Math.min(0.35, L * 0.35);
+    const back = (a: number): [number, number] => [x1 - h * (ux * Math.cos(a) - uy * Math.sin(a)), y1 - h * (uy * Math.cos(a) + ux * Math.sin(a))];
+    out.push([[x0, y0], [x1, y1]], [back(0.45), [x1, y1], back(-0.45)]);
+  }
+  return out;
+}
+
 export interface TrackSpec {
   path: [number, number][];
   points?: { lon: number; lat: number; value: number | null; label?: string }[];
@@ -45,6 +68,7 @@ export default function OceanMap({
   raster,
   argo,
   track,
+  vectors,
   bbox,
   point,
   onClick,
@@ -58,10 +82,11 @@ export default function OceanMap({
   raster?: RasterSpec | null;
   argo?: ArgoMarker[] | null;
   track?: TrackSpec | null;
+  vectors?: VectorSpec[] | null;
   bbox?: BBox | null;
   point?: { lat: number; lon: number } | null;
   onClick?: (lat: number, lon: number) => void;
-  onHover?: (p: { lat: number; lon: number } | null) => void;
+  onHover?: (p: { lat: number; lon: number; x?: number; y?: number } | null) => void;
   onArgoClick?: (m: ArgoMarker) => void;
   fitDomain?: boolean;
   mapRef?: React.MutableRefObject<MLMap | null>;
@@ -106,7 +131,7 @@ export default function OceanMap({
     // custom-layer path crashes with this deck.gl/MapLibre pairing (getViewport on an undefined viewport).
     const ov = new MapboxOverlay({ interleaved: false, layers: [], deviceProps: { webgl: { preserveDrawingBuffer: true } } } as ConstructorParameters<typeof MapboxOverlay>[0]);
     m.addControl(ov);
-    m.on("mousemove", (e: MapMouseEvent) => handlers.current.onHover?.({ lat: e.lngLat.lat, lon: e.lngLat.lng }));
+    m.on("mousemove", (e: MapMouseEvent) => handlers.current.onHover?.({ lat: e.lngLat.lat, lon: e.lngLat.lng, x: e.point.x, y: e.point.y }));
     m.on("mouseout", () => handlers.current.onHover?.(null));
     m.on("click", (e: MapMouseEvent) => {
       const picked = ov.pickObject({ x: e.point.x, y: e.point.y, radius: 4, layerIds: ["argo"] });
@@ -209,6 +234,19 @@ export default function OceanMap({
         );
       }
     }
+    if (vectors && vectors.length) {
+      layers.push(
+        new PathLayer({
+          id: "wind",
+          data: arrowPaths(vectors),
+          getPath: (d: [number, number][]) => d,
+          getColor: [240, 232, 170, 210],
+          widthMinPixels: 1.3,
+          capRounded: true,
+          jointRounded: true,
+        }),
+      );
+    }
     if (argo && argo.length) {
       layers.push(
         new ScatterplotLayer({
@@ -241,7 +279,7 @@ export default function OceanMap({
       );
     }
     ov.setProps({ layers });
-  }, [raster, argo, track, bbox, point]);
+  }, [raster, argo, track, vectors, bbox, point]);
 
   // maplibre-gl.css sets `.maplibregl-map { position: relative }`, so the map element itself must be a
   // plain full-size child of the absolutely positioned wrapper.

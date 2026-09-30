@@ -25,11 +25,20 @@ function ramp(stops: string[]) {
 export const THERMAL = ["#04142e", "#172a73", "#3c3b9c", "#6b479d", "#99558f", "#c96578", "#ec7a5a", "#fca046", "#fdd05a", "#f6f7a0"];
 export const DIVERGING = ["#1c5cab", "#3987e5", "#86b6ef", "#383835", "#f0a3a3", "#e66767", "#b3282e"];
 export const UNCERTAINTY = ["#15132b", "#2c2663", "#4a3aa7", "#7466d6", "#a79cf0", "#dcd7ff"];
+// salinity: cmocean-"haline"-style deep blue → teal → pale yellow-green (monotonic lightness)
+export const HALINE = ["#2a186c", "#14439c", "#206e8b", "#3d9387", "#5ab978", "#a9d56a", "#fdef9a"];
+// wind speed: dark green-grey → olive → pale yellow (monotonic lightness; reads on the dark basemap)
+export const SPEED = ["#10251d", "#1d4a31", "#3b6e2c", "#6a8f20", "#a8ad2a", "#dccb62", "#fffbd0"];
+// depth (T-S point colouring): pale near the surface → deep blue at depth
+export const DEPTH = ["#e9f6fb", "#a8dbe8", "#5fb6d3", "#2d86bb", "#2257a0", "#1b2f73", "#120f45"];
 
 export const RAMPS = {
   thermal: ramp(THERMAL),
   diverging: ramp(DIVERGING),
   uncertainty: ramp(UNCERTAINTY),
+  haline: ramp(HALINE),
+  speed: ramp(SPEED),
+  depth: ramp(DEPTH),
 };
 export type RampName = keyof typeof RAMPS;
 
@@ -68,4 +77,9 @@ export function gridToCanvas(values: (number | null)[][], vmin: number, vmax: nu
   return canvas;
 }
 
-export const rampStops = (name: RampName) => (name === "thermal" ? THERMAL : name === "diverging" ? DIVERGING : UNCERTAINTY);
+const STOPS: Record<RampName, string[]> = { thermal: THERMAL, diverging: DIVERGING, uncertainty: UNCERTAINTY, haline: HALINE, speed: SPEED, depth: DEPTH };
+export const rampStops = (name: RampName) => STOPS[name];
+export const rgbCss = (name: RampName, t: number) => {
+  const [r, g, b] = RAMPS[name](t);
+  return `rgb(${r | 0},${g | 0},${b | 0})`;
+};

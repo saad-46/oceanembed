@@ -3,7 +3,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { AlertCircle, CheckCircle2, Download, FileJson, FileSpreadsheet, FileText, Loader2, ShieldCheck, Tornado } from "lucide-react";
 import LocationPicker from "@/components/LocationPicker";
-import { Button, PageHeader, Provenance } from "@/components/ui";
+import { Button, PageHeader, Provenance, type DataKind } from "@/components/ui";
 import { apiUrl, type CycloneTrack, type Meta } from "@/lib/api";
 import { DEFAULT_DATE, DEFAULT_POINT, STANDARD_DEPTHS } from "@/lib/dates";
 import { useApi } from "@/lib/useApi";
@@ -91,7 +91,9 @@ export default function ReportsScreen() {
   const meta = useApi<Meta>("/v1/meta").data;
   const mocha = useApi<{ tracks: CycloneTrack[] }>("/v1/cyclones").data?.tracks.find((t) => t.name.includes("Mocha"));
   const [states, setStates] = useState<Record<string, ExportState>>({});
-  const investigation = `${date}|${lat}|${lon}|${depth}`;
+  const [opt, setOpt] = useState({ stratification: true, surface: true, quality: true });
+  const sections = (Object.keys(opt) as (keyof typeof opt)[]).filter((k) => opt[k]).join(",");
+  const investigation = `${date}|${lat}|${lon}|${depth}|${sections}`;
   const st = (id: string, keyed = true): ExportState => states[keyed ? `${id}|${investigation}` : id] ?? { s: "idle" };
   const tag = `${date}_${lat.toFixed(2)}N_${lon.toFixed(2)}E`;
   const q = `${date}?lat=${lat}&lon=${lon}`;
@@ -118,14 +120,19 @@ export default function ReportsScreen() {
   };
 
   const apiDocs = apiUrl("/docs");
-  const pdfUrl = apiUrl(`/v1/report/${q}&depth=${depth}&format=pdf`);
-  const contents: [string, "reconstructed" | "estimated" | "baseline" | "derived" | "measured"][] = [
+  const pdfUrl = apiUrl(`/v1/report/${q}&depth=${depth}&format=pdf&sections=${sections}`);
+  const contents: [string, DataKind][] = [
     ["Temperature profile, 0–1000 m", "reconstructed"],
     [`Map of the field at ${depth} m around the location`, "reconstructed"],
     ["±σ uncertainty at each depth", "estimated"],
     ["Seasonal climatology for comparison", "baseline"],
     ["MLD, D20, D26 and heat content (TCHP)", "derived"],
     ["Nearest Argo profile, when one is within 100 km and ±3 days", "measured"],
+  ];
+  const optional: { id: keyof typeof opt; label: string; kinds: DataKind[] }[] = [
+    { id: "stratification", label: "Thermocline; halocline, density mixed layer and salinity from the nearest measured profile", kinds: ["derived", "measured"] },
+    { id: "surface", label: "Surface salinity, sea-level anomaly and 10 m wind at the location", kinds: ["satellite"] },
+    { id: "quality", label: "Data-quality status of the datasets used", kinds: [] },
   ];
 
   return (
@@ -167,6 +174,22 @@ export default function ReportsScreen() {
                 </li>
               ))}
             </ul>
+            <fieldset className="mt-3 space-y-1.5">
+              <legend className="text-[12px] text-ink-2 mb-1">Optional sections (included only where the data exist)</legend>
+              {optional.map((o) => (
+                <label key={o.id} className="flex items-start justify-between gap-3 text-[12.5px] text-ink-2 cursor-pointer">
+                  <span className="flex items-start gap-2">
+                    <input type="checkbox" className="mt-0.5 accent-[var(--accent)]" checked={opt[o.id]} onChange={(e) => setOpt({ ...opt, [o.id]: e.target.checked })} />
+                    {o.label}
+                  </span>
+                  <span className="flex gap-2 shrink-0">
+                    {o.kinds.map((k) => (
+                      <Provenance key={k} kind={k} />
+                    ))}
+                  </span>
+                </label>
+              ))}
+            </fieldset>
             <p className="text-[12px] text-ink-3 mt-2">
               Plus investigation metadata, model {meta?.production_model ?? "version"}, data period {meta ? `${meta.period.start} – ${meta.period.end}` : "2019–2023"}, method notes and the validation caveat.
             </p>
@@ -209,10 +232,16 @@ export default function ReportsScreen() {
       <section className="panel px-4 py-2" aria-labelledby="exports">
         <h2 id="exports" className="text-[11px] uppercase tracking-[0.12em] text-ink-3 pt-2">Data exports</h2>
         <ul className="divide-y divide-line">
-          <ExportRow icon={<FileSpreadsheet size={16} />} title="Profile values (CSV)" detail={`Temperature, ±σ, climatology and Argo by depth · ${date} · ${lat.toFixed(2)}°N ${lon.toFixed(2)}°E`}>
+          <ExportRow icon={<FileSpreadsheet size={16} />} title="Profile values (CSV)" detail={`Temperature, ±σ, climatology and Argo by depth, plus labelled single values · ${date} · ${lat.toFixed(2)}°N ${lon.toFixed(2)}°E`}>
             <StateLine st={st("csv")} idle="" />
-            <Button size="sm" variant="secondary" onClick={() => run("csv", apiUrl(`/v1/report/${q}&format=csv`), `oceansight_profile_${tag}.csv`)} disabled={st("csv").s === "busy"} icon={<Download size={13} />}>
+            <Button size="sm" variant="secondary" onClick={() => run("csv", apiUrl(`/v1/report/${q}&format=csv&sections=${sections}`), `oceansight_profile_${tag}.csv`)} disabled={st("csv").s === "busy"} icon={<Download size={13} />}>
               CSV
+            </Button>
+          </ExportRow>
+          <ExportRow icon={<FileJson size={16} />} title="Investigation (JSON)" detail="Every value as a record with unit, depth, date, classification (measured / satellite / reconstructed / derived / estimated / baseline), source and model version">
+            <StateLine st={st("json")} idle="" />
+            <Button size="sm" variant="secondary" onClick={() => run("json", apiUrl(`/v1/report/${q}&depth=${depth}&format=json&sections=${sections}`), `oceansight_investigation_${tag}.json`)} disabled={st("json").s === "busy"} icon={<Download size={13} />}>
+              JSON
             </Button>
           </ExportRow>
           <ExportRow icon={<ShieldCheck size={16} />} title="Validation metrics (JSON)" detail="Per-depth RMSE, bias, correlation and skill against held-out 2023 Argo; uncertainty calibration">

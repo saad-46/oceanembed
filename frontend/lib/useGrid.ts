@@ -3,10 +3,14 @@ import { useEffect, useState } from "react";
 import { friendlyError, get, type Fetched, type GridResponse } from "./api";
 import { addDays } from "./dates";
 
-export type LayerVar = "temp" | "uncertainty" | "anomaly" | "tchp" | "mld" | "d20" | "d26";
-export const PRODUCT_VARS: LayerVar[] = ["tchp", "mld", "d20", "d26"];
+export type LayerVar = "temp" | "uncertainty" | "anomaly" | "tchp" | "mld" | "d20" | "d26" | "salinity" | "sla" | "wind";
+/** Column or surface layers: no depth selection. */
+export const PRODUCT_VARS: LayerVar[] = ["tchp", "mld", "d20", "d26", "sla", "wind"];
 
 export function gridPath(date: string, depth: number, v: LayerVar) {
+  if (v === "salinity") return `/v1/salinity/${date}?depth=${depth}`;
+  if (v === "sla") return `/v1/surface/${date}?variable=sla`;
+  if (v === "wind") return `/v1/surface/${date}?variable=wind_speed`;
   return PRODUCT_VARS.includes(v) ? `/v1/grid/${date}/product?product=${v}` : `/v1/grid/${date}?depth=${depth}&variable=${v}`;
 }
 
@@ -31,11 +35,12 @@ function rangeFor(g: GridResponse, depth: number, v: LayerVar): [number, number]
   let r = lockedRanges.get(key);
   if (!r) {
     const { min, max } = g.stats;
-    if (v === "anomaly") {
+    if (v === "anomaly" || v === "sla") {
       const m = Math.max(0.5, Math.ceil(Math.max(Math.abs(min), Math.abs(max)) * 2) / 2);
       r = [-m, m];
     } else if (v === "uncertainty") r = [0, Math.max(0.2, Math.ceil(max * 10) / 10)];
     else if (v === "tchp") r = [0, Math.max(50, Math.ceil(max / 10) * 10)];
+    else if (v === "wind") r = [0, Math.max(5, Math.ceil(max))];
     else r = [Math.floor(min), Math.ceil(max)];
     lockedRanges.set(key, r);
   }

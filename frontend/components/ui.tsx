@@ -116,21 +116,58 @@ export function DataBadge({ fallback }: { label?: string; fallback?: boolean }) 
 
 const PROV = {
   measured: { dot: "bg-good", label: "Measured" },
+  satellite: { dot: "bg-[#7fb8ff]", label: "Satellite" },
+  reanalysis: { dot: "bg-[#b49cf5]", label: "Reanalysis" },
   reconstructed: { dot: "bg-accent", label: "Reconstructed" },
   derived: { dot: "bg-ink-2", label: "Derived" },
   estimated: { dot: "bg-warn", label: "Estimated" },
+  forecast: { dot: "bg-[#f08a5d]", label: "Forecast" },
   baseline: { dot: "bg-warn", label: "Baseline" },
 } as const;
 
-/** Compact provenance line: "● Reconstructed · OceanSight U-Net". */
-export function Provenance({ kind, source, className = "" }: { kind: DataKind; source?: ReactNode; className?: string }) {
+export const KIND_LABEL: Record<DataKind, string> = Object.fromEntries(Object.entries(PROV).map(([k, v]) => [k, v.label])) as Record<DataKind, string>;
+
+/**
+ * Compact provenance line: "● Reconstructed · OceanSight U-Net". With `lineage`, the label links to the
+ * variable's row in the Data Sources & Lineage workspace ("how this value was produced").
+ */
+export function Provenance({ kind, source, className = "", lineage }: { kind: DataKind; source?: ReactNode; className?: string; lineage?: string | null }) {
   const p = PROV[kind];
   return (
     <span className={`inline-flex items-center gap-1.5 text-[11.5px] text-ink-2 ${className}`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${p.dot}`} aria-hidden />
-      <span className="text-ink">{p.label}</span>
+      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${p.dot}`} aria-hidden />
+      {lineage ? (
+        <Link href={`/provenance#${lineage}`} className="text-ink underline decoration-dotted decoration-ink-3 underline-offset-2 hover:text-accent" title="How this value was produced">
+          {p.label}
+        </Link>
+      ) : (
+        <span className="text-ink">{p.label}</span>
+      )}
       {source && <span className="text-ink-3">· {source}</span>}
     </span>
+  );
+}
+
+/** Quality flag from the analysis endpoints (good / limited / insufficient), never colour alone. */
+export function QualityBadge({ quality, className = "" }: { quality: "good" | "limited" | "insufficient" | null | undefined; className?: string }) {
+  if (!quality) return <Badge className={className}>n/a</Badge>;
+  const tone = quality === "good" ? "good" : quality === "limited" ? "warn" : "bad";
+  const icon = quality === "good" ? "✓" : quality === "limited" ? "!" : "×";
+  return (
+    <Badge tone={tone} className={className}>
+      <span aria-hidden>{icon}</span> {quality}
+    </Badge>
+  );
+}
+
+/** Calm "not available" block for optional data (never an error colour). */
+export function UnavailableState({ title, detail, action }: { title: string; detail: string; action?: ReactNode }) {
+  return (
+    <div role="status" className="border border-line-2 border-dashed rounded-[var(--radius)] px-3.5 py-3 text-sm bg-white/[0.015]">
+      <div className="text-ink">{title}</div>
+      <div className="text-xs text-ink-2 mt-0.5 leading-relaxed">{detail}</div>
+      {action && <div className="mt-2">{action}</div>}
+    </div>
   );
 }
 
@@ -249,9 +286,9 @@ export function Badge({ children, tone = "neutral", className = "" }: { children
 }
 
 /** Evidence-type label so measured / reconstructed / derived values are never confused. */
-export type DataKind = "measured" | "reconstructed" | "derived" | "estimated" | "baseline";
+export type DataKind = "measured" | "satellite" | "reanalysis" | "reconstructed" | "derived" | "estimated" | "forecast" | "baseline";
 export function KindBadge({ kind }: { kind: DataKind }) {
-  const map = { measured: ["good", "Measured"], reconstructed: ["accent", "Reconstructed"], derived: ["neutral", "Derived"], estimated: ["warn", "Estimated"], baseline: ["warn", "Baseline"] } as const;
+  const map = { measured: ["good", "Measured"], satellite: ["neutral", "Satellite"], reanalysis: ["neutral", "Reanalysis"], reconstructed: ["accent", "Reconstructed"], derived: ["neutral", "Derived"], estimated: ["warn", "Estimated"], forecast: ["warn", "Forecast"], baseline: ["warn", "Baseline"] } as const;
   const [tone, label] = map[kind];
   return <Badge tone={tone}>{label}</Badge>;
 }

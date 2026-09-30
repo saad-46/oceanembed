@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ReactNode, Suspense, useState } from "react";
-import { BarChart3, BookOpen, FileText, History, Map as MapIcon, Menu, ScanLine, ShieldCheck, Sparkles, Waves, X } from "lucide-react";
+import { BarChart3, BookOpen, Box, ClipboardCheck, Droplets, FileText, GitBranch, History, Layers, Map as MapIcon, Menu, ScanLine, ShieldCheck, Sparkles, Waves, X } from "lucide-react";
 import GuideLayer from "@/components/guide/GuideLayer";
 import HelpMenu from "@/components/guide/HelpMenu";
 import OnboardingPrompt from "@/components/guide/OnboardingPrompt";
@@ -12,15 +12,30 @@ import { Logo, StatusDot } from "./ui";
 
 /** Navigation by task: what users come to OceanSight to do. */
 export const NAV_GROUPS = [
-  { label: "Explore", items: [{ href: "/map", label: "Ocean map", icon: MapIcon }] },
+  {
+    label: "Explore",
+    items: [
+      { href: "/map", label: "Ocean map", icon: MapIcon },
+      { href: "/3d", label: "3-D ocean", icon: Box },
+    ],
+  },
   {
     label: "Analyze",
     items: [
       { href: "/profiles", label: "Profile", icon: Waves },
       { href: "/timeline", label: "Timeline", icon: History },
       { href: "/section", label: "Section", icon: ScanLine },
+      { href: "/stratification", label: "Stratification", icon: Layers },
+      { href: "/ts", label: "T-S analysis", icon: Droplets },
       { href: "/analysis", label: "Events & regions", icon: BarChart3 },
       { href: "/insights", label: "Daily summary", icon: Sparkles },
+    ],
+  },
+  {
+    label: "Data",
+    items: [
+      { href: "/data-quality", label: "Data quality", icon: ClipboardCheck },
+      { href: "/provenance", label: "Sources & lineage", icon: GitBranch },
     ],
   },
   { label: "Validate", items: [{ href: "/validation", label: "Evidence", icon: ShieldCheck }] },

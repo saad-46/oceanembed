@@ -53,7 +53,7 @@ describe("product language", () => {
 
 describe("information architecture", () => {
   it("navigation is organised by task", () => {
-    expect(NAV_GROUPS.map((g) => g.label)).toEqual(["Explore", "Analyze", "Validate", "Report", "Learn"]);
+    expect(NAV_GROUPS.map((g) => g.label)).toEqual(["Explore", "Analyze", "Data", "Validate", "Report", "Learn"]);
   });
   it("every navigation entry is a real page", () => {
     for (const n of NAV) expect(existsSync(join(root, "app", "(app)", n.href.slice(1), "page.tsx")), n.href).toBe(true);

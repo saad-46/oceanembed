@@ -82,6 +82,63 @@ export const GUIDE_STEPS: GuideStep[] = [
 ];
 
 export const N_GUIDE = GUIDE_STEPS.length;
+
+/**
+ * Optional advanced track, offered after the core exploration is complete. Each step opens a real
+ * screen; a step whose data this deployment cannot serve is left out (``requires``).
+ */
+export interface AdvancedStep extends GuideStep {
+  requires?: "argo_salinity";
+}
+export const ADVANCED_STEPS: AdvancedStep[] = [
+  {
+    id: "stratification",
+    title: "Inspect stratification",
+    body: "Where does temperature fall fastest with depth? The thermocline comes from the reconstructed profile's vertical gradient, and is shown next to the mixed layer and the 20 °C / 26 °C depths — four different diagnostics.",
+    path: `/stratification?${P}&date=${REF_DATE}`,
+    target: "stratification-charts",
+  },
+  {
+    id: "ts",
+    title: "Compare temperature and salinity",
+    body: "The T-S diagram plots the nearest measured Argo profile, one point per depth, with density contours computed using TEOS-10. OceanSight does not reconstruct salinity, so these points are measurements.",
+    path: `/ts?${P}&date=${REF_DATE}`,
+    target: "ts-diagram",
+    requires: "argo_salinity",
+  },
+  {
+    id: "quality",
+    title: "Check data quality",
+    body: "How complete are the inputs and observations? These statistics come from the pipeline's own quality-control records: gap-filling, rejected values, depth and spatial coverage.",
+    path: "/data-quality",
+    target: "data-quality",
+  },
+  {
+    id: "provenance",
+    title: "Trace data provenance",
+    body: "Every variable is classified — measured, satellite, reanalysis, reconstructed, derived, estimated, forecast — with its source and the chain of processing that produced it.",
+    path: "/provenance",
+    target: "lineage-table",
+  },
+];
+
+/** Advanced steps this deployment can serve (layer statuses from /v1/meta; unknown = assume available). */
+export function advancedSteps(layers?: Record<string, { status: string }> | null): AdvancedStep[] {
+  return ADVANCED_STEPS.filter((s) => !s.requires || !layers || (layers[s.requires] && layers[s.requires].status !== "unavailable"));
+}
+
+/** `guide=a1…` addresses the advanced track (1-based). */
+export function parseAdvanced(raw: string | null | undefined, n = ADVANCED_STEPS.length): number | null {
+  const m = /^a(\d+)$/.exec(raw ?? "");
+  const k = m ? Number(m[1]) : NaN;
+  return Number.isInteger(k) && k >= 1 && k <= n ? k - 1 : null;
+}
+
+export function advancedHref(steps: AdvancedStep[], i: number): string {
+  const k = Math.min(steps.length - 1, Math.max(0, i));
+  const p = steps[k].path;
+  return `${p}${p.includes("?") ? "&" : "?"}guide=a${k + 1}`;
+}
 export const GUIDE_STATUS_KEY = "oceansight.guide.status.v1";
 export const GUIDE_STEP_KEY = "oceansight.guide.step.v1";
 export type GuideStatus = "completed" | "skipped" | "dismissed";

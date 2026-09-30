@@ -16,6 +16,11 @@ export const SCREEN_HELP: Record<string, { title: string; body: string; tips: st
   "/insights": { title: "Daily summary", body: "Summaries computed from the reconstruction for one date, and a look at the model's internal representation.", tips: ["Change the date to recompute every summary."] },
   "/reports": { title: "Reports", body: "Turn an investigation into a document: choose the location, date and depth, then generate a PDF or export the numbers.", tips: ["Reports include provenance, uncertainty, observations and model version."] },
   "/methodology": { title: "Methodology", body: "How OceanSight works: data, processing, reconstruction, derived products, validation, limitations and version.", tips: [] },
+  "/stratification": { title: "Stratification", body: "Where temperature and salinity change fastest with depth at one point: the thermocline from the reconstruction, and the thermocline, halocline and density mixed layer from the nearest measured Argo profile.", tips: ["MLD, thermocline, D20 and D26 are different diagnostics and need not coincide.", "Quality flags say when the vertical resolution or a weak gradient limits the answer.", "Salinity is never reconstructed: it comes from measured profiles or the optional reanalysis."] },
+  "/ts": { title: "T-S analysis", body: "Temperature against salinity for every depth of the nearest measured profile, with density contours computed using TEOS-10.", tips: ["Each point is one 5 m depth bin, coloured by depth.", "Hover or use the arrow keys to read values; the data table lists every point."] },
+  "/3d": { title: "3-D ocean", body: "A downsampled point cloud of the reconstruction for orientation: latitude, longitude and depth. Use the section and profile views for exact values.", tips: ["Drag to rotate, scroll to zoom, click a point to open its water column.", "Depth is stretched; the exaggeration slider changes it."] },
+  "/data-quality": { title: "Data quality", body: "Completeness and quality control of the inputs and observations, computed from the pipeline's own QC records.", tips: ["Status thresholds are listed at the bottom of the page."] },
+  "/provenance": { title: "Data sources & lineage", body: "Every variable with its classification, source, resolution, coverage, processing and where it is shown.", tips: ["Open 'How this value was produced' for the full chain from source to screen."] },
 };
 
 export default function HelpMenu() {
@@ -82,7 +87,7 @@ export default function HelpMenu() {
           <div className="mt-3 pt-3 border-t border-line grid gap-1.5">
             <Link href={stepHref(0)} className="flex items-center gap-2 text-[13px] text-ink hover:text-accent">
               <Compass size={14} className="text-accent" aria-hidden /> Guided Exploration
-              <span className="text-[11.5px] text-ink-3">· 8 short steps over the real app</span>
+              <span className="text-[11.5px] text-ink-3">· 8 short steps over the real app, plus optional advanced steps</span>
             </Link>
             <Link href="/methodology" className="flex items-center gap-2 text-[13px] text-ink hover:text-accent">
               <BookOpen size={14} className="text-accent" aria-hidden /> Methodology &amp; data sources

@@ -3,7 +3,9 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Check, ChevronLeft, ChevronRight, Compass, RotateCcw, X } from "lucide-react";
-import { GUIDE_STEPS, GUIDE_STEP_KEY, N_GUIDE, panelCorner, parseGuide, stepDone, stepHref, writeGuideStatus } from "@/lib/guide";
+import type { Meta } from "@/lib/api";
+import { GUIDE_STEPS, GUIDE_STEP_KEY, N_GUIDE, advancedHref, advancedSteps, panelCorner, parseAdvanced, parseGuide, stepDone, stepHref, writeGuideStatus } from "@/lib/guide";
+import { useApi } from "@/lib/useApi";
 
 type GuideState = number | "done" | null;
 
@@ -55,15 +57,21 @@ export default function GuideLayer() {
   }, [fromUrl]);
   const state: GuideState = fromUrl ?? stored;
   const step = typeof state === "number" ? GUIDE_STEPS[state] : null;
+  // optional advanced track (guide=a1…), offered from the completion panel; steps need their data
+  const layers = useApi<Meta>(state === "done" || sp.get("guide")?.startsWith("a") ? "/v1/meta" : null).data?.layers;
+  const adv = advancedSteps(layers);
+  const advIdx = parseAdvanced(sp.get("guide"), adv.length);
+  const advStep = advIdx !== null ? adv[advIdx] : null;
+  const target = advStep?.target ?? step?.target ?? null;
   useEffect(() => {
     if (pending.current === state) pending.current = null;
   }, [state]);
 
   // follow the highlighted element as layouts settle, panels open and the page scrolls
   useEffect(() => {
-    if (!step) return;
+    if (!target) return;
     const measure = () => {
-      const el = document.querySelector<HTMLElement>(`[data-guide="${step.target}"]`);
+      const el = document.querySelector<HTMLElement>(`[data-guide="${target}"]`);
       setRect(el ? el.getBoundingClientRect() : null);
       setVw(window.innerWidth);
       setVh(window.innerHeight);
@@ -77,7 +85,7 @@ export default function GuideLayer() {
       window.removeEventListener("resize", measure);
       window.removeEventListener("scroll", measure, true);
     };
-  }, [step, path]);
+  }, [target, path]);
 
   const go = (i: number) => {
     pending.current = i;
@@ -92,7 +100,7 @@ export default function GuideLayer() {
     p.set("guide", "done");
     router.replace(`${path}?${p.toString()}`, { scroll: false });
   };
-  const exit = (status: "completed" | "skipped") => {
+  function exit(status: "completed" | "skipped") {
     writeGuideStatus(status);
     writeSession(null);
     setStored(null);
@@ -100,7 +108,7 @@ export default function GuideLayer() {
     p.delete("guide");
     const q = p.toString();
     router.replace(q ? `${path}?${q}` : path, { scroll: false });
-  };
+  }
 
   useEffect(() => {
     if (typeof state !== "number") return;
@@ -124,9 +132,55 @@ export default function GuideLayer() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);
 
+  const mobile = vw < 640;
+  if (advStep && advIdx !== null) {
+    const onScreenA = path === advStep.path.split("?")[0];
+    const posA = mobile ? "left-2 right-2 bottom-2" : { br: "right-4 bottom-4", bl: "left-4 bottom-4 lg:left-64", tr: "right-4 top-[72px]" }[panelCorner(rect, vw, vh)];
+    return (
+      <>
+        {rect && onScreenA && (
+          <div aria-hidden className={`fixed z-[55] pointer-events-none rounded-xl ${reduced ? "" : "guide-ring"}`} style={{ left: rect.left - 4, top: rect.top - 4, width: rect.width + 8, height: rect.height + 8, boxShadow: "0 0 0 2px var(--accent), 0 0 0 6px rgba(46,197,216,.18)" }} />
+        )}
+        <div role="region" aria-label={`Advanced analysis, step ${advIdx + 1} of ${adv.length}`} className={`fixed z-[60] ${posA} w-auto sm:w-[380px] glass glass-strong p-4 fade-in`}>
+          <div className="flex items-center justify-between gap-2">
+            <div className="text-[11px] uppercase tracking-wider text-ink-3 flex items-center gap-1.5">
+              <Compass size={12} className="text-accent" aria-hidden /> Advanced analysis · <span className="num">{advIdx + 1} of {adv.length}</span>
+            </div>
+            <button onClick={() => exit("completed")} aria-label="Exit advanced analysis" className="text-ink-3 hover:text-ink">
+              <X size={15} />
+            </button>
+          </div>
+          <h2 className="font-display text-[17px] text-ink mt-1.5" aria-live="polite">
+            {advStep.title}
+          </h2>
+          <p className="text-[13px] text-ink-2 mt-1 leading-relaxed">{advStep.body}</p>
+          {!onScreenA && (
+            <button onClick={() => router.push(advancedHref(adv, advIdx))} className="text-[12.5px] text-accent hover:underline mt-2">
+              Return to this step&apos;s screen
+            </button>
+          )}
+          <div className="mt-3 flex items-center gap-2">
+            <button onClick={() => (advIdx === 0 ? finish() : router.push(advancedHref(adv, advIdx - 1)))} className="inline-flex items-center gap-1 rounded-lg border border-line px-2.5 py-1.5 text-sm text-ink-2 hover:text-ink">
+              <ChevronLeft size={15} /> Back
+            </button>
+            <div className="flex-1" />
+            {advIdx < adv.length - 1 ? (
+              <button onClick={() => router.push(advancedHref(adv, advIdx + 1))} className="inline-flex items-center gap-1 rounded-lg bg-accent text-[#04121c] font-semibold px-3 py-1.5 text-sm hover:brightness-110">
+                Continue <ChevronRight size={15} />
+              </button>
+            ) : (
+              <button onClick={() => exit("completed")} className="rounded-lg bg-accent text-[#04121c] font-semibold px-3 py-1.5 text-sm hover:brightness-110">
+                Finish
+              </button>
+            )}
+          </div>
+        </div>
+      </>
+    );
+  }
+
   if (state === null) return null;
 
-  const mobile = vw < 640;
   const corner = mobile ? "br" : panelCorner(rect, vw, vh);
   const pos = mobile ? "left-2 right-2 bottom-2" : corner === "br" ? "right-4 bottom-4" : corner === "bl" ? "left-4 bottom-4 lg:left-64" : "right-4 top-[72px]";
 
@@ -156,6 +210,11 @@ export default function GuideLayer() {
             <RotateCcw size={13} /> Replay
           </button>
         </div>
+        {adv.length > 0 && (
+          <button onClick={() => router.push(advancedHref(adv, 0))} className="mt-2.5 text-[12.5px] text-accent hover:underline text-left">
+            Optional: {adv.length} advanced steps — stratification{adv.some((a) => a.id === "ts") ? ", temperature–salinity" : ""}, data quality and provenance →
+          </button>
+        )}
       </div>
     );
 

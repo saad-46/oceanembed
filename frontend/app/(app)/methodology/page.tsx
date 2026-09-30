@@ -10,6 +10,9 @@ const TOC = [
   ["processing", "Processing"],
   ["reconstruction", "Reconstruction"],
   ["derived", "Derived products"],
+  ["stratification", "Stratification & salinity"],
+  ["forecast", "Short-horizon estimate"],
+  ["data-lineage", "Data quality & lineage"],
   ["validation", "Validation"],
   ["limitations", "Limitations"],
   ["version", "Version"],
@@ -25,6 +28,7 @@ const DATA = [
   ["Temperature profiles", "Argo GDAC (QC flags 1/2), via argopy", "Argo programme", "profiles", "validation, map overlay"],
   ["Gridded subsurface", "Met Office EN4", "Met Office Hadley Centre", "1° monthly", "independent cross-check"],
   ["Cyclone tracks", "IBTrACS v04r01 (North Indian)", "NOAA NCEI", "6-hourly", "event context"],
+  ["Subsurface salinity (optional)", "GLORYS12V1 reanalysis", "Copernicus Marine Service", "1/12° → 0.25°", "salinity map below 0 m, halocline, T-S (only when configured)"],
 ];
 
 function H({ id, n, children }: { id: string; n: number; children: React.ReactNode }) {
@@ -146,7 +150,63 @@ export default function Methodology() {
         </section>
 
         <section className="space-y-3">
-          <H id="validation" n={5}>
+          <H id="stratification" n={5}>
+            Stratification &amp; salinity
+          </H>
+          <ul className="list-disc pl-5 space-y-1.5">
+            <li>
+              <strong className="text-ink">Thermocline</strong> (derived): the layer with the most negative vertical gradient dT/dz between consecutive valid levels of the reconstructed profile,
+              below the mixed layer and above the chosen analysis depth. It is reported at the layer mid-point with the layer bounds as resolution — below 200 m the standard depths are
+              100–300 m apart, so the depth is only coarsely known there. Weak, coarse, edge-of-range or ambiguous maxima are flagged <em>limited</em>; no maximum above 0.02 °C/m is
+              reported as <em>insufficient</em>. D20 is an isotherm proxy and need not coincide with the gradient maximum.
+            </li>
+            <li>
+              <strong className="text-ink">Salinity is not reconstructed.</strong> Surface salinity is the satellite SMAP/SMOS input; salinity profiles come from the nearest measured Argo
+              profile (within 100 km and ±3 days), or from the optional GLORYS12V1 reanalysis when Copernicus Marine credentials are configured and the store is precomputed.
+            </li>
+            <li>
+              Argo profiles pass QC flags 1/2 at the data server; the salinity views additionally apply the Argo real-time global-range and spike tests and average into 5 m bins, so
+              instrument noise is not read as a gradient.
+            </li>
+            <li>
+              <strong className="text-ink">Halocline</strong>: largest |dS/dz| of the measured (or reanalysis) salinity profile, with the same quality flags. <strong className="text-ink">T-S diagram</strong>:
+              TEOS-10 via <code>gsw</code> — pressure from depth, Absolute Salinity, potential temperature and σ0; isopycnals are drawn in the same coordinates. Density mixed layer
+              and barrier layer use the de Boyer Montégut et al. (2004) thresholds (0.03 kg/m³, 0.2 °C).
+            </li>
+          </ul>
+        </section>
+
+        <section className="space-y-3">
+          <H id="forecast" n={6}>
+            Short-horizon estimate
+          </H>
+          <p>
+            The T+1 / T+2 day estimate on the Timeline is <strong className="text-ink">not a trained forecast model</strong>. It extrapolates OceanSight&apos;s own reconstructed daily series at one
+            cell, using only days up to the issue date: either a least-squares trend over the last 7 days, or persistence. Its error is estimated by re-running the same method over the
+            preceding 60 days at that cell (hindcast RMSE against the reconstruction), combined in quadrature with the reconstruction&apos;s calibrated σ. With too little history the
+            service returns <code>insufficient_forecast_history</code> instead of a number.
+          </p>
+        </section>
+
+        <section className="space-y-3">
+          <H id="data-lineage" n={7}>
+            Data quality &amp; lineage
+          </H>
+          <p>
+            Every value is classified as measured, satellite, reanalysis, reconstructed, derived, estimated, forecast or baseline. The{" "}
+            <Link href="/data-quality" className="text-accent hover:underline">
+              data-quality workspace
+            </Link>{" "}
+            reports the pipeline&apos;s own QC records (gap-filling, rejected values, coverage), and{" "}
+            <Link href="/provenance" className="text-accent hover:underline">
+              sources &amp; lineage
+            </Link>{" "}
+            traces each variable from source to screen.
+          </p>
+        </section>
+
+        <section className="space-y-3">
+          <H id="validation" n={8}>
             Validation
           </H>
           <ul className="list-disc pl-5 space-y-1.5">
@@ -163,12 +223,13 @@ export default function Methodology() {
         </section>
 
         <section className="space-y-3">
-          <H id="limitations" n={6}>
+          <H id="limitations" n={9}>
             Limitations
           </H>
           <ul className="list-disc pl-5 space-y-1.5">
             <li>The training target assimilates Argo. Held-out floats are independent of OceanSight&apos;s training but not fully independent of that product.</li>
-            <li>OceanSight reconstructs 2019–2023; it is not a forecast and skill outside this period and region is not established.</li>
+            <li>OceanSight reconstructs 2019–2023; skill outside this period and region is not established. The optional T+1/T+2 estimate is a statistical extrapolation within the record, not a forecast model.</li>
+            <li>Salinity is never reconstructed: subsurface salinity comes from measured profiles or, when configured, a reanalysis; the thermocline on standard depths is only as precise as their spacing.</li>
             <li>Values are 0.25° cell averages; comparisons with point measurements include representativeness error.</li>
             <li>Removing satellite salinity does not measurably change skill in this version; the barrier-layer indicator is therefore shown as an estimate only.</li>
             <li>Cyclone views describe the ocean along observed tracks; they do not predict storm intensity or establish cause and effect.</li>
@@ -176,7 +237,7 @@ export default function Methodology() {
         </section>
 
         <section className="space-y-3">
-          <H id="version" n={7}>
+          <H id="version" n={10}>
             Version
           </H>
           <ModelVersion />
