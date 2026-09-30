@@ -21,6 +21,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
+from ml.qc_rules import TARGET_MASK_MIN_VALID
 from ml.config import (INPUT_VARS, LATS, LONS, PROCESSED_DIR, STANDARD_DEPTHS, TEST_YEARS, TRAIN_YEARS,
                        VAL_YEARS)
 
@@ -93,7 +94,7 @@ def assemble() -> dict:
 
     ocean2d = inputs["ocean_mask"].values
     valid_frac = np.isfinite(temp).mean(axis=0)
-    mask3d = (valid_frac >= 0.9) & ocean2d[None]
+    mask3d = (valid_frac >= TARGET_MASK_MIN_VALID) & ocean2d[None]
     temp = np.where(mask3d[None], temp, np.nan).astype(np.float32)
 
     train = np.array([split_of_year(y) == "train" for y in times.year])

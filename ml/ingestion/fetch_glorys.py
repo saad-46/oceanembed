@@ -146,3 +146,58 @@ class GlorysTarget(TargetAdapter):
 def get_adapter() -> TargetAdapter:
     g = GlorysTarget()
     return g if g.available() else HycomTarget()
+
+
+# ---------------------------------------------------------------- optional subsurface salinity
+# Salinity is *not* reconstructed by OceanSight. When Copernicus Marine credentials exist, the
+# GLORYS12V1 reanalysis salinity (and its potential temperature, for a consistent T-S pair) can be
+# precomputed onto the standard grid; the API then serves it labelled "reanalysis". The API never
+# downloads it during a request.
+SALINITY_STORE = "salinity.zarr"
+SO_ENC = {"dtype": "int16", "scale_factor": 0.002, "add_offset": 35.0, "_FillValue": -32768}
+TH_ENC = {"dtype": "int16", "scale_factor": 0.01, "_FillValue": -32768}
+
+
+class GlorysSalinity(CopernicusMarineAdapter):
+    provenance = cmems_provenance("salinity", "GLORYS12V1 reanalysis (practical salinity, potential temperature)",
+                                  "cmems_mod_glo_phy_my_0.083deg_P1D-m", "GLOBAL_MULTIYEAR_PHY_001_030",
+                                  "1/12 deg x 50 levels, daily mean")
+    variables = ("so", "thetao")
+    depth_range = (0.0, 1100.0)
+
+
+def standardise_ts(ds: xr.Dataset, day: date, prov: Provenance) -> xr.Dataset:
+    """Native GLORYS so/thetao for one day -> (15, 100, 240) on the standard depths / 0.25 deg grid."""
+    depth, lat, lon = ds["depth"].values, ds["lat"].values, ds["lon"].values
+    out = {v: to_standard_grid(ds[v].values[0], depth, lat, lon)[None].astype(np.float32) for v in ("so", "thetao")}
+    res = xr.Dataset({v: (("time", "depth", "lat", "lon"), a) for v, a in out.items()},
+                     coords={"time": [np.datetime64(day, "ns")], "depth": STANDARD_DEPTHS, "lat": LATS, "lon": LONS})
+    res["so"].attrs.update(units="1e-3 (PSS-78 practical salinity)", long_name="practical salinity")
+    res["thetao"].attrs.update(units="degC", long_name="potential temperature (0 dbar)")
+    res.attrs.update(prov.as_attrs())
+    return res
+
+
+def build_salinity(days: list[date], out_dir) -> int:
+    """Fetch + standardise each day (cached), then write ``processed/salinity.zarr``. Needs credentials."""
+    adapter = GlorysSalinity()
+    adapter.ensure_available()
+    std_dir = adapter.cache_dir / "std"
+    std_dir.mkdir(parents=True, exist_ok=True)
+    ok = []
+    for d in days:
+        p = std_dir / f"{d:%Y-%m-%d}.nc"
+        if not p.exists():
+            try:
+                standardise_ts(adapter.fetch(d, d), d, adapter.provenance).to_netcdf(p)
+            except Exception as e:  # a missing day is logged, not fatal
+                log.error("salinity %s failed: %s", d, e)
+                continue
+        ok.append(p)
+    if not ok:
+        return 0
+    ds = xr.concat([xr.open_dataset(p).load() for p in ok], "time").sortby("time")
+    ds.to_zarr(out_dir / SALINITY_STORE, mode="w",
+               encoding={"so": {**SO_ENC, "chunks": (1, 15, 100, 240)}, "thetao": {**TH_ENC, "chunks": (1, 15, 100, 240)}})
+    log.info("wrote %s: %d days", out_dir / SALINITY_STORE, len(ok))
+    return len(ok)

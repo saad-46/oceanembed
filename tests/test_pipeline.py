@@ -164,3 +164,49 @@ def test_per_depth_metrics_values():
     assert len(rows) == 15
     assert all(abs(r["bias_c"] - 0.5) < 1e-9 and abs(r["rmse_c"] - 0.5) < 1e-9 for r in rows)
     assert all(r["skill_vs_climatology"] == pytest.approx(1 - 0.25 / 4.0) for r in rows)
+
+
+def test_argo_salinity_qc_flags_screen_only_salinity():
+    import pandas as pd
+    from ml.ingestion.fetch_argo import apply_psal_qc
+
+    df = pd.DataFrame({"TEMP": [29.0, 28.0, 27.0], "PSAL": [33.0, 33.5, 34.0], "PSAL_QC": [1, 4, "2"]})
+    out = apply_psal_qc(df)
+    assert out["PSAL"].isna().tolist() == [False, True, False] and out["TEMP"].notna().all()
+    assert "PSAL_QC" not in out
+
+
+def test_argo_profile_counts_recorded():
+    import pandas as pd
+    from ml.ingestion.fetch_argo import points_to_profiles
+
+    good = {"PLATFORM_NUMBER": 1, "CYCLE_NUMBER": 1, "TIME": pd.Timestamp("2023-05-11"), "LATITUDE": 15.0,
+            "LONGITUDE": 88.0, "TEMP": 25.0, "PSAL": 34.0, "DATA_MODE": "D"}
+    rows = [{**good, "PRES": p, "TEMP": 29 - p / 50} for p in (5.0, 10.0, 20.0, 50.0, 100.0)]
+    rows += [{**good, "CYCLE_NUMBER": 2, "PRES": p} for p in (1500.0, 1600.0, 1700.0)]  # resolves no standard depth
+    counts = {}
+    prof = points_to_profiles(pd.DataFrame(rows), counts)
+    assert len(prof) == 1 and counts == {"n_profiles_received": 2, "n_dropped_no_standard_depth": 1}
+
+
+def test_glorys_salinity_standardisation_and_credentials_guard(monkeypatch):
+    from datetime import date
+
+    import xarray as xr
+    from ml.ingestion.base import CredentialsMissing
+    from ml.ingestion.fetch_glorys import GlorysSalinity, build_salinity, standardise_ts
+
+    depth = np.array([0.5, 10.0, 50.0, 100.0, 500.0, 1100.0])
+    lat = np.arange(4.5, 30.6, 1 / 12)
+    lon = np.arange(44.5, 105.6, 1 / 12)
+    so = np.broadcast_to(np.interp(depth, [0, 100, 1100], [32.0, 35.0, 35.0])[:, None, None], (6, lat.size, lon.size))
+    ds = xr.Dataset({"so": (("time", "depth", "lat", "lon"), so[None]), "thetao": (("time", "depth", "lat", "lon"), (30 - so)[None])},
+                    coords={"time": [np.datetime64("2023-05-11")], "depth": depth, "lat": lat, "lon": lon})
+    out = standardise_ts(ds, date(2023, 5, 11), GlorysSalinity.provenance)
+    assert out["so"].shape == (1, 15, 100, 240)
+    assert float(out["so"].sel(depth=50.0).mean()) == pytest.approx(33.5, abs=0.02)
+    assert out.attrs["prov_requires_credentials"] == "True"
+    for k in ("COPERNICUSMARINE_SERVICE_USERNAME", "COPERNICUSMARINE_SERVICE_PASSWORD", "COPERNICUS_MARINE_USERNAME", "COPERNICUS_MARINE_PASSWORD"):
+        monkeypatch.delenv(k, raising=False)
+    with pytest.raises(CredentialsMissing):
+        build_salinity([date(2023, 5, 11)], None)

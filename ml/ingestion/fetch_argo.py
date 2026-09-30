@@ -15,6 +15,7 @@ scored as "independent" (docs/10 section 3).
 from __future__ import annotations
 
 import io
+import json
 import logging
 from datetime import date
 
@@ -26,6 +27,7 @@ from ml.config import (LAT_MAX, LAT_MIN, LON_MAX, LON_MIN, PROCESSED_DIR, RAW_DI
                        TEST_YEARS, TRAIN_YEARS, VAL_YEARS)
 from ml.ingestion.base import Provenance
 from ml.ingestion.erddap import month_chunks
+from ml.qc_rules import ARGO_ACCEPTED_QC_FLAGS, ARGO_MIN_LEVELS, ARGO_SURFACE_MAX_OFFSET_M, MAX_BRACKET_GAP
 
 log = logging.getLogger("oceanembed.ingestion.argo")
 
@@ -34,8 +36,6 @@ PROVENANCE = Provenance(
     dataset_id="ArgoFloats", url="https://argopy.readthedocs.io/", license="Argo data policy: free and unrestricted",
     native_resolution="point profiles", requires_credentials=False,
 )
-# Largest allowed distance between the two measurements bracketing a standard depth.
-MAX_BRACKET_GAP = {0: 10, 50: 25, 100: 50, 300: 100, 700: 200, 1000: 250}
 
 
 def pres_to_depth(pres: np.ndarray, lat: float) -> np.ndarray:
@@ -58,13 +58,13 @@ def to_standard_depths(depth: np.ndarray, temp: np.ndarray) -> np.ndarray:
     ok = np.isfinite(depth) & np.isfinite(temp)
     depth, temp = depth[ok], temp[ok]
     out = np.full(STANDARD_DEPTHS.size, np.nan, dtype=np.float32)
-    if depth.size < 3:
+    if depth.size < ARGO_MIN_LEVELS:
         return out
     order = np.argsort(depth)
     depth, temp = depth[order], temp[order]
     for k, z in enumerate(STANDARD_DEPTHS):
         if z < depth[0]:
-            if depth[0] - z <= 6.0:
+            if depth[0] - z <= ARGO_SURFACE_MAX_OFFSET_M:
                 out[k] = temp[0]
             continue
         hi = np.searchsorted(depth, z)
@@ -98,13 +98,27 @@ def _fetch_month_argopy(a: date, b: date) -> pd.DataFrame:
 def _fetch_month_erddap(a: date, b: date) -> pd.DataFrame:
     """Direct tabledap fallback (same underlying GDAC data argopy uses)."""
     url = ("https://erddap.ifremer.fr/erddap/tabledap/ArgoFloats.csv?platform_number,cycle_number,time,latitude,longitude,"
-           f"pres,temp,psal,data_mode&time>={a.isoformat()}T00:00:00Z&time<={b.isoformat()}T23:59:59Z"
+           f"pres,temp,psal,psal_qc,data_mode&time>={a.isoformat()}T00:00:00Z&time<={b.isoformat()}T23:59:59Z"
            f"&latitude>={LAT_MIN}&latitude<={LAT_MAX}&longitude>={LON_MIN}&longitude<={LON_MAX}&pres<=1100"
            '&temp_qc=~"[12]"&pres_qc=~"[12]"&position_qc=~"[12]"')
     r = requests.get(url, timeout=600)
     r.raise_for_status()
     df = pd.read_csv(io.StringIO(r.text), skiprows=[1])
-    return df.rename(columns={c: c.upper() for c in df.columns}).rename(columns={"TIME": "TIME", "LATITUDE": "LATITUDE"})
+    return apply_psal_qc(df.rename(columns={c: c.upper() for c in df.columns}))
+
+
+def apply_psal_qc(df: pd.DataFrame) -> pd.DataFrame:
+    """Salinity levels whose own QC flag is not accepted are set to NaN (temperature is kept).
+
+    The server-side filter above keeps a level when temperature, pressure and position are good;
+    salinity carries a separate flag, so it is screened here rather than dropping whole levels.
+    """
+    if "PSAL_QC" not in df:
+        return df
+    ok = pd.to_numeric(df["PSAL_QC"], errors="coerce").isin(ARGO_ACCEPTED_QC_FLAGS)
+    df = df.copy()
+    df.loc[~ok, "PSAL"] = np.nan
+    return df.drop(columns="PSAL_QC")
 
 
 def fetch_month(a: date, b: date) -> pd.DataFrame:
@@ -123,8 +137,10 @@ def fetch_month(a: date, b: date) -> pd.DataFrame:
     return df
 
 
-def points_to_profiles(df: pd.DataFrame) -> pd.DataFrame:
+def points_to_profiles(df: pd.DataFrame, counts: dict | None = None) -> pd.DataFrame:
+    """One row per profile; ``counts`` (optional) accumulates how many were kept or dropped and why."""
     rows = []
+    counts = counts if counts is not None else {}
     for (plat, cyc), g in df.groupby(["PLATFORM_NUMBER", "CYCLE_NUMBER"], sort=False):
         g = g.sort_values("PRES")
         lat, lon = float(g["LATITUDE"].iloc[0]), float(g["LONGITUDE"].iloc[0])
@@ -133,7 +149,9 @@ def points_to_profiles(df: pd.DataFrame) -> pd.DataFrame:
         psal = g["PSAL"].to_numpy(float) if "PSAL" in g else np.full_like(temp, np.nan)
         ts = pd.Timestamp(g["TIME"].iloc[0])
         std = to_standard_depths(depth, temp)
+        counts["n_profiles_received"] = counts.get("n_profiles_received", 0) + 1
         if not np.isfinite(std).any():
+            counts["n_dropped_no_standard_depth"] = counts.get("n_dropped_no_standard_depth", 0) + 1
             continue
         rows.append({
             "platform_number": str(int(plat)) if str(plat).replace(".0", "").isdigit() else str(plat),
@@ -147,16 +165,23 @@ def points_to_profiles(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def build_argo(start: date, end: date) -> pd.DataFrame:
-    frames = []
+    frames, counts, failed = [], {}, []
     for a, b in month_chunks(start, end):
         try:
-            prof = points_to_profiles(fetch_month(a, b))
+            prof = points_to_profiles(fetch_month(a, b), counts)
             frames.append(prof)
             log.info("argo %s: %d profiles", f"{a:%Y-%m}", len(prof))
         except Exception as e:
             log.error("argo %s failed: %s", a, e)
-    df = pd.concat(frames, ignore_index=True).drop_duplicates(["platform_number", "cycle_number"])
+            failed.append(f"{a:%Y-%m}")
+    df = pd.concat(frames, ignore_index=True)
+    n_before = len(df)
+    df = df.drop_duplicates(["platform_number", "cycle_number"])
     out = PROCESSED_DIR / "argo_profiles.parquet"
     df.to_parquet(out)
+    # recorded for the Data Quality workspace (levels failing QC flags never leave the data server)
+    (PROCESSED_DIR / "argo_qc.json").write_text(json.dumps({
+        **counts, "n_duplicates_removed": n_before - len(df), "n_profiles_kept": len(df), "months_failed": failed,
+        "accepted_qc_flags": list(ARGO_ACCEPTED_QC_FLAGS), "period": [start.isoformat(), end.isoformat()]}, indent=2))
     log.info("wrote %s: %d profiles, split counts %s", out, len(df), df["split"].value_counts().to_dict())
     return df

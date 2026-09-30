@@ -4,7 +4,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
 WORKDIR /srv
 COPY backend/requirements.txt backend/requirements.txt
 RUN pip install -r backend/requirements.txt
-COPY ml/__init__.py ml/config.py ml/
+COPY ml/__init__.py ml/config.py ml/qc_rules.py ml/
+COPY ml/science ml/science
 COPY ml/evaluation/__init__.py ml/evaluation/derived_products.py ml/evaluation/
 COPY ml/pipeline/__init__.py ml/pipeline/feature_engineering.py ml/pipeline/
 COPY backend backend

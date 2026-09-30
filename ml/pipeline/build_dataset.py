@@ -5,6 +5,7 @@
     python -m ml.pipeline.build_dataset argo
     python -m ml.pipeline.build_dataset cyclones
     python -m ml.pipeline.build_dataset assemble   # -> processed/*.zarr + stats
+    python -m ml.pipeline.build_dataset salinity [--stride 3]   # optional, needs Copernicus Marine credentials
 
 Every step is idempotent (cached downloads) and resumable.
 """
@@ -53,6 +54,15 @@ def cmd_cyclones(args):
     build_cyclones()
 
 
+def cmd_salinity(args):
+    """Optional GLORYS12V1 subsurface salinity (reanalysis) for the salinity / halocline / T-S views."""
+    from ml.ingestion.fetch_glorys import build_salinity
+    from ml.pipeline.target_days import target_days
+
+    n = build_salinity(target_days(args.stride), PROCESSED_DIR)
+    log.info("salinity store: %d days", n)
+
+
 def cmd_assemble(args):
     from ml.pipeline.feature_engineering import assemble
 
@@ -72,6 +82,7 @@ def main(argv=None):
         s.set_defaults(fn=fn)
     sub.add_parser("cyclones").set_defaults(fn=cmd_cyclones)
     sub.add_parser("assemble").set_defaults(fn=cmd_assemble)
+    sal = sub.add_parser("salinity"); sal.add_argument("--stride", type=int, default=3); sal.set_defaults(fn=cmd_salinity)
     args = p.parse_args(argv)
     PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
     args.fn(args)

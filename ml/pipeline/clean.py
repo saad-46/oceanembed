@@ -20,21 +20,12 @@ import xarray as xr
 from scipy import ndimage
 
 from ml.config import LATS, LONS, PROCESSED_DIR
+from ml.qc_rules import MAX_GAP_DAYS, OCEAN_MASK_MIN_VALID_SST, VALID_RANGE
 from ml.pipeline.regrid import bilinear_to_target, coarsen_to_target
 
 log = logging.getLogger("oceanembed.clean")
 
-MAX_GAP_DAYS = 7
-# Physically plausible ranges (docs/09): values outside are flagged and dropped.
-VALID_RANGE = {
-    "sst": (-2.0, 40.0),     # degC
-    "sss": (0.0, 45.0),      # PSU
-    "sla": (-2.0, 2.0),      # m
-    "ucur": (-5.0, 5.0),     # m/s
-    "vcur": (-5.0, 5.0),
-    "uwind": (-60.0, 60.0),  # m/s
-    "vwind": (-60.0, 60.0),
-}
+# QC rules live in ml.qc_rules so the API can report exactly what the pipeline applies.
 SOURCE_VARS = {"sst": ["sst"], "sss": ["sss"], "sla": ["sla"], "currents": ["ucur", "vcur"], "winds": ["uwind", "vwind"]}
 
 
@@ -120,7 +111,7 @@ def build_inputs(start: date, end: date) -> xr.Dataset:
 
     # Ocean mask: cells where SST is valid on most days (SST is the most complete field).
     sst = fields["sst"]["data"]
-    ocean = np.isfinite(sst).mean(axis=0) > 0.5
+    ocean = np.isfinite(sst).mean(axis=0) > OCEAN_MASK_MIN_VALID_SST
 
     qc, data_vars = {}, {}
     for var, r in fields.items():
