@@ -165,3 +165,61 @@ describe("ErrorState", () => {
     expect(screen.getByText(/no reconstruction for this point/)).toBeTruthy();
   });
 });
+
+describe("Offline Demo Mode", () => {
+  const load = async (mode: "offline" | "live", configured = false) => {
+    vi.resetModules();
+    vi.doMock("@/lib/backendStatus", () => ({ OFFLINE_NOTICE_EVENT: "oceansight:offline-notice", useBackendStatus: () => ({ mode, health: null }) }));
+    vi.doMock("@/lib/api", () => ({ API_CONFIGURED: configured }));
+    return (await import("../components/OfflineNotice")).default;
+  };
+  const raf = () => vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => (cb(0), 0));
+  afterEach(() => {
+    sessionStorage.clear();
+    vi.doUnmock("@/lib/backendStatus");
+    vi.doUnmock("@/lib/api");
+    vi.restoreAllMocks();
+  });
+
+  it("explains the mode and the infrastructure reason, and can be dismissed once per session", async () => {
+    raf();
+    const OfflineNotice = await load("offline");
+    const view = render(<OfflineNotice />);
+    expect(screen.getByRole("dialog", { name: "Offline Demo Mode" })).toBeTruthy();
+    expect(screen.getByText(/requires paid cloud infrastructure and an active cloud billing setup/)).toBeTruthy();
+    expect(screen.getByText(/precomputed demonstration data\.$/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Continue Exploring" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    view.unmount();
+    render(<OfflineNotice />); // same session: not shown again
+    expect(screen.queryByRole("dialog")).toBeNull();
+    fireEvent(window, new Event("oceansight:offline-notice")); // the status indicator can reopen it
+    expect(screen.getByRole("dialog")).toBeTruthy();
+  });
+
+  it("never appears while the backend is live", async () => {
+    raf();
+    const OfflineNotice = await load("live", true);
+    render(<OfflineNotice />);
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("does not claim a billing reason when a configured backend is merely unreachable", async () => {
+    raf();
+    const OfflineNotice = await load("offline", true);
+    render(<OfflineNotice />);
+    expect(screen.getByText(/cannot be reached right now/)).toBeTruthy();
+    expect(screen.queryByText(/cloud billing/)).toBeNull();
+  });
+
+  it("shows backend-only features as 'Live Backend Required', not as an error", async () => {
+    vi.resetModules();
+    const { ErrorState } = await import("../components/ui");
+    const { LIVE_BACKEND_REQUIRED } = await vi.importActual<typeof import("../lib/api")>("../lib/api");
+    render(<ErrorState message={LIVE_BACKEND_REQUIRED} why="There is no reconstruction for this point and day." onRetry={() => {}} />);
+    expect(screen.getByText("Live Backend Required")).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByText(/Retry/)).toBeNull();
+    expect(screen.queryByText(/no reconstruction for this point/)).toBeNull();
+  });
+});

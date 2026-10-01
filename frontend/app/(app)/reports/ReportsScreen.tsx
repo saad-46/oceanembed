@@ -4,7 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { AlertCircle, CheckCircle2, Download, FileJson, FileSpreadsheet, FileText, Loader2, ShieldCheck, Tornado } from "lucide-react";
 import LocationPicker from "@/components/LocationPicker";
 import { Button, PageHeader, Provenance, type DataKind } from "@/components/ui";
-import { apiUrl, type CycloneTrack, type Meta } from "@/lib/api";
+import { apiUrl, EXPORT_BACKEND_REQUIRED, type CycloneTrack, type Meta } from "@/lib/api";
 import { DEFAULT_DATE, DEFAULT_POINT, STANDARD_DEPTHS } from "@/lib/dates";
 import { useApi } from "@/lib/useApi";
 
@@ -12,7 +12,7 @@ type ExportState = { s: "idle" } | { s: "busy" } | { s: "done"; bytes: number; a
 const kb = (n: number) => (n > 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
 
 async function fetchFile(url: string | null): Promise<Blob> {
-  if (url === null) throw new Error("Reports need the OceanSight API, which this deployment is not connected to.");
+  if (url === null) throw new Error(EXPORT_BACKEND_REQUIRED);
   let r: Response;
   try {
     r = await fetch(url);
@@ -53,11 +53,16 @@ function StateLine({ st, idle }: { st: ExportState; idle: string }) {
           <CheckCircle2 size={13} /> Ready · {kb(st.bytes)} · {st.at}
         </span>
       )}
-      {st.s === "error" && (
-        <span className="text-bad flex items-center gap-1.5">
-          <AlertCircle size={13} /> {st.msg}
-        </span>
-      )}
+      {st.s === "error" &&
+        (st.msg === EXPORT_BACKEND_REQUIRED ? (
+          <span className="text-warn" role="status">
+            <b className="font-medium">Backend Required for Export.</b> <span className="text-ink-2">{st.msg}</span>
+          </span>
+        ) : (
+          <span className="text-bad flex items-center gap-1.5">
+            <AlertCircle size={13} /> {st.msg}
+          </span>
+        ))}
     </span>
   );
 }
@@ -262,7 +267,7 @@ export default function ReportsScreen() {
                 Open API documentation
               </Button>
             ) : (
-              <span className="text-[12px] text-ink-3">API not connected</span>
+              <span className="text-[12px] text-ink-3">Available with the live backend</span>
             )}
           </ExportRow>
         </ul>

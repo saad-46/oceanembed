@@ -6,7 +6,8 @@ import { BarChart3, BookOpen, Box, ClipboardCheck, Droplets, FileText, GitBranch
 import GuideLayer from "@/components/guide/GuideLayer";
 import HelpMenu from "@/components/guide/HelpMenu";
 import OnboardingPrompt from "@/components/guide/OnboardingPrompt";
-import { API_CONFIGURED, type Meta } from "@/lib/api";
+import type { Meta } from "@/lib/api";
+import { OFFLINE_NOTICE_EVENT, useBackendStatus } from "@/lib/backendStatus";
 import { useApi } from "@/lib/useApi";
 import { Logo, StatusDot } from "./ui";
 
@@ -44,14 +45,14 @@ export const NAV_GROUPS = [
 ] as const;
 export const NAV = NAV_GROUPS.flatMap((g) => g.items.map((i) => ({ ...i, group: g.label })));
 
-interface Health { status: string; model_version: string | null; database: string; reconstruction_store: string }
-
+/** Live / Offline Demo / degraded, from the one shared backend status (lib/backendStatus). */
 function useStatus() {
-  const health = useApi<Health>("/health");
+  const { mode, health } = useBackendStatus();
   const meta = useApi<Meta>("/v1/meta").data;
-  const ok = health.data ? health.data.status === "ok" : health.error ? false : null;
-  return { ok, health: health.data, meta, offline: !!health.error };
+  const ok = mode === "connecting" ? null : mode === "live";
+  return { ok, health, meta, offline: mode === "offline" };
 }
+const showOfflineNotice = () => window.dispatchEvent(new Event(OFFLINE_NOTICE_EVENT));
 
 function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
   const path = usePathname();
@@ -89,7 +90,7 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
       <dl className="border-t border-line px-4 py-3 space-y-1 text-[11px] shrink-0">
         <div className="flex items-center gap-2 text-ink-2 pb-1">
           <StatusDot ok={ok} />
-          <span>{ok === null ? "Connecting…" : ok ? "Service online" : offline ? (API_CONFIGURED ? "API unavailable — saved copies" : "Offline — saved copies only") : "Service degraded"}</span>
+          <span>{ok === null ? "Connecting…" : ok ? "Live" : offline ? "Offline Demo Mode" : "Service degraded"}</span>
         </div>
         {(
           [
@@ -134,11 +135,16 @@ function TopBar({ onMenu }: { onMenu: () => void }) {
         )}
       </nav>
       <div className="flex-1" />
-      {ok === false && (
-        <span className="inline-flex items-center gap-1.5 text-[11.5px] text-warn" role="status">
-          <StatusDot ok={false} /> {offline ? (API_CONFIGURED ? "API temporarily unavailable — showing saved copies" : "Offline — showing saved copies") : "Service degraded"}
-        </span>
-      )}
+      {ok === false &&
+        (offline ? (
+          <button onClick={showOfflineNotice} title="About Offline Demo Mode" className="inline-flex items-center gap-1.5 rounded-full border border-warn/40 bg-warn/[0.07] px-2.5 py-0.5 text-[11.5px] text-warn hover:border-warn/70">
+            <StatusDot ok={false} /> Offline Demo
+          </button>
+        ) : (
+          <span className="inline-flex items-center gap-1.5 text-[11.5px] text-warn" role="status">
+            <StatusDot ok={false} /> Service degraded
+          </span>
+        ))}
       <Suspense fallback={null}>
         <HelpMenu />
       </Suspense>

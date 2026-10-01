@@ -41,7 +41,7 @@ describe("API base URL", () => {
     const err = await api.get("/health").catch((e) => e);
     expect(err).toBeInstanceOf(api.ApiError);
     expect(err.code).toBe("api_not_configured");
-    expect(api.friendlyError(err)).toMatch(/NEXT_PUBLIC_API_URL is not set/);
+    expect(api.friendlyError(err)).toMatch(/Offline Demo Mode because deploying the complete backend requires paid cloud infrastructure and an active cloud billing setup/);
     expect(fetch.mock.calls.map(([u]) => u)).toEqual(["/fallback/v1_meta.json", "/fallback/health.json"]);
   });
 });
@@ -95,5 +95,28 @@ describe("live backend contract", () => {
     const err = await api.get("/health").catch((e) => e);
     expect(err.code).toBe("backend_unreachable");
     expect(api.friendlyError(err)).toMatch(/temporarily unavailable/);
+  });
+});
+
+describe("backend status", () => {
+  it("is Offline Demo from the start, with no health request, when the build has no backend", async () => {
+    await load({ NODE_ENV: "production" });
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+    const status = await import("@/lib/backendStatus");
+    expect((await status.checkBackend()).mode).toBe("offline");
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("reports live when the configured backend answers, and offline when it stops answering", async () => {
+    await load({ NODE_ENV: "production", NEXT_PUBLIC_API_URL: "https://api.example.org" });
+    const status = await import("@/lib/backendStatus");
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ status: "ok", model_version: "cnn-unet-v1", database: "ok", reconstruction_store: "ok" }))));
+    expect((await status.checkBackend()).mode).toBe("live");
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      if (url.startsWith("https://")) throw new TypeError("Failed to fetch");
+      return new Response("", { status: 404 });
+    }));
+    expect((await status.checkBackend()).mode).toBe("offline");
   });
 });

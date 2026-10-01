@@ -7,7 +7,7 @@ import type { TermKey } from "@/lib/glossary";
  */
 import Link from "next/link";
 import { ReactNode, useEffect, useRef, useState } from "react";
-import { AlertTriangle, RefreshCw, WifiOff } from "lucide-react";
+import { AlertTriangle, CloudOff, RefreshCw, WifiOff } from "lucide-react";
 
 export function Card({ children, className = "", title, right, icon }: { children: ReactNode; className?: string; title?: ReactNode; right?: ReactNode; icon?: ReactNode }) {
   return (
@@ -73,12 +73,24 @@ export function LoadingState({ label, className = "h-48" }: { label: string; cla
 export function ErrorState({ message, why, action, onRetry, offline }: { message: string; why?: string; action?: string; onRetry?: () => void; offline?: boolean }) {
   // A connection problem (API down or not configured) is not a data problem: never explain it with a
   // screen's "no data here" reason or suggest picking another point.
-  const connection = /temporarily unavailable|not connected to the OceanSight API/.test(message);
+  const backendRequired = /requires OceanSight's live scientific backend|requires the OceanSight backend/.test(message);
+  const connection = backendRequired || /temporarily unavailable/.test(message);
   if (connection) {
     offline = true;
     why = undefined;
     action = undefined;
   }
+  // Offline Demo Mode is an expected state, not a fault: a calm notice with a title, and no Retry.
+  if (backendRequired)
+    return (
+      <div role="status" className="border border-warn/35 bg-warn/[0.06] rounded-[var(--radius)] px-3.5 py-3 flex items-start gap-3 text-sm">
+        <CloudOff size={16} className="text-warn mt-0.5 shrink-0" aria-hidden />
+        <div className="flex-1 min-w-0 space-y-1">
+          <div className="text-ink font-medium">{/export/.test(message) ? "Backend Required for Export" : "Live Backend Required"}</div>
+          <div className="text-[13px] text-ink-2 leading-relaxed">{message}</div>
+        </div>
+      </div>
+    );
   const Icon = offline ? WifiOff : AlertTriangle;
   return (
     <div role="alert" className="border border-bad/35 bg-bad/[0.06] rounded-[var(--radius)] px-3.5 py-3 flex items-start gap-3 text-sm">
@@ -114,10 +126,10 @@ export function DataBadge({ fallback }: { label?: string; fallback?: boolean }) 
   if (!fallback) return null;
   return (
     <span
-      title="The OceanSight service could not be reached, so this view shows a saved copy of the same reconstruction."
+      title="Offline Demo Mode: this view shows precomputed demonstration data saved from the same reconstruction."
       className="inline-flex items-center gap-1.5 text-[10.5px] border border-warn/50 text-warn rounded-full px-2.5 py-0.5 bg-bg/70"
     >
-      <WifiOff size={10} aria-hidden /> Offline copy
+      <WifiOff size={10} aria-hidden /> Offline Demo data
     </span>
   );
 }

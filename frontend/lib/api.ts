@@ -18,12 +18,16 @@ const DEV_API_URL = "http://localhost:8100";
 export const API_URL = (process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === "production" ? "" : DEV_API_URL)).trim().replace(/\/+$/, "");
 export const API_CONFIGURED = API_URL !== "";
 
-const NOT_CONFIGURED = "This deployment is not connected to the OceanSight API (NEXT_PUBLIC_API_URL is not set), so only saved copies of the reference views are available.";
+/** Shown when a view has no saved copy in a build without a backend (Offline Demo Mode). */
+export const LIVE_BACKEND_REQUIRED =
+  "This feature requires OceanSight's live scientific backend. The public deployment is currently operating in Offline Demo Mode because deploying the complete backend requires paid cloud infrastructure and an active cloud billing setup. Run OceanSight locally with the backend enabled to access this functionality.";
+export const EXPORT_BACKEND_REQUIRED = "Generating this export requires the OceanSight backend, which is currently available in the local demonstration environment.";
+const NOT_CONFIGURED = LIVE_BACKEND_REQUIRED;
 
 const UNREACHABLE = "The OceanSight API is temporarily unavailable, and there is no saved copy of this view. Try again in a moment.";
 
 if (!API_CONFIGURED && typeof window !== "undefined") {
-  console.error("[OceanSight] NEXT_PUBLIC_API_URL is not set for this production build. Set it to the deployed FastAPI URL and redeploy.");
+  console.info("[OceanSight] Offline Demo Mode: this build has no NEXT_PUBLIC_API_URL, so it serves precomputed demonstration data only.");
 }
 
 /** Absolute backend URL for links and downloads, or null when this build has no API configured. */

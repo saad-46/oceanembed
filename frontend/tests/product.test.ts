@@ -19,7 +19,7 @@ const BANNED: [RegExp, string][] = [
   [/hackathon/i, "hackathon"],
   [/\bjudges?\b/i, "judge"],
   [/\bpresenter\b/i, "presenter"],
-  [/\bdemo\b/i, "demo"],
+  [/(?<!Offline )\bdemo\b/i, "demo"], // "Offline Demo Mode" is the product's own name for the no-backend state
   [/\bsubmission\b/i, "submission"],
   [/\bprototype\b/i, "prototype"],
   [/\bpitch\b/i, "pitch"],
