@@ -67,7 +67,7 @@ export default function OfflineNotice() {
         ) : (
           <>
             <p>OceanSight&rsquo;s public frontend is online, but the complete live backend is not publicly deployed.</p>
-            <p className="text-ink">Deploying the full scientific backend requires paid cloud infrastructure and an active cloud billing setup, which is not currently enabled for this deployment.</p>
+            <p className="text-ink">Deploying the full scientific backend requires paid cloud infrastructure and an active cloud billing setup, so the live backend is currently available only in the local demonstration environment.</p>
           </>
         )}
         <p>You can still explore OceanSight using precomputed demonstration data.</p>
