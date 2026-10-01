@@ -52,6 +52,8 @@ def main():
             # interactive section + timeline defaults (frontend lib/ocean.ts builds these exact paths)
             f"/v1/section/{DEMO_DATE}?variable=temp&orientation=zonal&lat=15&lon_min=80&lon_max=97",
             "/v1/timeline?lat=15.000&lon=88.000&start=2023-01-01&end=2023-12-31",
+            # the timeline opens with its first day selected: profile and short-horizon estimate for that day
+            "/v1/profile/2023-01-01?lat=15.000&lon=88.000", "/v1/forecast?lat=15.000&lon=88.000&date=2023-01-01&method=trend",
             # analysis & data workspaces (frontend lib/analysis.ts builds these exact paths)
             f"/v1/stratification?lat=15.000&lon=88.000&date={DEMO_DATE}&max_depth=500",
             f"/v1/ts-profile?lat=15.000&lon=88.000&date={DEMO_DATE}",
