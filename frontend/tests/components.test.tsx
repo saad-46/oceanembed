@@ -152,3 +152,16 @@ describe("Guided Exploration layer over the real screens", () => {
     expect(container.innerHTML).toBe("");
   });
 });
+
+describe("ErrorState", () => {
+  it("does not explain a connection problem as missing data", async () => {
+    const { ErrorState } = await import("../components/ui");
+    const why = "There is no reconstruction for this point and day.";
+    render(<ErrorState message="The OceanSight API is temporarily unavailable, and there is no saved copy of this view. Try again in a moment." why={why} action="Choose an ocean cell." />);
+    expect(screen.queryByText(/no reconstruction for this point/)).toBeNull();
+    expect(screen.queryByText(/Choose an ocean cell/)).toBeNull();
+    cleanup();
+    render(<ErrorState message="This point is on land or outside the study domain (5–30°N, 45–105°E)." why={why} />);
+    expect(screen.getByText(/no reconstruction for this point/)).toBeTruthy();
+  });
+});

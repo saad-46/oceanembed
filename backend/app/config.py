@@ -2,6 +2,7 @@
 from functools import lru_cache
 from pathlib import Path
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -29,6 +30,15 @@ class Settings(BaseSettings):
     copernicus_marine_username: str = ""
     copernicus_marine_password: str = ""
     cds_api_key: str = ""
+
+    @field_validator("database_url")
+    @classmethod
+    def _psycopg3_driver(cls, v: str) -> str:
+        """Managed Postgres hosts hand out ``postgres://`` / ``postgresql://`` URLs; this service ships psycopg 3 only."""
+        for prefix in ("postgres://", "postgresql://"):
+            if v.startswith(prefix):
+                return "postgresql+psycopg://" + v[len(prefix):]
+        return v
 
     @property
     def copernicus_configured(self) -> bool:

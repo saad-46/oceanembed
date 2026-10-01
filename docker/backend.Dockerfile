@@ -16,5 +16,8 @@ WORKDIR /srv/backend
 RUN useradd -m api && chown -R api /srv
 USER api
 EXPOSE 8100
-HEALTHCHECK CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8100/health')" || exit 1
-CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8100}"]
+# Liveness on whatever port the host injects (PORT), not a hardcoded one. Use GET /ready to gate traffic.
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3   CMD python -c "import os,urllib.request; urllib.request.urlopen('http://127.0.0.1:%s/health' % os.environ.get('PORT','8100'), timeout=8)" || exit 1
+# Migrations are idempotent. If the database is briefly unreachable at boot the API still starts (maps, profiles and
+# analyses work without it; database-backed endpoints answer `database_unavailable`); `exec` lets uvicorn receive SIGTERM.
+CMD ["sh", "-c", "alembic upgrade head || echo 'WARNING: database migration failed; starting without it' >&2; exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8100}"]

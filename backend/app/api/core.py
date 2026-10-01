@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 
 from fastapi import APIRouter, Depends
+from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.exc import InterfaceError, OperationalError
 
@@ -19,9 +20,9 @@ from app.api.validation import CAVEAT as VALIDATION_CAVEAT  # noqa: E402
 router = APIRouter(tags=["core"])
 
 
-@router.get("/health")
-def health(store: GridStore = Depends(get_store)):
-    """Liveness + readiness detail. Always 200 so a load balancer keeps the process up."""
+def _status(store: GridStore) -> dict:
+    """Cheap checks only: the store handle is opened once per process (Zarr metadata, no arrays) and
+    the database check is a single ``SELECT 1`` with a 5 s connect timeout."""
     try:
         model = store.production_model
     except ApiError:
@@ -34,6 +35,27 @@ def health(store: GridStore = Depends(get_store)):
         db_ok = False
     return {"status": "ok" if model and db_ok else "degraded", "model_version": model,
             "database": "ok" if db_ok else "unavailable", "reconstruction_store": "ok" if model else "missing"}
+
+
+@router.get("/", include_in_schema=False)
+def root():
+    return {"service": "OceanSight API", "docs": "/docs", "openapi": "/openapi.json", "health": "/health", "ready": "/ready"}
+
+
+@router.get("/health")
+def health(store: GridStore = Depends(get_store)):
+    """Liveness + detail. Always 200 so a load balancer keeps the process up; use ``/ready`` to gate traffic."""
+    return _status(store)
+
+
+@router.get("/ready")
+def ready(store: GridStore = Depends(get_store)):
+    """Readiness: 200 when the precomputed reconstruction store is mounted and readable, else 503.
+    A missing database does not fail readiness (maps, profiles and analyses still work; database-backed
+    endpoints answer with a typed ``database_unavailable``); it is reported in the body."""
+    st = _status(store)
+    ok = st["reconstruction_store"] == "ok"
+    return JSONResponse({"ready": ok, **st}, status_code=200 if ok else 503)
 
 
 @router.get("/v1/meta")

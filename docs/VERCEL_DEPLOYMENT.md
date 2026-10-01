@@ -1,5 +1,7 @@
 # Deploying OceanSight: frontend on Vercel, backend elsewhere
 
+> Full production runbook with measured resource requirements: [`PRODUCTION_DEPLOYMENT.md`](PRODUCTION_DEPLOYMENT.md).
+
 Only `frontend/` (Next.js) goes to Vercel. The FastAPI backend (`backend/`) and the ML code (`ml/`) are **not**
 deployed to Vercel. The browser calls the backend directly, cross-origin, using `NEXT_PUBLIC_API_URL`.
 
@@ -26,6 +28,7 @@ see `docs/18_DEPLOYMENT.md`). A serverless function is not a good fit: the API r
 | Code from `ml/` it imports | `ml/config.py`, `ml/evaluation/derived_products.py`, `ml/pipeline/feature_engineering.py` (numpy-only; the Dockerfile copies them) |
 | API base path | none: `/health`, `/docs`, and `/v1/...` at the root of the backend URL |
 | Health check | `GET /health` (always 200; body says `ok` or `degraded`) |
+| Readiness | `GET /ready` (200 when the data bundle is readable, 503 otherwise) |
 | One-time seed | `python -m app.db.seed` from `backend/` once the data bundle is in place (idempotent; loads regions, model registry, Argo profiles, per-profile predictions, skill metrics, cyclone tracks) |
 
 ### Backend environment variables

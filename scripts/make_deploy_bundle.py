@@ -50,11 +50,14 @@ for sub in ("predictions", "products"):
             ds.to_zarr(dst, mode="w")
         else:
             shutil.copytree(z, dst)
-if (DATA_DIR / "processed" / "target.zarr").exists() and (a.start or a.end):
-    ds = xr.open_zarr(DATA_DIR / "processed" / "target.zarr").sel(time=slice(a.start, a.end))
-    for v in ds.data_vars:
-        ds[v].encoding.pop("chunks", None)
-    ds.to_zarr(out / "processed" / "target.zarr", mode="w")
+if (DATA_DIR / "processed" / "target.zarr").exists():
+    if a.start or a.end:
+        ds = xr.open_zarr(DATA_DIR / "processed" / "target.zarr").sel(time=slice(a.start, a.end))
+        for v in ds.data_vars:
+            ds[v].encoding.pop("chunks", None)
+        ds.to_zarr(out / "processed" / "target.zarr", mode="w")
+    else:  # a full bundle needs the target too (profile comparison, data-quality inventory)
+        shutil.copytree(DATA_DIR / "processed" / "target.zarr", out / "processed" / "target.zarr")
 SURFACE_LAYERS = ["sla", "uwind", "vwind", "ocean_mask"]  # served by /v1/surface and /v1/wind
 for name, keep in (("inputs.zarr", SURFACE_LAYERS), ("salinity.zarr", None)):
     src = DATA_DIR / "processed" / name

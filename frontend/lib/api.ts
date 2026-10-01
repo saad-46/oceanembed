@@ -20,6 +20,8 @@ export const API_CONFIGURED = API_URL !== "";
 
 const NOT_CONFIGURED = "This deployment is not connected to the OceanSight API (NEXT_PUBLIC_API_URL is not set), so only saved copies of the reference views are available.";
 
+const UNREACHABLE = "The OceanSight API is temporarily unavailable, and there is no saved copy of this view. Try again in a moment.";
+
 if (!API_CONFIGURED && typeof window !== "undefined") {
   console.error("[OceanSight] NEXT_PUBLIC_API_URL is not set for this production build. Set it to the deployed FastAPI URL and redeploy.");
 }
@@ -82,7 +84,7 @@ async function request<T>(path: string, init?: RequestInit & { json?: unknown },
     clearTimeout(timer);
     const fb = await tryFallback<T>(path, init?.json);
     if (fb) return fb;
-    throw new ApiError(0, "backend_unreachable", "The OceanSight backend is unreachable and no bundled snapshot exists for this view.");
+    throw new ApiError(0, "backend_unreachable", UNREACHABLE);
   }
   clearTimeout(timer);
   if (!res.ok) {
@@ -93,6 +95,13 @@ async function request<T>(path: string, init?: RequestInit & { json?: unknown },
       code = j.error || code;
       detail = j.detail || detail;
     } catch {}
+    // An untyped 502/503/504 comes from the host's gateway (backend restarting or asleep), not from the API:
+    // treat it like an unreachable backend instead of showing a bare "HTTP 502".
+    if (code === "http_error" && [502, 503, 504].includes(res.status)) {
+      const fb = await tryFallback<T>(path, init?.json);
+      if (fb) return fb;
+      throw new ApiError(res.status, "backend_unreachable", UNREACHABLE);
+    }
     throw new ApiError(res.status, code, detail);
   }
   return (await res.json()) as Fetched<T>;
@@ -127,6 +136,8 @@ export function friendlyError(e: unknown): string {
     case "backend_unreachable":
     case "api_not_configured":
       return e.detail;
+    case "internal_error":
+      return "The OceanSight API reported an unexpected error. Try again in a moment.";
     default:
       return e.detail || "Unexpected error.";
   }

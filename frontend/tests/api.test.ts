@@ -45,3 +45,55 @@ describe("API base URL", () => {
     expect(fetch.mock.calls.map(([u]) => u)).toEqual(["/fallback/v1_meta.json", "/fallback/health.json"]);
   });
 });
+
+describe("live backend contract", () => {
+  const live = { NODE_ENV: "production", NEXT_PUBLIC_API_URL: "https://api.example.org" };
+  const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+
+  it("calls the configured backend for GET and POST and returns live (non-fallback) data", async () => {
+    const api = await load(live);
+    const fetch = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(async () => json({ ok: true }));
+    vi.stubGlobal("fetch", fetch);
+    const g = await api.get<{ ok: boolean }>("/v1/meta");
+    expect(g.__fallback).toBeUndefined();
+    await api.post("/v1/region/stats", { date: "2023-05-11" });
+    expect(fetch.mock.calls[0][0]).toBe("https://api.example.org/v1/meta");
+    expect(fetch.mock.calls[1][0]).toBe("https://api.example.org/v1/region/stats");
+    expect(fetch.mock.calls[1][1]).toMatchObject({ method: "POST", body: JSON.stringify({ date: "2023-05-11" }) });
+  });
+
+  it("keeps typed API errors distinct: invalid input and no data are not 'API unavailable'", async () => {
+    const api = await load(live);
+    vi.stubGlobal("fetch", vi.fn(async () => json({ error: "on_land", detail: "x" }, 422)));
+    const land = await api.get("/v1/profile/2023-05-11?lat=20&lon=78").catch((e) => e);
+    expect(land.code).toBe("on_land");
+    expect(api.friendlyError(land)).toMatch(/on land or outside the study domain/);
+    vi.stubGlobal("fetch", vi.fn(async () => json({ error: "date_out_of_range", detail: "2030-01-01 is outside the reconstructed period." }, 404)));
+    const date = await api.get("/v1/grid/2030-01-01?depth=100").catch((e) => e);
+    expect(api.friendlyError(date)).toMatch(/^No reconstruction for that date/);
+    vi.stubGlobal("fetch", vi.fn(async () => json({ error: "data_unavailable", detail: "x" }, 503)));
+    const typed503 = await api.get("/v1/grid/2023-05-11/product?product=tchp").catch((e) => e);
+    expect(typed503.code).toBe("data_unavailable"); // the API's own 503 is never mistaken for a gateway error
+  });
+
+  it("uses a saved copy when the backend is unreachable, and says so clearly when there is none", async () => {
+    const api = await load(live);
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      if (url.startsWith("https://api.example.org")) throw new TypeError("Failed to fetch");
+      return url === "/fallback/v1_meta.json" ? json({ product: "OceanSight" }) : new Response("", { status: 404 });
+    }));
+    await expect(api.get("/v1/meta")).resolves.toMatchObject({ __fallback: true });
+    const err = await api.get("/v1/profile/2022-01-01?lat=10&lon=60").catch((e) => e);
+    expect(err.code).toBe("backend_unreachable");
+    expect(api.friendlyError(err)).toMatch(/temporarily unavailable/);
+    expect(api.friendlyError(err)).not.toMatch(/NEXT_PUBLIC_API_URL/);
+  });
+
+  it("treats an untyped gateway 502/503/504 as API unavailable, not a bare HTTP error", async () => {
+    const api = await load(live);
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => (url.startsWith("https://") ? new Response("<html>Bad Gateway</html>", { status: 502 }) : new Response("", { status: 404 }))));
+    const err = await api.get("/health").catch((e) => e);
+    expect(err.code).toBe("backend_unreachable");
+    expect(api.friendlyError(err)).toMatch(/temporarily unavailable/);
+  });
+});

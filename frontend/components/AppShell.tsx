@@ -6,7 +6,7 @@ import { BarChart3, BookOpen, Box, ClipboardCheck, Droplets, FileText, GitBranch
 import GuideLayer from "@/components/guide/GuideLayer";
 import HelpMenu from "@/components/guide/HelpMenu";
 import OnboardingPrompt from "@/components/guide/OnboardingPrompt";
-import type { Meta } from "@/lib/api";
+import { API_CONFIGURED, type Meta } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
 import { Logo, StatusDot } from "./ui";
 
@@ -89,7 +89,7 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
       <dl className="border-t border-line px-4 py-3 space-y-1 text-[11px] shrink-0">
         <div className="flex items-center gap-2 text-ink-2 pb-1">
           <StatusDot ok={ok} />
-          <span>{ok === null ? "Connecting…" : ok ? "Service online" : offline ? "Offline — saved copies only" : "Service degraded"}</span>
+          <span>{ok === null ? "Connecting…" : ok ? "Service online" : offline ? (API_CONFIGURED ? "API unavailable — saved copies" : "Offline — saved copies only") : "Service degraded"}</span>
         </div>
         {(
           [
@@ -136,7 +136,7 @@ function TopBar({ onMenu }: { onMenu: () => void }) {
       <div className="flex-1" />
       {ok === false && (
         <span className="inline-flex items-center gap-1.5 text-[11.5px] text-warn" role="status">
-          <StatusDot ok={false} /> {offline ? "Offline — showing saved copies" : "Service degraded"}
+          <StatusDot ok={false} /> {offline ? (API_CONFIGURED ? "API temporarily unavailable — showing saved copies" : "Offline — showing saved copies") : "Service degraded"}
         </span>
       )}
       <Suspense fallback={null}>

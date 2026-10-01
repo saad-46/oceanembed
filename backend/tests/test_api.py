@@ -303,3 +303,70 @@ def test_cors_exact_origins_and_optional_preview_regex(monkeypatch):
         assert allowed("https://oceanembed-x.vercel.app.evil.example") is None
     finally:
         get_settings.cache_clear()
+
+
+# ---------------------------------------------------------------- production readiness
+def test_health_is_always_200_and_reports_components(client):
+    r = client.get("/health")
+    assert r.status_code == 200
+    b = r.json()
+    assert b["reconstruction_store"] == "ok" and b["model_version"] == "cnn-unet-v1"
+    assert b["database"] in ("ok", "unavailable") and b["status"] in ("ok", "degraded")
+
+
+def test_ready_200_with_store_and_root_index(client):
+    r = client.get("/ready")
+    assert r.status_code == 200 and r.json()["ready"] is True
+    assert client.get("/").json()["ready"] == "/ready"
+    assert client.get("/openapi.json").status_code == 200 and client.get("/docs").status_code == 200
+
+
+def test_ready_503_when_the_reconstruction_store_is_missing(client, data_dir, tmp_path):
+    from app.config import Settings
+    from app.services import store as store_mod
+
+    store_mod.reset_store(Settings(oceanembed_data_dir=tmp_path))  # empty data dir
+    try:
+        r = client.get("/ready")
+        assert r.status_code == 503
+        assert r.json()["ready"] is False and r.json()["reconstruction_store"] == "missing"
+        assert client.get("/health").status_code == 200  # liveness stays up
+        g = client.get("/v1/grid/2023-05-11?depth=100")
+        assert g.status_code == 503 and g.json()["error"] == "data_unavailable"  # typed, not a stack trace
+    finally:
+        store_mod.reset_store(Settings(oceanembed_data_dir=data_dir))
+
+
+def test_cors_headers_on_real_get_and_post_preflight_from_the_frontend_origin(monkeypatch, client):
+    from fastapi.testclient import TestClient
+
+    from app.config import get_settings
+    from app.main import create_app
+
+    origin = "https://oceanembed.vercel.app"
+    monkeypatch.setenv("CORS_ORIGINS", origin)
+    get_settings.cache_clear()
+    try:
+        with TestClient(create_app()) as c:
+            g = c.get("/v1/regions", headers={"Origin": origin})
+            assert g.status_code == 200 and g.headers["access-control-allow-origin"] == origin
+            p = c.options("/v1/region/stats", headers={"Origin": origin, "Access-Control-Request-Method": "POST",
+                                                       "Access-Control-Request-Headers": "content-type"})
+            assert p.status_code == 200 and p.headers["access-control-allow-origin"] == origin
+            assert "POST" in p.headers["access-control-allow-methods"]
+            bad = c.get("/v1/regions", headers={"Origin": "https://evil.example"})
+            assert "access-control-allow-origin" not in bad.headers
+            e = c.get("/v1/grid/not-a-date", headers={"Origin": origin})  # errors carry CORS headers too
+            assert e.status_code == 422 and e.json()["error"] == "invalid_request"
+            assert e.headers["access-control-allow-origin"] == origin
+    finally:
+        get_settings.cache_clear()
+
+
+def test_database_url_from_a_managed_host_is_normalised_to_the_psycopg3_driver():
+    from app.config import Settings
+
+    for given in ("postgres://u:p@h:5432/d?sslmode=require", "postgresql://u:p@h:5432/d?sslmode=require"):
+        assert Settings(database_url=given).database_url == "postgresql+psycopg://u:p@h:5432/d?sslmode=require"
+    keep = "postgresql+psycopg://u:p@h:5432/d"
+    assert Settings(database_url=keep).database_url == keep

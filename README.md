@@ -103,7 +103,7 @@ Tests: `pytest -q` (repo root; PostGIS tests auto-skip without the DB) · `cd fr
 
 ## API (summary — full OpenAPI at `/docs`)
 
-`GET /health` · `GET /v1/meta` · `GET /v1/regions` · `GET /v1/summary/headline` · `GET /v1/dates` ·
+`GET /health` · `GET /ready` · `GET /v1/meta` · `GET /v1/regions` · `GET /v1/summary/headline` · `GET /v1/dates` ·
 `GET /v1/grid/{date}?depth=&variable=temp|uncertainty|anomaly&model=` · `GET /v1/grid/{date}/product?product=tchp|mld|d20|d26|sss` ·
 `GET /v1/profile/{date}?lat=&lon=` · `POST /v1/region/stats` · `POST /v1/region/timeseries` ·
 `GET /v1/validation/summary|grid|profiles|scatter` · `GET /v1/argo/markers?date=` · `GET /v1/argo/{id}` ·
@@ -123,6 +123,7 @@ methods: [`docs/SCIENTIFIC_METHODS.md`](docs/SCIENTIFIC_METHODS.md); data qualit
 
 ## Deployment
 
+Production runbook: [`docs/PRODUCTION_DEPLOYMENT.md`](docs/PRODUCTION_DEPLOYMENT.md); endpoint reference: [`docs/API.md`](docs/API.md).
 Vercel (frontend) + separately hosted API: [`docs/VERCEL_DEPLOYMENT.md`](docs/VERCEL_DEPLOYMENT.md).
 See also [`docs/18_DEPLOYMENT.md`](docs/18_DEPLOYMENT.md). Container images: `docker/backend.Dockerfile`
 (context: repo root; mount or bake the data bundle from `scripts/make_deploy_bundle.py`) and

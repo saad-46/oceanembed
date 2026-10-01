@@ -71,6 +71,14 @@ export function LoadingState({ label, className = "h-48" }: { label: string; cla
  * Calm error block. `message` is the what; optional `why` and `action` explain cause and remedy.
  */
 export function ErrorState({ message, why, action, onRetry, offline }: { message: string; why?: string; action?: string; onRetry?: () => void; offline?: boolean }) {
+  // A connection problem (API down or not configured) is not a data problem: never explain it with a
+  // screen's "no data here" reason or suggest picking another point.
+  const connection = /temporarily unavailable|not connected to the OceanSight API/.test(message);
+  if (connection) {
+    offline = true;
+    why = undefined;
+    action = undefined;
+  }
   const Icon = offline ? WifiOff : AlertTriangle;
   return (
     <div role="alert" className="border border-bad/35 bg-bad/[0.06] rounded-[var(--radius)] px-3.5 py-3 flex items-start gap-3 text-sm">
