@@ -42,7 +42,8 @@ describe("API base URL", () => {
     expect(err).toBeInstanceOf(api.ApiError);
     expect(err.code).toBe("api_not_configured");
     expect(api.friendlyError(err)).toMatch(/Offline Demo Mode because deploying the complete backend requires paid cloud infrastructure and an active cloud billing setup/);
-    expect(fetch.mock.calls.map(([u]) => u)).toEqual(["/fallback/v1_meta.json", "/fallback/health.json"]);
+    // no saved-copy index in this stub, so each lookup is attempted
+    expect(fetch.mock.calls.map(([u]) => u)).toEqual(["/fallback/index.json", "/fallback/v1_meta.json", "/fallback/health.json"]);
   });
 });
 
@@ -118,5 +119,27 @@ describe("backend status", () => {
       return new Response("", { status: 404 });
     }));
     expect((await status.checkBackend()).mode).toBe("offline");
+  });
+});
+
+describe("saved-copy index", () => {
+  it("never requests a saved copy that the index says does not exist", async () => {
+    const api = await load({ NODE_ENV: "production" });
+    const fetch = vi.fn(async (url: string) =>
+      url === "/fallback/index.json" ? new Response(JSON.stringify(["v1_meta"])) : url === "/fallback/v1_meta.json" ? new Response(JSON.stringify({ product: "OceanSight" })) : new Response("", { status: 404 }),
+    );
+    vi.stubGlobal("fetch", fetch);
+    await expect(api.get("/v1/meta")).resolves.toMatchObject({ __fallback: true });
+    const err = await api.get("/v1/profile/2021-08-15?lat=12.000&lon=65.000").catch((e) => e);
+    expect(err.code).toBe("api_not_configured");
+    expect(fetch.mock.calls.map(([u]) => u)).toEqual(["/fallback/index.json", "/fallback/v1_meta.json"]); // no 404 request
+  });
+
+  it("lists exactly the saved copies that are bundled", async () => {
+    const { readdirSync, readFileSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const dir = join(__dirname, "..", "public", "fallback");
+    const onDisk = readdirSync(dir).filter((f) => f.endsWith(".json") && f !== "index.json").map((f) => f.slice(0, -5)).sort();
+    expect(JSON.parse(readFileSync(join(dir, "index.json"), "utf8"))).toEqual(onDisk);
   });
 });

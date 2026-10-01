@@ -5,7 +5,8 @@ import { AlertCircle, CheckCircle2, Download, FileJson, FileSpreadsheet, FileTex
 import LocationPicker from "@/components/LocationPicker";
 import { Button, PageHeader, Provenance, type DataKind } from "@/components/ui";
 import { apiUrl, EXPORT_BACKEND_REQUIRED, type CycloneTrack, type Meta } from "@/lib/api";
-import { DEFAULT_DATE, DEFAULT_POINT, STANDARD_DEPTHS } from "@/lib/dates";
+import { parsePointParams } from "@/lib/analysis";
+import { STANDARD_DEPTHS } from "@/lib/dates";
 import { useApi } from "@/lib/useApi";
 
 type ExportState = { s: "idle" } | { s: "busy" } | { s: "done"; bytes: number; at: string; url?: string } | { s: "error"; msg: string };
@@ -83,9 +84,7 @@ function ExportRow({ icon, title, detail, children }: { icon: ReactNode; title: 
 export default function ReportsScreen() {
   const sp = useSearchParams();
   const router = useRouter();
-  const date = sp.get("date") || DEFAULT_DATE;
-  const lat = Number(sp.get("lat") ?? DEFAULT_POINT.lat);
-  const lon = Number(sp.get("lon") ?? DEFAULT_POINT.lon);
+  const { lat, lon, date } = parsePointParams(sp); // clamped to the study domain and period
   const rawDepth = sp.get("depth");
   const depth = rawDepth !== null && STANDARD_DEPTHS.includes(Number(rawDepth)) ? Number(rawDepth) : 100; // default: 100 m
   const setQ = (patch: Record<string, string | number>) => {

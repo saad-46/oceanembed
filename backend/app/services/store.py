@@ -106,6 +106,11 @@ class GridStore:
         p = self.s.processed_dir / "salinity.zarr"
         return xr.open_zarr(p) if p.exists() else None
 
+    @property
+    def argo_table_available(self) -> bool:
+        """Whether the Argo archive file is deployed, without loading it (it is several hundred MB in memory)."""
+        return (self.s.processed_dir / "argo_profiles.parquet").exists()
+
     @cached_property
     def argo_table(self) -> pd.DataFrame | None:
         """Argo profiles as built by the pipeline; used when the database is not reachable."""

@@ -131,7 +131,7 @@ def layer_status(store: GridStore) -> dict[str, dict[str, str]]:
                                 if s.copernicus_configured else
                                 {"status": "not_configured", "detail": "Subsurface salinity is available through the optional "
                                  "Copernicus Marine GLORYS12V1 reanalysis, which is not configured for this deployment."}),
-        "argo_salinity": ({"status": "available", "detail": "Measured Argo salinity (local archive)"} if store.argo_table is not None
+        "argo_salinity": ({"status": "available", "detail": "Measured Argo salinity (local archive)"} if store.argo_table_available
                           else {"status": "database", "detail": "Measured Argo salinity from the metadata database"}),
     }
 

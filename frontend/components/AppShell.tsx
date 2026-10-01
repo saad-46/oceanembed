@@ -137,7 +137,7 @@ function TopBar({ onMenu }: { onMenu: () => void }) {
       <div className="flex-1" />
       {ok === false &&
         (offline ? (
-          <button onClick={showOfflineNotice} title="About Offline Demo Mode" className="inline-flex items-center gap-1.5 rounded-full border border-warn/40 bg-warn/[0.07] px-2.5 py-0.5 text-[11.5px] text-warn hover:border-warn/70">
+          <button onClick={showOfflineNotice} title="About Offline Demo Mode" className="inline-flex items-center gap-1.5 rounded-full border border-warn/40 bg-warn/[0.07] px-2.5 py-1 text-[11.5px] text-warn hover:border-warn/70">
             <StatusDot ok={false} /> Offline Demo
           </button>
         ) : (

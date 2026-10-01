@@ -2,9 +2,7 @@
 import { useEffect, useState } from "react";
 import { CloudOff, X } from "lucide-react";
 import { API_CONFIGURED } from "@/lib/api";
-import { OFFLINE_NOTICE_EVENT, useBackendStatus } from "@/lib/backendStatus";
-
-const SEEN_KEY = "oceansight.offlineNotice";
+import { markOfflineNoticeSeen, OFFLINE_NOTICE_EVENT, offlineNoticeSeen, useBackendStatus } from "@/lib/backendStatus";
 
 /**
  * "Offline Demo Mode" notice. Shown once per browser session while the live backend is not reachable,
@@ -17,11 +15,7 @@ export default function OfflineNotice() {
 
   useEffect(() => {
     if (mode !== "offline") return;
-    let seen = false;
-    try {
-      seen = sessionStorage.getItem(SEEN_KEY) !== null;
-    } catch {}
-    if (seen) return;
+    if (offlineNoticeSeen()) return;
     const f = requestAnimationFrame(() => setOpen(true));
     return () => cancelAnimationFrame(f);
   }, [mode]);
@@ -32,11 +26,21 @@ export default function OfflineNotice() {
     return () => window.removeEventListener(OFFLINE_NOTICE_EVENT, reopen);
   }, []);
 
-  if (!open || mode !== "offline") return null;
+  const visible = open && mode === "offline";
+  useEffect(() => {
+    if (!visible) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      markOfflineNoticeSeen();
+      setOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [visible]);
+
+  if (!visible) return null;
   const dismiss = () => {
-    try {
-      sessionStorage.setItem(SEEN_KEY, "1");
-    } catch {}
+    markOfflineNoticeSeen();
     setOpen(false);
   };
 
@@ -45,7 +49,7 @@ export default function OfflineNotice() {
       role="dialog"
       aria-modal="false"
       aria-labelledby="offline-notice-title"
-      className="fixed z-[45] top-16 left-3 right-3 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 sm:w-[460px] glass glass-strong p-5 fade-in"
+      className="fixed z-[45] top-16 left-3 right-3 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 sm:w-[460px] max-h-[calc(100dvh-5rem)] overflow-y-auto glass glass-strong p-5 fade-in"
       style={{ background: "rgba(9, 17, 29, 0.94)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)" }}
     >
       <div className="flex items-start justify-between gap-3">

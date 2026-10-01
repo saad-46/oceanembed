@@ -92,6 +92,7 @@ describe("first-time onboarding prompt", () => {
   it("appears once for a new visitor; 'Explore on my own' is remembered and opens the product", async () => {
     localStorage.clear();
     sessionStorage.clear();
+    sessionStorage.setItem("oceansight.offlineNotice", "1"); // the Offline Demo notice (if any) is already closed
     nav.push.mockClear();
     const { default: OnboardingPrompt } = await import("../components/guide/OnboardingPrompt");
     render(<OnboardingPrompt exploreHref="/map" />);
@@ -169,7 +170,12 @@ describe("ErrorState", () => {
 describe("Offline Demo Mode", () => {
   const load = async (mode: "offline" | "live", configured = false) => {
     vi.resetModules();
-    vi.doMock("@/lib/backendStatus", () => ({ OFFLINE_NOTICE_EVENT: "oceansight:offline-notice", useBackendStatus: () => ({ mode, health: null }) }));
+    vi.doMock("@/lib/backendStatus", () => ({
+      OFFLINE_NOTICE_EVENT: "oceansight:offline-notice",
+      useBackendStatus: () => ({ mode, health: null }),
+      offlineNoticeSeen: () => sessionStorage.getItem("seen") !== null,
+      markOfflineNoticeSeen: () => sessionStorage.setItem("seen", "1"),
+    }));
     vi.doMock("@/lib/api", () => ({ API_CONFIGURED: configured }));
     return (await import("../components/OfflineNotice")).default;
   };
@@ -221,5 +227,23 @@ describe("Offline Demo Mode", () => {
     expect(screen.queryByRole("alert")).toBeNull();
     expect(screen.queryByText(/Retry/)).toBeNull();
     expect(screen.queryByText(/no reconstruction for this point/)).toBeNull();
+  });
+});
+
+describe("first-visit prompts do not stack", () => {
+  it("holds the onboarding prompt until the Offline Demo notice is closed", async () => {
+    localStorage.clear();
+    sessionStorage.clear();
+    vi.resetModules();
+    vi.doMock("@/lib/api", () => ({ API_CONFIGURED: false, get: vi.fn() }));
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => (cb(0), 0));
+    const { default: OnboardingPrompt } = await import("../components/guide/OnboardingPrompt");
+    const status = await import("../lib/backendStatus");
+    render(<OnboardingPrompt />);
+    expect(screen.queryByText("New to OceanSight?")).toBeNull();
+    status.markOfflineNoticeSeen();
+    expect(await screen.findByText("New to OceanSight?")).toBeTruthy();
+    vi.doUnmock("@/lib/api");
+    vi.restoreAllMocks();
   });
 });

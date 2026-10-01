@@ -3,7 +3,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import LocationPicker from "@/components/LocationPicker";
 import ProfilePanel from "@/components/ProfilePanel";
 import { PageHeader } from "@/components/ui";
-import { DEFAULT_DATE, DEFAULT_POINT } from "@/lib/dates";
+import { parsePointParams } from "@/lib/analysis";
 
 const EXAMPLES = [
   { label: "Bay of Bengal · 11 May 2023", date: "2023-05-11", lat: 15, lon: 88 },
@@ -15,9 +15,7 @@ const EXAMPLES = [
 export default function ProfilesScreen() {
   const sp = useSearchParams();
   const router = useRouter();
-  const date = sp.get("date") || DEFAULT_DATE;
-  const lat = Number(sp.get("lat") ?? DEFAULT_POINT.lat);
-  const lon = Number(sp.get("lon") ?? DEFAULT_POINT.lon);
+  const { lat, lon, date } = parsePointParams(sp); // clamped to the study domain and period
   const go = (d: string, la: number, lo: number) => router.replace(`/profiles?date=${d}&lat=${la.toFixed(3)}&lon=${lo.toFixed(3)}`, { scroll: false });
 
   return (

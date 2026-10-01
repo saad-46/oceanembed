@@ -95,6 +95,9 @@ def main():
         if r.ok:
             (OUT / f"{fallback_key(path, body)}.json").write_text(r.text, encoding="utf-8")
             n += 1
+    # index of the saved copies, so the web app never requests one that does not exist
+    names = sorted(f.stem for f in OUT.glob("*.json") if f.name != "index.json")
+    (OUT / "index.json").write_text(json.dumps(names), encoding="utf-8")
     size = sum(f.stat().st_size for f in OUT.glob("*.json"))
     print(f"wrote {n} snapshots ({size / 1e6:.1f} MB) to {OUT}")
 

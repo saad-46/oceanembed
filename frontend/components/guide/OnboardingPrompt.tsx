@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Compass, X } from "lucide-react";
+import { OFFLINE_NOTICE_CLOSED_EVENT, offlineNoticeSeen, useBackendStatus } from "@/lib/backendStatus";
 import { GUIDE_STEP_KEY, readGuideStatus, shouldPromptOnboarding, stepHref, writeGuideStatus } from "@/lib/guide";
 
 /**
@@ -13,14 +14,23 @@ export default function OnboardingPrompt({ exploreHref }: { exploreHref?: string
   const sp = useSearchParams();
   const router = useRouter();
   const [show, setShow] = useState(false);
+  const { mode } = useBackendStatus();
+  // One first-visit prompt at a time: wait until the Offline Demo notice has been closed.
+  const [noticeClosed, setNoticeClosed] = useState(0);
+  useEffect(() => {
+    const closed = () => setNoticeClosed((n) => n + 1);
+    window.addEventListener(OFFLINE_NOTICE_CLOSED_EVENT, closed);
+    return () => window.removeEventListener(OFFLINE_NOTICE_CLOSED_EVENT, closed);
+  }, []);
   useEffect(() => {
     let guiding = sp.get("guide") !== null;
     try {
       guiding ||= sessionStorage.getItem(GUIDE_STEP_KEY) !== null;
     } catch {}
-    const f = requestAnimationFrame(() => setShow(shouldPromptOnboarding(readGuideStatus(), guiding)));
+    const waiting = mode === "offline" && !offlineNoticeSeen();
+    const f = requestAnimationFrame(() => setShow(!waiting && shouldPromptOnboarding(readGuideStatus(), guiding)));
     return () => cancelAnimationFrame(f);
-  }, [sp]);
+  }, [sp, mode, noticeClosed]);
   if (!show) return null;
   const dismiss = () => {
     writeGuideStatus("dismissed");

@@ -61,8 +61,9 @@ export default function MapScreen() {
   const date = clampDate(sp.get("date") || DEFAULT_DATE, period.start, period.end);
   const depth = Number(sp.get("depth") ?? 0);
   const v = (sp.get("var") as LayerVar) || "temp";
-  const lat = sp.get("lat") ? Number(sp.get("lat")) : null;
-  const lon = sp.get("lon") ? Number(sp.get("lon")) : null;
+  const num = (k: string) => (sp.get(k) && Number.isFinite(Number(sp.get(k))) ? Number(sp.get(k)) : null);
+  const lat = num("lat");
+  const lon = num("lon");
   const [showArgo, setShowArgo] = useState(true);
   const [showTracks, setShowTracks] = useState(true);
   const [playing, setPlaying] = useState(false);

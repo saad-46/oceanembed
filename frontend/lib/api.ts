@@ -56,9 +56,21 @@ export function fallbackKey(pathWithQuery: string, body?: unknown): string {
   return key.replace(/[^A-Za-z0-9._-]/g, "_");
 }
 
+/** Names of the saved copies (public/fallback/index.json). Null when the list itself cannot be read. */
+let manifest: Promise<Set<string> | null> | null = null;
+function savedCopies(): Promise<Set<string> | null> {
+  manifest ??= fetch("/fallback/index.json")
+    .then(async (r) => (r.ok ? new Set((await r.json()) as string[]) : null))
+    .catch(() => null);
+  return manifest;
+}
+
 async function tryFallback<T>(path: string, body?: unknown): Promise<Fetched<T> | null> {
   try {
-    const r = await fetch(`/fallback/${fallbackKey(path, body)}.json`);
+    const key = fallbackKey(path, body);
+    const saved = await savedCopies();
+    if (saved && !saved.has(key)) return null; // known not to exist: do not request it
+    const r = await fetch(`/fallback/${key}.json`);
     if (!r.ok) return null;
     const data = (await r.json()) as T;
     return Object.assign(data as object, { __fallback: true }) as Fetched<T>;

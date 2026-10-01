@@ -72,3 +72,20 @@ export function useBackendStatus(): BackendStatus {
 
 /** The status indicator dispatches this to reopen the Offline Demo notice after it was dismissed. */
 export const OFFLINE_NOTICE_EVENT = "oceansight:offline-notice";
+/** Dispatched when the notice is closed, so other first-visit prompts can take their turn. */
+export const OFFLINE_NOTICE_CLOSED_EVENT = "oceansight:offline-notice-closed";
+const SEEN_KEY = "oceansight.offlineNotice";
+
+export function offlineNoticeSeen(): boolean {
+  try {
+    return sessionStorage.getItem(SEEN_KEY) !== null;
+  } catch {
+    return true; // storage blocked: never hold other prompts back
+  }
+}
+export function markOfflineNoticeSeen() {
+  try {
+    sessionStorage.setItem(SEEN_KEY, "1");
+  } catch {}
+  window.dispatchEvent(new Event(OFFLINE_NOTICE_CLOSED_EVENT));
+}

@@ -24,7 +24,7 @@ export default function UncertaintyPanel({ depths, temps, sigmas, initialDepth =
     <section aria-label="Temperature and uncertainty">
       <div className="flex items-center justify-between gap-2 mb-1.5">
         <div className="text-[10.5px] uppercase tracking-[0.12em] text-ink-3 flex items-center gap-1">
-          Prediction &amp; uncertainty <Explain term="uncertainty" />
+          Reconstruction &amp; uncertainty <Explain term="uncertainty" />
         </div>
         <div className="flex gap-0.5" role="radiogroup" aria-label="Depth for the uncertainty readout">
           {quick.map((d) => (

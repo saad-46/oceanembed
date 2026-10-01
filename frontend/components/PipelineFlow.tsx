@@ -8,11 +8,11 @@ const STAGES = [
     label: "Data",
     icon: Database,
     tag: "open data only",
-    title: "Satellite surface fields + ocean truth",
+    title: "Satellite surface fields + ocean reference data",
     points: [
       "Daily SST (NOAA OISST), SSS (SMAP + bias-corrected SMOS), sea-level anomaly and geostrophic currents (NOAA altimetry), winds (NCEI Blended Seawinds).",
       "Training target: HYCOM GOFS 3.1 analysis, coarsened from 1/12° to 0.25°.",
-      "Independent truth: Argo GDAC float profiles (QC 1/2) via argopy; EN4 as a monthly cross-check; IBTrACS for cyclone tracks.",
+      "Independent observations: Argo GDAC float profiles (QC 1/2) via argopy; EN4 as a monthly cross-check; IBTrACS for cyclone tracks.",
     ],
     out: "7 surface channels · 2019–2023",
   },
