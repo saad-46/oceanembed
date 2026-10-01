@@ -146,7 +146,7 @@ export default function Volume3D({
     const layers: Layer[] = [
       new LineLayer({ id: "frame", data: frame, coordinateSystem: COORDINATE_SYSTEM.CARTESIAN, getSourcePosition: (f: { s: number[] }) => f.s as [number, number, number], getTargetPosition: (f: { t: number[] }) => f.t as [number, number, number], getColor: [138, 150, 168, 110], getWidth: 1 }),
       new PointCloudLayer<P>({ id: "volume", data: points, coordinateSystem: COORDINATE_SYSTEM.CARTESIAN, getPosition: (p) => p.position, getColor: (p) => p.color, getNormal: [0, 0, 1], pointSize, sizeUnits: "pixels", pickable: true, material: false }),
-      new TextLayer({ id: "labels", data: labels, coordinateSystem: COORDINATE_SYSTEM.CARTESIAN, getPosition: (l: { p: [number, number, number] }) => l.p, getText: (l: { t: string }) => l.t, getSize: 12, getColor: [170, 180, 195, 255], billboard: true, fontFamily: "system-ui, sans-serif" }),
+      new TextLayer({ id: "labels", data: labels, coordinateSystem: COORDINATE_SYSTEM.CARTESIAN, getPosition: (l: { p: [number, number, number] }) => l.p, getText: (l: { t: string }) => l.t, getSize: 12, getColor: [170, 180, 195, 255], billboard: true, characterSet: "auto", fontFamily: "system-ui, sans-serif" }),
     ];
     if (marker) {
       const mx = (marker.lon - lonc) * DEG, my = (marker.lat - latc) * DEG;

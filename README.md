@@ -1,7 +1,7 @@
-# OceanSight — OceanEmbed (SIH26066)
+# OceanSight
 
 **Satellite-embedding deep learning reconstruction of North Indian Ocean subsurface temperature.**
-Problem statement SIH26066 "OceanEmbed" (Ministry of Earth Sciences / INCOIS): reconstruct ocean
+Origin: problem statement SIH26066 "OceanEmbed" (Ministry of Earth Sciences / INCOIS) — reconstruct ocean
 temperature at the 15 standard depths 0–1000 m, on a 0.25° daily grid over 5–30°N, 45–105°E, from
 five surface satellite fields, and validate it against independent Argo observations.
 

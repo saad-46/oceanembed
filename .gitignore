@@ -28,3 +28,23 @@ Thumbs.db
 .vscode/
 .idea/
 deploy_data/
+# Local demo-recording kit (Playwright driver + voice-over PDF); not part of the app.
+# Root-anchored so the app route frontend/app/demo/ stays tracked.
+/demo/
+/demo_new/
+# All local ML data, experiments and artifacts (datasets, Zarr stores, model binaries)
+ml/data/
+*.zarr
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.pkl
+*.joblib
+*.lgb
+# Build output, caches and logs
+.next/
+coverage/
+.ruff_cache/
+.mypy_cache/
+*.log
