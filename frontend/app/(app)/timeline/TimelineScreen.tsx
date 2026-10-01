@@ -119,7 +119,7 @@ export default function TimelineScreen() {
       {/* toolbar: where · when · what */}
       <div className="panel px-4 py-3 flex flex-wrap items-end gap-x-6 gap-y-3">
         <LocationPicker lat={p.lat} lon={p.lon} date={p.start} onChange={(la, lo) => set({ lat: la, lon: lo })} />
-        <div className="flex items-end gap-1.5">
+        <div className="flex flex-wrap items-end gap-1.5">
           <label className="text-[11px] text-ink-3">
             From
             <input type="date" min={PERIOD.start} max={PERIOD.end} value={p.start} onChange={(e) => e.target.value && set({ start: e.target.value })} className="mt-1 block num bg-bg border border-line rounded-md px-2 py-1 text-sm text-ink [color-scheme:dark]" />
