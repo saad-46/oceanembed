@@ -58,8 +58,11 @@ def create_app() -> FastAPI:
     # {"error": "internal_error"} instead of an opaque CORS failure (Starlette's own error handler sits outside CORS).
     app.add_middleware(BaseHTTPMiddleware, dispatch=_catch_unhandled)
     app.add_middleware(GZipMiddleware, minimum_size=1024)
+    # allow_private_network answers the browser's Local Network Access preflight
+    # (Access-Control-Request-Private-Network) for the allowed origins only: a public HTTPS page may then
+    # call this API on the visitor's own computer once the visitor has granted the browser permission.
     app.add_middleware(CORSMiddleware, allow_origins=s.cors_list, allow_origin_regex=s.cors_origin_regex or None,
-                       allow_methods=["GET", "POST"], allow_headers=["*"])
+                       allow_methods=["GET", "POST"], allow_headers=["*"], allow_private_network=True)
     errors.install(app)
     log = logging.getLogger("oceanembed.access")
 

@@ -1,76 +1,24 @@
 "use client";
 import { useSyncExternalStore } from "react";
-import { API_CONFIGURED, get } from "./api";
+import { check, connect, getConnection, subscribeConnection, type BackendMode, type ConnectionState, type Health } from "./connection";
 
 /**
- * One shared view of the live backend for the whole app (status bar, sidebar, Offline Demo notice).
- *
- * - A build without NEXT_PUBLIC_API_URL has no backend by design: it is in Offline Demo Mode from the
- *   first render and never makes a health request.
- * - Otherwise `/health` is polled while anything is subscribed, so the app moves between Live and
- *   Offline Demo on its own when the backend comes up or goes down.
+ * React binding for the shared connection state (lib/connection.ts): Online / Offline for the status
+ * bar, the sidebar, the Offline notice and the data hooks. One store, one poller, no per-page checks.
  */
-export interface Health {
-  status: string;
-  model_version: string | null;
-  database: string;
-  reconstruction_store: string;
-}
-export type BackendMode = "connecting" | "live" | "degraded" | "offline";
-export interface BackendStatus {
-  mode: BackendMode;
-  health: Health | null;
-}
+export type { BackendMode, Health };
+export type BackendStatus = ConnectionState;
 
-const POLL_MS = 20_000;
-const CONNECTING: BackendStatus = { mode: "connecting", health: null };
-const OFFLINE: BackendStatus = { mode: "offline", health: null };
-
-let state: BackendStatus = API_CONFIGURED ? CONNECTING : OFFLINE;
-const listeners = new Set<() => void>();
-let timer: ReturnType<typeof setInterval> | null = null;
-
-function set(next: BackendStatus) {
-  if (next.mode === state.mode && next.health?.model_version === state.health?.model_version && next.health?.database === state.health?.database) return;
-  state = next;
-  listeners.forEach((l) => l());
-}
-
-export async function checkBackend(): Promise<BackendStatus> {
-  if (!API_CONFIGURED) return state;
-  try {
-    const h = await get<Health>("/health");
-    set({ mode: h.status === "ok" ? "live" : "degraded", health: h });
-  } catch {
-    set(OFFLINE);
-  }
-  return state;
-}
-
-function subscribe(listener: () => void) {
-  listeners.add(listener);
-  if (API_CONFIGURED && timer === null && typeof window !== "undefined") {
-    void checkBackend();
-    timer = setInterval(checkBackend, POLL_MS);
-    window.addEventListener("online", checkBackend);
-    window.addEventListener("focus", checkBackend);
-  }
-  return () => {
-    listeners.delete(listener);
-    if (listeners.size === 0 && timer !== null) {
-      clearInterval(timer);
-      timer = null;
-      window.removeEventListener("online", checkBackend);
-      window.removeEventListener("focus", checkBackend);
-    }
-  };
-}
+const SERVER: ConnectionState = { mode: "connecting", health: null, access: "unknown", canConnect: false, connectBusy: false, connectError: null, epoch: 0 };
 
 export function useBackendStatus(): BackendStatus {
-  return useSyncExternalStore(subscribe, () => state, () => CONNECTING);
+  return useSyncExternalStore(subscribeConnection, getConnection, () => SERVER);
 }
 
-/** The status indicator dispatches this to reopen the Offline Demo notice after it was dismissed. */
+export const checkBackend = check;
+export const connectLocalApi = connect;
+
+/** The status indicator dispatches this to reopen the Offline notice after it was dismissed. */
 export const OFFLINE_NOTICE_EVENT = "oceansight:offline-notice";
 /** Dispatched when the notice is closed, so other first-visit prompts can take their turn. */
 export const OFFLINE_NOTICE_CLOSED_EVENT = "oceansight:offline-notice-closed";

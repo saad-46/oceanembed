@@ -235,7 +235,8 @@ describe("first-visit prompts do not stack", () => {
     localStorage.clear();
     sessionStorage.clear();
     vi.resetModules();
-    vi.doMock("@/lib/api", () => ({ API_CONFIGURED: false, get: vi.fn() }));
+    const OFFLINE = { mode: "offline", health: null, access: "prompt", canConnect: true, connectBusy: false, connectError: null, epoch: 0 };
+    vi.doMock("@/lib/connection", () => ({ getConnection: () => OFFLINE, subscribeConnection: () => () => {}, check: vi.fn(), connect: vi.fn() }));
     vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => (cb(0), 0));
     const { default: OnboardingPrompt } = await import("../components/guide/OnboardingPrompt");
     const status = await import("../lib/backendStatus");
@@ -243,7 +244,70 @@ describe("first-visit prompts do not stack", () => {
     expect(screen.queryByText("New to OceanSight?")).toBeNull();
     status.markOfflineNoticeSeen();
     expect(await screen.findByText("New to OceanSight?")).toBeTruthy();
-    vi.doUnmock("@/lib/api");
+    vi.doUnmock("@/lib/connection");
     vi.restoreAllMocks();
+  });
+});
+
+describe("connection indicator", () => {
+  type S = { mode: string; health: null; access: string; canConnect: boolean; connectBusy: boolean; connectError: string | null; epoch: number };
+  const state = (p: Partial<S>): S => ({ mode: "offline", health: null, access: "prompt", canConnect: false, connectBusy: false, connectError: null, epoch: 0, ...p });
+  const connect = vi.fn(async () => state({ mode: "live", access: "granted" }));
+  async function shell(s: S) {
+    vi.resetModules();
+    connect.mockClear();
+    vi.doMock("@/lib/backendStatus", () => ({
+      OFFLINE_NOTICE_EVENT: "oceansight:offline-notice",
+      OFFLINE_NOTICE_CLOSED_EVENT: "oceansight:offline-notice-closed",
+      useBackendStatus: () => s,
+      connectLocalApi: connect,
+      offlineNoticeSeen: () => true,
+      markOfflineNoticeSeen: () => {},
+    }));
+    vi.doMock("@/lib/useApi", () => ({ useApi: () => ({ data: null, error: null, loading: false, settled: true, retry: () => {} }) }));
+    const { default: AppShell } = await import("../components/AppShell");
+    return render(
+      <AppShell>
+        <p>page content</p>
+      </AppShell>,
+    );
+  }
+  afterEach(() => {
+    vi.doUnmock("@/lib/backendStatus");
+    vi.doUnmock("@/lib/useApi");
+  });
+
+  it("online: a quiet 'Online' status, no offline wording, no Connect action", async () => {
+    await shell(state({ mode: "live", access: "granted" }));
+    expect(screen.getAllByText("Online").length).toBeGreaterThan(0);
+    expect(screen.getByText("Online · API connected")).toBeTruthy();
+    expect(screen.queryByText(/Offline/)).toBeNull();
+    expect(screen.queryByRole("button", { name: "Connect to Local API" })).toBeNull();
+    expect(screen.getByText("page content")).toBeTruthy();
+  });
+
+  it("offline with permission still to be asked: says saved data is used and offers Connect", async () => {
+    await shell(state({ canConnect: true }));
+    expect(screen.getByText("Offline · using saved data")).toBeTruthy();
+    expect(screen.queryByText("Online")).toBeNull();
+    expect(document.querySelector("[role=alert]")).toBeNull(); // a supported mode, not an error
+    fireEvent.click(screen.getByRole("button", { name: "Connect to Local API" }));
+    expect(connect).toHaveBeenCalledTimes(1);
+  });
+
+  it("offline with permission granted or denied: no Connect action (automatic, or blocked)", async () => {
+    await shell(state({ access: "granted" }));
+    expect(screen.queryByRole("button", { name: "Connect to Local API" })).toBeNull();
+    cleanup();
+    await shell(state({ access: "denied" }));
+    expect(screen.queryByRole("button", { name: "Connect to Local API" })).toBeNull();
+    expect(screen.getByText("Offline · using saved data")).toBeTruthy();
+  });
+
+  it("checking: a neutral 'Connecting…' and the page is already there", async () => {
+    await shell(state({ mode: "connecting", access: "unknown" }));
+    expect(screen.getByText("Connecting…")).toBeTruthy();
+    expect(screen.queryByText(/Offline/)).toBeNull();
+    expect(screen.getByText("page content")).toBeTruthy();
   });
 });

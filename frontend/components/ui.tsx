@@ -126,10 +126,10 @@ export function DataBadge({ fallback }: { label?: string; fallback?: boolean }) 
   if (!fallback) return null;
   return (
     <span
-      title="Offline Demo Mode: this view shows precomputed demonstration data saved from the same reconstruction."
+      title="Offline: this view shows saved data from the same reconstruction."
       className="inline-flex items-center gap-1.5 text-[10.5px] border border-warn/50 text-warn rounded-full px-2.5 py-0.5 bg-bg/70"
     >
-      <WifiOff size={10} aria-hidden /> Offline Demo data
+      <WifiOff size={10} aria-hidden /> Saved data
     </span>
   );
 }

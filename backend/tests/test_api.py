@@ -370,3 +370,26 @@ def test_database_url_from_a_managed_host_is_normalised_to_the_psycopg3_driver()
         assert Settings(database_url=given).database_url == "postgresql+psycopg://u:p@h:5432/d?sslmode=require"
     keep = "postgresql+psycopg://u:p@h:5432/d"
     assert Settings(database_url=keep).database_url == keep
+
+
+def test_local_network_access_preflight_is_answered_for_allowed_origins_only():
+    """The public frontend calls this API on the visitor's own computer: the browser first sends a
+    private-network preflight, which must be allowed for the configured origins and nobody else."""
+    from fastapi.testclient import TestClient
+
+    from app.config import get_settings
+    from app.main import create_app
+
+    get_settings.cache_clear()
+    with TestClient(create_app()) as c:
+        origin = "https://ocean-sight.vercel.app"   # allowed by default
+        pre = {"Origin": origin, "Access-Control-Request-Method": "GET", "Access-Control-Request-Private-Network": "true"}
+        r = c.options("/ready", headers=pre)
+        assert r.status_code == 200
+        assert r.headers["access-control-allow-origin"] == origin
+        assert r.headers["access-control-allow-private-network"] == "true"
+        assert "access-control-allow-credentials" not in r.headers
+        g = c.get("/ready", headers={"Origin": origin})
+        assert g.headers["access-control-allow-origin"] == origin
+        bad = c.options("/ready", headers={**pre, "Origin": "https://evil.example"})
+        assert bad.status_code == 400 and "access-control-allow-origin" not in bad.headers  # the browser refuses it

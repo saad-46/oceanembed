@@ -1,8 +1,8 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CloudOff, X } from "lucide-react";
 import { API_CONFIGURED } from "@/lib/api";
-import { markOfflineNoticeSeen, OFFLINE_NOTICE_EVENT, offlineNoticeSeen, useBackendStatus } from "@/lib/backendStatus";
+import { connectLocalApi, markOfflineNoticeSeen, OFFLINE_NOTICE_EVENT, offlineNoticeSeen, useBackendStatus } from "@/lib/backendStatus";
 
 /**
  * "Offline Demo Mode" notice. Shown once per browser session while the live backend is not reachable,
@@ -10,11 +10,17 @@ import { markOfflineNoticeSeen, OFFLINE_NOTICE_EVENT, offlineNoticeSeen, useBack
  * the backend becomes available, and the status indicator can reopen it.
  */
 export default function OfflineNotice() {
-  const { mode } = useBackendStatus();
+  const { mode, access, canConnect, connectBusy, connectError } = useBackendStatus();
   const [open, setOpen] = useState(false);
+  // an explicit API, or a page served from this computer: no public-deployment explanation, no permission step
+  const direct = API_CONFIGURED || access === "open";
 
+  // Opens by itself only when the session starts offline. Losing the API in the middle of a session
+  // just changes the status indicator; the notice stays one click away.
+  const wasOnline = useRef(false);
   useEffect(() => {
-    if (mode !== "offline") return;
+    if (mode === "live" || mode === "degraded") wasOnline.current = true;
+    if (mode !== "offline" || wasOnline.current) return;
     if (offlineNoticeSeen()) return;
     const f = requestAnimationFrame(() => setOpen(true));
     return () => cancelAnimationFrame(f);
@@ -66,7 +72,7 @@ export default function OfflineNotice() {
         </button>
       </div>
       <div className="mt-3 space-y-2.5 text-[13px] leading-relaxed text-ink-2">
-        {API_CONFIGURED ? (
+        {direct ? (
           <p>OceanSight&rsquo;s frontend is online, but the live scientific backend cannot be reached right now.</p>
         ) : (
           <>
@@ -77,18 +83,31 @@ export default function OfflineNotice() {
         <p>You can still explore OceanSight using precomputed demonstration data.</p>
         <p>
           Some live-data analysis and backend-powered downloads require the backend
-          {API_CONFIGURED ? "." : ", which is available when OceanSight is run locally with its FastAPI backend and data services."}
+          {direct ? "." : ", which is available when OceanSight is run locally with its FastAPI backend and data services."}
         </p>
       </div>
       <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 border-t border-line pt-3 text-[11.5px]">
         <dt className="text-ink-3">Frontend</dt>
         <dd className="text-good">Online</dd>
         <dt className="text-ink-3">Backend</dt>
-        <dd className="text-warn">{API_CONFIGURED ? "Not reachable" : "Not publicly deployed"}</dd>
+        <dd className="text-warn">{direct ? "Not reachable" : "Not publicly deployed"}</dd>
         <dt className="text-ink-3">Data</dt>
         <dd className="text-ink-2">Precomputed demonstration data</dd>
       </dl>
-      <div className="mt-4 flex justify-end">
+      {!direct && (canConnect || connectError || access === "denied") && (
+        <p className="mt-3 text-[12px] leading-relaxed text-ink-2" role="status">
+          {connectError ??
+            (access === "denied"
+              ? "Local API access is blocked for this site in the browser. Allow it in the site settings to go online on this computer."
+              : "Running the OceanSight backend on this computer? Connect to use it; your browser may ask for permission once.")}
+        </p>
+      )}
+      <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
+        {!direct && canConnect && (
+          <button onClick={() => void connectLocalApi()} disabled={connectBusy} className="rounded-lg border border-line-2 px-3.5 py-1.5 text-sm text-ink hover:border-accent/50 disabled:opacity-60">
+            {connectBusy ? "Connecting…" : "Connect to Local API"}
+          </button>
+        )}
         <button onClick={dismiss} className="rounded-lg bg-accent px-4 py-1.5 text-sm font-semibold text-[#04121c] hover:brightness-110">
           Continue Exploring
         </button>

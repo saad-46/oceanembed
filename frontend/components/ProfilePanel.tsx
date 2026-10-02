@@ -9,6 +9,7 @@ import Explain from "@/components/Explain";
 import type { TermKey } from "@/lib/glossary";
 import { useState } from "react";
 import { apiUrl, friendlyError, post, type ProfileResponse } from "@/lib/api";
+import { useBackendStatus } from "@/lib/backendStatus";
 import { useApi } from "@/lib/useApi";
 import ProfileChart, { type SeriesSpec } from "./ProfileChart";
 import { DataBadge, ErrorState, LoadingState, Notice, Provenance, Toggle, fmt, type DataKind } from "./ui";
@@ -85,6 +86,7 @@ export default function ProfilePanel({
   layerValue?: { title: string; value: number | null; units: string; digits: number; where: string; date: string; kind: DataKind; source: string; lineage: string };
 }) {
   const { data, error, loading } = useProfile(date, lat, lon);
+  useBackendStatus(); // re-render when the API connects or disconnects (the CSV link depends on it)
   const [show, setShow] = useState({ clim: true, argo: true, lgbm: false, nosss: false, target: false });
   const pointKey = `${date}|${lat}|${lon}`;
   const [summaryState, setSummary] = useState<{ key: string; text: string; source: string } | null>(null);

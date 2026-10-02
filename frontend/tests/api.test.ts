@@ -14,10 +14,10 @@ afterEach(() => {
 });
 
 describe("API base URL", () => {
-  it("defaults to the local backend outside production builds", async () => {
+  it("without NEXT_PUBLIC_API_URL the API is the one on the visitor's own computer, used only once it is found", async () => {
     const api = await load({ NODE_ENV: "development" });
     expect(api.API_URL).toBe("http://localhost:8100");
-    expect(api.apiUrl("/docs")).toBe("http://localhost:8100/docs");
+    expect(api.apiUrl("/docs")).toBeNull(); // no link to an API that has not been found
   });
 
   it("uses NEXT_PUBLIC_API_URL in production, without a trailing slash", async () => {
@@ -26,11 +26,11 @@ describe("API base URL", () => {
     expect(api.apiUrl("/v1/meta")).toBe("https://api.example.org/v1/meta");
   });
 
-  it("never falls back to localhost in a production build", async () => {
+  it("a production build without the variable discovers the local API in the browser; nothing is assumed on the server", async () => {
     const api = await load({ NODE_ENV: "production" });
     expect(api.API_CONFIGURED).toBe(false);
-    expect(api.API_URL).toBe("");
-    expect(api.apiUrl("/docs")).toBeNull();
+    expect(api.API_URL).toBe("http://localhost:8100");
+    expect(api.apiUrl("/docs")).toBeNull(); // offline until the browser has found it
   });
 
   it("serves bundled snapshots when unconfigured, without calling any backend", async () => {
@@ -118,6 +118,7 @@ describe("backend status", () => {
       if (url.startsWith("https://")) throw new TypeError("Failed to fetch");
       return new Response("", { status: 404 });
     }));
+    expect((await status.checkBackend()).mode).toBe("live"); // one failed check is not enough
     expect((await status.checkBackend()).mode).toBe("offline");
   });
 });

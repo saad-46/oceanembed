@@ -7,7 +7,7 @@ import GuideLayer from "@/components/guide/GuideLayer";
 import HelpMenu from "@/components/guide/HelpMenu";
 import OnboardingPrompt from "@/components/guide/OnboardingPrompt";
 import type { Meta } from "@/lib/api";
-import { OFFLINE_NOTICE_EVENT, useBackendStatus } from "@/lib/backendStatus";
+import { connectLocalApi, OFFLINE_NOTICE_EVENT, useBackendStatus } from "@/lib/backendStatus";
 import { useApi } from "@/lib/useApi";
 import { Logo, StatusDot } from "./ui";
 
@@ -45,14 +45,16 @@ export const NAV_GROUPS = [
 ] as const;
 export const NAV = NAV_GROUPS.flatMap((g) => g.items.map((i) => ({ ...i, group: g.label })));
 
-/** Live / Offline Demo / degraded, from the one shared backend status (lib/backendStatus). */
+/** Online / Offline / degraded, from the one shared connection state (lib/connection). */
 function useStatus() {
-  const { mode, health } = useBackendStatus();
+  const { mode, health, canConnect, connectBusy } = useBackendStatus();
   const meta = useApi<Meta>("/v1/meta").data;
   const ok = mode === "connecting" ? null : mode === "live";
-  return { ok, health, meta, offline: mode === "offline" };
+  return { ok, health, meta, offline: mode === "offline", canConnect, connectBusy };
 }
 const showOfflineNotice = () => window.dispatchEvent(new Event(OFFLINE_NOTICE_EVENT));
+/** Explicit user action: the only thing that may make the browser ask for Local Network Access. */
+const connectLocal = () => void connectLocalApi().then((s) => s.connectError && showOfflineNotice());
 
 function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
   const path = usePathname();
@@ -90,7 +92,7 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
       <dl className="border-t border-line px-4 py-3 space-y-1 text-[11px] shrink-0">
         <div className="flex items-center gap-2 text-ink-2 pb-1">
           <StatusDot ok={ok} />
-          <span>{ok === null ? "Connecting…" : ok ? "Live" : offline ? "Offline Demo Mode" : "Service degraded"}</span>
+          <span>{ok === null ? "Connecting…" : ok ? "Online · API connected" : offline ? "Offline · using saved data" : "Service degraded"}</span>
         </div>
         {(
           [
@@ -112,7 +114,7 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
 function TopBar({ onMenu }: { onMenu: () => void }) {
   const path = usePathname() ?? "";
   const item = NAV.find((n) => path.startsWith(n.href));
-  const { ok, offline } = useStatus();
+  const { ok, offline, canConnect, connectBusy } = useStatus();
   return (
     <header className="h-12 shrink-0 border-b border-line bg-bg/85 backdrop-blur flex items-center gap-3 px-3 md:px-5 z-20">
       <button onClick={onMenu} className="lg:hidden p-2 -ml-1 rounded-md text-ink-2 hover:text-ink" aria-label="Open navigation">
@@ -135,10 +137,20 @@ function TopBar({ onMenu }: { onMenu: () => void }) {
         )}
       </nav>
       <div className="flex-1" />
+      {ok === true && (
+        <span className="inline-flex items-center gap-1.5 text-[11.5px] text-ink-2" role="status" title="Connected to the OceanSight API: live data">
+          <StatusDot ok /> Online
+        </span>
+      )}
+      {offline && canConnect && (
+        <button onClick={connectLocal} disabled={connectBusy} title="Look for the OceanSight API running on this computer (your browser may ask for permission)" className="hidden sm:inline-flex items-center rounded-full border border-line-2 px-2.5 py-1 text-[11.5px] text-ink-2 hover:border-accent/60 hover:text-ink disabled:opacity-60">
+          {connectBusy ? "Connecting…" : "Connect to Local API"}
+        </button>
+      )}
       {ok === false &&
         (offline ? (
-          <button onClick={showOfflineNotice} title="About Offline Demo Mode" className="inline-flex items-center gap-1.5 rounded-full border border-warn/40 bg-warn/[0.07] px-2.5 py-1 text-[11.5px] text-warn hover:border-warn/70">
-            <StatusDot ok={false} /> Offline Demo
+          <button onClick={showOfflineNotice} title="Local API is unavailable. OceanSight is showing saved data." className="inline-flex items-center gap-1.5 rounded-full border border-warn/40 bg-warn/[0.07] px-2.5 py-1 text-[11.5px] text-warn hover:border-warn/70">
+            <StatusDot ok={false} /> Offline<span className="hidden sm:inline"> · saved data</span>
           </button>
         ) : (
           <span className="inline-flex items-center gap-1.5 text-[11.5px] text-warn" role="status">

@@ -14,8 +14,8 @@ function checkApiUrl() {
   const url = process.env.NEXT_PUBLIC_API_URL?.trim();
   if (!url) {
     console.warn(
-      "\n⚠ NEXT_PUBLIC_API_URL is not set. This production build has no backend: the app will serve only the bundled " +
-        "offline snapshots (public/fallback/). Set it to the deployed FastAPI URL (e.g. in Vercel → Settings → Environment Variables) and redeploy.\n",
+      "\nNEXT_PUBLIC_API_URL is not set: the browser will look for the OceanSight API on the visitor's own computer " +
+        "(http://localhost:8100, permission-aware) and otherwise serve the bundled saved data (public/fallback/).\n",
     );
   } else if (process.env.VERCEL && /\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0)[:/]?/.test(url)) {
     console.warn(`\n⚠ NEXT_PUBLIC_API_URL=${url} points at a local machine; visitors' browsers cannot reach it. Use the deployed FastAPI URL.\n`);

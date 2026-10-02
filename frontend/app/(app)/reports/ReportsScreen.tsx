@@ -5,6 +5,7 @@ import { AlertCircle, CheckCircle2, Download, FileJson, FileSpreadsheet, FileTex
 import LocationPicker from "@/components/LocationPicker";
 import { Button, PageHeader, Provenance, type DataKind } from "@/components/ui";
 import { apiUrl, EXPORT_BACKEND_REQUIRED, type CycloneTrack, type Meta } from "@/lib/api";
+import { useBackendStatus } from "@/lib/backendStatus";
 import { parsePointParams } from "@/lib/analysis";
 import { STANDARD_DEPTHS } from "@/lib/dates";
 import { useApi } from "@/lib/useApi";
@@ -123,6 +124,7 @@ export default function ReportsScreen() {
     }
   };
 
+  useBackendStatus(); // re-render when the API connects or disconnects (the links below depend on it)
   const apiDocs = apiUrl("/docs");
   const pdfUrl = apiUrl(`/v1/report/${q}&depth=${depth}&format=pdf&sections=${sections}`);
   const contents: [string, DataKind][] = [

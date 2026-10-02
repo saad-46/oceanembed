@@ -8,17 +8,18 @@
  * e.g. `/v1/grid/2023-05-11?depth=100` -> `v1_grid_2023-05-11_depth_100`. POST bodies are
  * appended as `__` + sorted "key_value" pairs of the flattened JSON body.
  *
- * Base URL: `NEXT_PUBLIC_API_URL` (inlined at build time). The localhost default applies to
- * `next dev` only; a production build without the variable has no API (`API_CONFIGURED` false):
- * data requests go straight to the bundled snapshots, and anything else fails with a clear
- * `api_not_configured` error instead of calling localhost from the visitor's browser.
+ * Base URL: `NEXT_PUBLIC_API_URL` when it is set (inlined at build time). Without it the browser looks
+ * for the API on the visitor's own computer (`http://localhost:8100`), permission-aware; see
+ * `lib/connection.ts`. While no API is usable, data requests are answered from the bundled snapshots
+ * and nothing is sent to the network.
  */
-const DEV_API_URL = "http://localhost:8100";
+import { API_BASE, CONFIGURED_API_URL, DISCOVERY, isUsable, reportRequestFailure, reportRequestSuccess, startConnection, whenResolved } from "./connection";
 
-export const API_URL = (process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === "production" ? "" : DEV_API_URL)).trim().replace(/\/+$/, "");
-export const API_CONFIGURED = API_URL !== "";
+export const API_URL = API_BASE;
+/** An explicit API was configured for this build (as opposed to discovering one on this computer). */
+export const API_CONFIGURED = CONFIGURED_API_URL !== "";
 
-/** Shown when a view has no saved copy in a build without a backend (Offline Demo Mode). */
+/** Shown when a view has no saved copy and no API is reachable from this browser. */
 export const LIVE_BACKEND_REQUIRED =
   "This feature requires OceanSight's live scientific backend. The public deployment is currently operating in Offline Demo Mode because deploying the complete backend requires paid cloud infrastructure and an active cloud billing setup. Run OceanSight locally with the backend enabled to access this functionality.";
 export const EXPORT_BACKEND_REQUIRED = "Generating this export requires the OceanSight backend, which is currently available in the local demonstration environment.";
@@ -26,13 +27,9 @@ const NOT_CONFIGURED = LIVE_BACKEND_REQUIRED;
 
 const UNREACHABLE = "The OceanSight API is temporarily unavailable, and there is no saved copy of this view. Try again in a moment.";
 
-if (!API_CONFIGURED && typeof window !== "undefined") {
-  console.info("[OceanSight] Offline Demo Mode: this build has no NEXT_PUBLIC_API_URL, so it serves precomputed demonstration data only.");
-}
-
-/** Absolute backend URL for links and downloads, or null when this build has no API configured. */
+/** Absolute backend URL for links and downloads, or null while no API is usable (offline). */
 export function apiUrl(path: string): string | null {
-  return API_CONFIGURED ? `${API_URL}${path}` : null;
+  return isUsable() ? `${API_URL}${path}` : null;
 }
 
 export class ApiError extends Error {
@@ -80,10 +77,12 @@ async function tryFallback<T>(path: string, body?: unknown): Promise<Fetched<T> 
 }
 
 async function request<T>(path: string, init?: RequestInit & { json?: unknown }, timeoutMs = 20000): Promise<Fetched<T>> {
-  if (!API_CONFIGURED) {
+  startConnection();
+  await whenResolved(); // the first online/offline decision (a short readiness check at most)
+  if (!isUsable()) {
     const fb = await tryFallback<T>(path, init?.json);
     if (fb) return fb;
-    throw new ApiError(0, "api_not_configured", NOT_CONFIGURED);
+    throw DISCOVERY ? new ApiError(0, "api_not_configured", NOT_CONFIGURED) : new ApiError(0, "backend_unreachable", UNREACHABLE);
   }
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
@@ -98,6 +97,7 @@ async function request<T>(path: string, init?: RequestInit & { json?: unknown },
     });
   } catch {
     clearTimeout(timer);
+    reportRequestFailure(); // re-checks readiness; two consecutive failures switch the app offline
     const fb = await tryFallback<T>(path, init?.json);
     if (fb) return fb;
     throw new ApiError(0, "backend_unreachable", UNREACHABLE);
@@ -114,12 +114,14 @@ async function request<T>(path: string, init?: RequestInit & { json?: unknown },
     // An untyped 502/503/504 comes from the host's gateway (backend restarting or asleep), not from the API:
     // treat it like an unreachable backend instead of showing a bare "HTTP 502".
     if (code === "http_error" && [502, 503, 504].includes(res.status)) {
+      reportRequestFailure();
       const fb = await tryFallback<T>(path, init?.json);
       if (fb) return fb;
       throw new ApiError(res.status, "backend_unreachable", UNREACHABLE);
     }
     throw new ApiError(res.status, code, detail);
   }
+  reportRequestSuccess();
   return (await res.json()) as Fetched<T>;
 }
 
